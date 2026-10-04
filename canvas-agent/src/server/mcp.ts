@@ -9,7 +9,7 @@ type CanvasAgentToolResponse = { ok?: boolean; result?: unknown; error?: string 
 /** 启动通过标准输入输出通信的 MCP 服务。 */
 export async function startMcpServer() {
     const config = loadConfig(true);
-    const server = new McpServer({ name: "canvas-agent", version: VERSION }, { instructions: AGENT_PROMPT });
+    const server = new McpServer({ name: "dianran-canvas-agent", version: VERSION }, { instructions: AGENT_PROMPT });
     toolNames.forEach((name) => registerCanvasTool(server, config, name));
     await server.connect(new StdioServerTransport());
 }

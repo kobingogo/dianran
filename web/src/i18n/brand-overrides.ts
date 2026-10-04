@@ -33,8 +33,10 @@ export const brandOverrides: Record<"zh-CN" | "en-US", Overrides> = {
         },
         agent: {
             connect: {
-                pluginText: "在 Codex app 安装配套的画布插件后，通过插件启动画布，插件会自动启动本地 Agent 并带上连接信息。",
-                pluginReminderText: "只有安装 Codex 插件或手动添加 MCP 后，工具列表才会进入 Codex 上下文并增加 token 消耗；只在终端启动本地 Agent 不会安装 MCP。",
+                pluginText: "在终端运行下面两条命令安装点染插件（插件名 dianran），然后在 Codex 里说“打开点染画布”。插件会启动本地 Agent，并把 Local URL 和 Connect token 放在链接里自动连接。",
+                pluginReminderText: "只有安装 Codex 插件或手动添加 MCP 后，工具列表才会进入 Codex 上下文并增加 token 消耗；只在终端启动本地 Agent 不会安装 MCP。0.7.0 之前的插件和 MCP 叫 infinite-canvas（会运行上游的 Agent），装过的话建议用最后两条命令移除。",
+                removeLegacy: "移除旧版",
+                autoDiscover: "网页会自动探测本机 Agent 的地址；Connect token 不会自动下发，需要通过插件打开的链接带入，或从终端输出复制粘贴到下面。",
             },
             events: { diagnostics: "本地 Agent 诊断" },
         },
@@ -67,8 +69,10 @@ export const brandOverrides: Record<"zh-CN" | "en-US", Overrides> = {
         },
         agent: {
             connect: {
-                pluginText: "Install the companion canvas plugin in the Codex app and launch the canvas through it. The plugin starts the local Agent and supplies the connection details automatically.",
-                pluginReminderText: "The tool list enters the Codex context and consumes additional tokens only after installing the Codex plugin or adding MCP manually. Starting the local Agent from a terminal alone does not install MCP.",
+                pluginText: "Run the two commands below to install the Dianran plugin (named dianran), then ask Codex to \"open the Dianran canvas\". The plugin starts the local Agent and passes the Local URL and Connect token in the link, so the page connects automatically.",
+                pluginReminderText: "The tool list enters the Codex context and consumes additional tokens only after installing the Codex plugin or adding MCP manually. Starting the local Agent from a terminal alone does not install MCP. Before 0.7.0 the plugin and MCP were named infinite-canvas (and ran the upstream agent); remove them with the last two commands if installed.",
+                removeLegacy: "Remove old",
+                autoDiscover: "The page detects the local Agent address automatically. The Connect token is never handed out automatically: it arrives in the link the plugin opens, or paste it from the terminal output below.",
             },
             events: { diagnostics: "Local Agent diagnostics" },
         },

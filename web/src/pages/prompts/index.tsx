@@ -1,5 +1,5 @@
 import { FolderPlus, Search } from "lucide-react";
-import { type ReactNode, type UIEvent, useEffect, useState } from "react";
+import { type ReactNode, type UIEvent, useEffect, useRef, useState } from "react";
 import { App, Button, Empty, Input, Spin, Tag } from "antd";
 import { useTranslation } from "react-i18next";
 
@@ -27,6 +27,26 @@ export default function PromptsPage() {
         if (query.isError) showErrorToast(message, query.error, t("prompts.loadFailed"));
     }, [message, query.error, query.isError, t]);
 
+    // [dianran] Switching library (分类) resets the tag filter to 全部 and scrolls back to the top; the search keyword is kept
+    // so a search can be compared across libraries. Tags that no longer exist in the current result set are dropped.
+    const mainRef = useRef<HTMLElement>(null);
+    const changeCategory = (category: string) => {
+        if (category === selectedCategory) return;
+        setSelectedCategory(category);
+        setSelectedTags([]);
+        mainRef.current?.scrollTo({ top: 0 });
+    };
+    useEffect(() => {
+        if (promptCategoryOptions.length <= 1 || promptCategoryOptions.includes(selectedCategory)) return;
+        setSelectedCategory(ALL_PROMPTS_OPTION);
+        setSelectedTags([]);
+    }, [promptCategoryOptions, selectedCategory]);
+    useEffect(() => {
+        if (query.isLoading || !selectedTags.length) return;
+        const available = selectedTags.filter((tag) => promptTags.includes(tag));
+        if (available.length !== selectedTags.length) setSelectedTags(available);
+    }, [promptTags, query.isLoading, selectedTags]);
+
     const toggleTag = (tag: string) => {
         if (tag === ALL_PROMPTS_OPTION) return setSelectedTags([]);
         setSelectedTags((items) => (items.includes(tag) ? items.filter((item) => item !== tag) : [...items, tag]));
@@ -44,7 +64,7 @@ export default function PromptsPage() {
 
     return (
         <div className="flex h-full flex-col overflow-hidden bg-background text-stone-800 dark:text-stone-100">
-            <main className="min-h-0 flex-1 overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] px-4 py-6 [background-size:16px_16px] sm:px-6 lg:py-8 dark:bg-[radial-gradient(rgba(245,245,244,.16)_1px,transparent_1px)]" onScroll={handleListScroll}>
+            <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] px-4 py-6 [background-size:16px_16px] sm:px-6 lg:py-8 dark:bg-[radial-gradient(rgba(245,245,244,.16)_1px,transparent_1px)]" onScroll={handleListScroll}>
                 <div className="mx-auto max-w-7xl">
                     <div className="text-center">
                         <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">{t("prompts.title")}</h1>
@@ -52,7 +72,7 @@ export default function PromptsPage() {
                     </div>
                     <div className="mt-5 grid items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
                         <aside className="thin-scrollbar max-h-72 overflow-y-auto border-b border-stone-200 pb-5 lg:sticky lg:top-0 lg:max-h-[calc(100dvh-6rem)] lg:border-b-0 lg:border-r lg:pb-8 lg:pr-5 dark:border-stone-800">
-                            <PromptFilter label={t("prompts.category")} options={promptCategoryOptions} selected={selectedCategory} onChange={setSelectedCategory} />
+                            <PromptFilter label={t("prompts.category")} options={promptCategoryOptions} selected={selectedCategory} onChange={changeCategory} />
                             <div className="mt-6">
                                 <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">{t("prompts.tags")}</div>
                                 <div className="flex flex-wrap gap-1.5">

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-import { AGENT_PROMPT } from "../config.js";
+import { AGENT_PROMPT, LEGACY_MCP_SERVER_NAME, MCP_SERVER_NAME } from "../config.js";
 import { createAgentLogWriter } from "../utils/agent-runtime.js";
 import { errorMessage } from "../utils/value.js";
 import type { AgentEmit } from "./types.js";
@@ -9,7 +9,7 @@ import type { AgentEmit } from "./types.js";
 export function runClaudeTurn(prompt: string, emit: AgentEmit) {
     const fullPrompt = withAgentPrompt(prompt);
     if (!fullPrompt) return;
-    const child = spawnAgent("claude", ["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--allowedTools", "mcp__infinite-canvas__*", fullPrompt], emit);
+    const child = spawnAgent("claude", ["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--allowedTools", `mcp__${MCP_SERVER_NAME}__*,mcp__${LEGACY_MCP_SERVER_NAME}__*`, fullPrompt], emit);
     if (child) pipeJsonLines(child, emit, "claude");
 }
 

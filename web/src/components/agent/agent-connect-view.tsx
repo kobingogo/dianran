@@ -7,8 +7,14 @@ import { useTranslation } from "react-i18next";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { LOCAL_AGENT_PACKAGE } from "@/constant/brand";
 
-const AGENT_PLUGIN_REMOVE_COMMAND = "codex plugin remove infinite-canvas";
-const AGENT_MCP_REMOVE_COMMAND = "codex mcp remove infinite-canvas";
+// [dianran] Codex plugin "dianran" from this repo's marketplace (.agents/plugins/marketplace.json → plugins/dianran).
+const AGENT_PLUGIN_MARKETPLACE_COMMAND = "codex plugin marketplace add kobingogo/dianran";
+const AGENT_PLUGIN_ADD_COMMAND = "codex plugin add dianran@dianran-local";
+const AGENT_PLUGIN_REMOVE_COMMAND = "codex plugin remove dianran";
+const AGENT_MCP_REMOVE_COMMAND = "codex mcp remove dianran";
+// Installs made before canvas-agent 0.7.0 (or from upstream Infinite Canvas) used the name "infinite-canvas".
+const LEGACY_PLUGIN_REMOVE_COMMAND = "codex plugin remove infinite-canvas";
+const LEGACY_MCP_REMOVE_COMMAND = "codex mcp remove infinite-canvas";
 
 export function AgentConnectView({
     theme,
@@ -35,7 +41,10 @@ export function AgentConnectView({
 }) {
     const { t } = useTranslation();
     const { message } = App.useApp();
-    const steps = [{ title: t("agent.connect.pluginTitle"), text: t("agent.connect.pluginText") }, { title: t("agent.connect.directTitle"), text: t("agent.connect.directText"), command: `npx -y ${LOCAL_AGENT_PACKAGE}@latest` }];
+    const steps = [
+        { title: t("agent.connect.pluginTitle"), text: t("agent.connect.pluginText"), commands: [AGENT_PLUGIN_MARKETPLACE_COMMAND, AGENT_PLUGIN_ADD_COMMAND] },
+        { title: t("agent.connect.directTitle"), text: t("agent.connect.directText"), commands: [`npx -y ${LOCAL_AGENT_PACKAGE}@latest`] },
+    ];
     const statusText = connectError ? t("agent.status.failed") : connected ? activity : enabled ? t("agent.status.connecting") : t("agent.status.disconnected");
     const statusColor = connectError ? "#dc2626" : connected ? "#16a34a" : enabled ? "#d97706" : theme.node.muted;
     const copyCommand = (command: string) => {
@@ -52,6 +61,8 @@ export function AgentConnectView({
                 {[
                     [t("agent.connect.removePlugin"), AGENT_PLUGIN_REMOVE_COMMAND],
                     [t("agent.connect.removeMcp"), AGENT_MCP_REMOVE_COMMAND],
+                    [t("agent.connect.removeLegacy"), LEGACY_PLUGIN_REMOVE_COMMAND],
+                    [t("agent.connect.removeLegacy"), LEGACY_MCP_REMOVE_COMMAND],
                 ].map(([label, command]) => (
                     <div key={command} className="flex items-center gap-2 rounded-md border bg-transparent px-2 py-1.5" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
                         <span className="shrink-0 text-[11px]" style={{ color: theme.node.muted }}>
@@ -77,7 +88,6 @@ export function AgentConnectView({
                 </div>
                 <div className="space-y-2">
                     {steps.map((step, index) => {
-                        const command = "command" in step ? step.command : "";
                         return (
                             <Fragment key={step.title}>
                                 <div className="rounded-lg px-3 py-2.5">
@@ -85,14 +95,14 @@ export function AgentConnectView({
                                     <div className="mt-1 text-xs leading-5" style={{ color: theme.node.muted }}>
                                         {step.text}
                                     </div>
-                                    {command ? (
-                                        <div className="mt-2 flex items-center gap-2 rounded-md border bg-transparent px-2 py-1.5" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+                                    {step.commands.map((command) => (
+                                        <div key={command} className="mt-2 flex items-center gap-2 rounded-md border bg-transparent px-2 py-1.5" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
                                             <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-[11px] leading-5">{command}</code>
                                             <Tooltip title={t("agent.connect.copyCommand")}>
                                                 <Button size="small" type="text" className="!h-6 !w-6 !min-w-6" icon={<Copy className="size-3.5" />} onClick={() => copyCommand(command)} />
                                             </Tooltip>
                                         </div>
-                                    ) : null}
+                                    ))}
                                 </div>
                                 {index === 0 ? codexPluginReminder : null}
                             </Fragment>

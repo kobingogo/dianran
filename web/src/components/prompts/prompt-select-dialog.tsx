@@ -42,7 +42,12 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
                     <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">{t("prompts.category")}</div>
                     <div className="flex flex-wrap gap-1.5">
                         {promptCategories.map((category) => (
-                            <Tag.CheckableTag key={category} checked={selectedCategory === category} className={cn("prompt-filter-tag", selectedCategory === category && "is-active")} onChange={() => setSelectedCategory(category)}>
+                            <Tag.CheckableTag key={category} checked={selectedCategory === category} className={cn("prompt-filter-tag", selectedCategory === category && "is-active")} onChange={() => {
+                                if (category === selectedCategory) return;
+                                // [dianran] switching library resets the tag filter to 全部
+                                setSelectedCategory(category);
+                                setSelectedTags([]);
+                            }}>
                                 {category === ALL_PROMPTS_OPTION ? t("common.all") : category}
                             </Tag.CheckableTag>
                         ))}

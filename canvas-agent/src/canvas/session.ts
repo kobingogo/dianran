@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { ServerResponse } from "node:http";
 
 import type { AgentAttachment } from "../agent/types.js";
+import { LEGACY_MCP_SERVER_NAME, MCP_SERVER_NAME } from "../names.js";
 import { logger } from "../utils/logger.js";
 import { buildCanvasToolRequest, fitAttachmentNodeSize } from "./operations.js";
 import type { ToolName } from "./schemas.js";
@@ -146,9 +147,10 @@ export class CanvasSession {
         this.preparedConversationThreadId = threadId;
         const statuses = this.conversationState.mcpStatuses;
         const hasPending = !this.conversationInventoryComplete || Object.values(statuses).some((item) => item.status === "starting");
-        const requiredFailure = statuses["infinite-canvas"]?.status !== "ready";
+        const required = statuses[MCP_SERVER_NAME] || statuses[LEGACY_MCP_SERVER_NAME];
+        const requiredFailure = required?.status !== "ready";
         const hasFailure = Object.values(statuses).some((item) => item.status === "failed" || item.status === "cancelled");
-        const requiredFailureDetail = statuses["infinite-canvas"]?.error;
+        const requiredFailureDetail = required?.error;
         return this.updateConversation({
             threadId,
             status: hasPending ? "preparing" : requiredFailure ? "failed" : hasFailure ? "warning" : "ready",
