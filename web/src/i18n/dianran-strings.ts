@@ -8,7 +8,16 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
     "zh-CN": {
         // Naming: navigation label == page title, one word per concept (素材 instead of 资产, 设置 instead of 配置).
         navigation: { canvas: "画布", image: "生图", video: "视频", prompts: "提示词", assets: "素材", config: "设置" },
-        canvas: { title: "画布", shortcuts: "快捷键（?）", deleteSelected: "删除选中（Delete）", shortcut: { help: "打开快捷键面板" } },
+        canvas: {
+            title: "画布",
+            shortcuts: "快捷键（?）",
+            deleteSelected: "删除选中（Delete）",
+            back: "返回",
+            goHome: "回到首页",
+            autoSaved: "已自动保存",
+            workbench: "切换工作台",
+            shortcut: { help: "打开快捷键面板", back: "返回进入画布前的页面" },
+        },
         imageWorkbench: { title: "生图" },
         videoWorkbench: { title: "视频" },
         prompts: { title: "提示词", attribution: { author: "作者 {{author}}", source: "查看原帖", model: "模型：{{model}}", posted: "发布于 {{date}}" } },
@@ -86,7 +95,16 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
     },
     "en-US": {
         navigation: { canvas: "Canvas", image: "Image", video: "Video", prompts: "Prompts", assets: "Assets", config: "Settings" },
-        canvas: { title: "Canvases", shortcuts: "Shortcuts (?)", deleteSelected: "Delete selected (Delete)", shortcut: { help: "Open this shortcut panel" } },
+        canvas: {
+            title: "Canvases",
+            shortcuts: "Shortcuts (?)",
+            deleteSelected: "Delete selected (Delete)",
+            back: "Back",
+            goHome: "Home",
+            autoSaved: "Saved",
+            workbench: "Switch workspace",
+            shortcut: { help: "Open this shortcut panel", back: "Back to the page before this canvas" },
+        },
         imageWorkbench: { title: "Image" },
         videoWorkbench: { title: "Video" },
         prompts: { title: "Prompts", attribution: { author: "By {{author}}", source: "View original post", model: "Model: {{model}}", posted: "Posted {{date}}" } },
