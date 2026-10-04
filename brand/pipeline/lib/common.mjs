@@ -20,7 +20,7 @@ export const config = (name) => readJson(resolve(PIPELINE_DIR, "config", name));
 export const libPath = (id) => resolve(LIB_DIR, `${id}.json`);
 export const nowIso = () => new Date().toISOString();
 export const today = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Taipei" }).format(new Date());
-export const log = (...args) => console.log(`[${new Date().toISOString().slice(11, 19)}]`, ...args);
+export const log = (...args) => console.log(`[${new Date().toLocaleTimeString("sv-SE", { timeZone: process.env.TZ || "Asia/Taipei" })}]`, ...args);
 
 // Libraries the pipeline maintains, with their origin.
 export function libraries() {
