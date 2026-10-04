@@ -29,7 +29,8 @@
             try {
                 // [dianran] storage key kept from upstream (STORAGE_NS in src/constant/brand.ts) so existing themes survive.
                 var s = JSON.parse(localStorage.getItem("infinite-canvas:theme_store") || "{}");
-                var t = s.state && s.state.theme === "light" ? "light" : "dark";
+                var stored = s.state && s.state.theme;
+                var t = stored === "dark" || stored === "light" ? stored : "light";
                 document.documentElement.classList.toggle("dark", t === "dark");
                 document.documentElement.style.colorScheme = t;
             } catch (e) {}
