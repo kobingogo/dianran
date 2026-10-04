@@ -61,7 +61,7 @@ function cacheKey(sourceId: string) {
 // [dianran] Bump when the bundled snapshots change so old caches refetch
 // (v2: covers served from /prompt-sources/covers; v3: X/forum covers bundled + x-trending library; v4: cover-less entries removed;
 // since v5 the weekly prompt pipeline rewrites this line as "prompts-YYYY-MM-DD", see brand/pipeline/bump-version.mjs).
-const BUILT_IN_SNAPSHOT_VERSION = "covers-v4";
+const BUILT_IN_SNAPSHOT_VERSION = "prompts-2026-10-04";
 
 function sourceSignature(source: PromptSource) {
     const value = `${source.name}\n${source.url}\n${source.homepage}${source.builtIn ? `\n${BUILT_IN_SNAPSHOT_VERSION}` : ""}`;

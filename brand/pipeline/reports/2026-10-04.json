@@ -1,0 +1,596 @@
+{
+  "date": "2026-10-04",
+  "seconds": 161,
+  "fetch": {
+    "x": {
+      "queries": {
+        "gpt-image": 41,
+        "nano-banana": 45,
+        "seedream": 43,
+        "midjourney": 38,
+        "video": 43,
+        "flux": 5,
+        "zh": 48,
+        "authors-1": 46,
+        "authors-2": 55
+      },
+      "authorsSearched": 24,
+      "raw": 364,
+      "unique": 325,
+      "noMedia": 66,
+      "reply": 1,
+      "noPrompt": 158,
+      "noModel": 9,
+      "rejected": {
+        "nsfw": 13,
+        "off-topic": 6,
+        "excluded-author": 4,
+        "real-person": 2,
+        "too-short": 1
+      },
+      "duplicate": 8,
+      "threadLookups": 12,
+      "candidates": 57,
+      "errors": []
+    },
+    "github": {
+      "youmind-gpt-image-2": {
+        "upstream": 126,
+        "notInLibrary": 120,
+        "removedUpstream": 120
+      },
+      "youmind-nano-banana-pro": {
+        "upstream": 129,
+        "notInLibrary": 0,
+        "removedUpstream": 0
+      },
+      "awesome-gpt4o-image-prompts": {
+        "upstream": 76,
+        "notInLibrary": 0,
+        "removedUpstream": 0
+      },
+      "banana-prompt-quicker": {
+        "upstream": 323,
+        "notInLibrary": 38,
+        "removedUpstream": 0
+      },
+      "freestylefly-gpt-image-2": {
+        "upstream": 541,
+        "notInLibrary": 0,
+        "removedUpstream": 0
+      },
+      "awesome-gpt-image": {
+        "upstream": 53,
+        "notInLibrary": 0,
+        "removedUpstream": 0
+      }
+    },
+    "civitai": {
+      "authenticated": false,
+      "pages": 4,
+      "raw": 400,
+      "notSfw": 10,
+      "noPrompt": 66,
+      "lowReactions": 322,
+      "rejected": {},
+      "duplicate": 0,
+      "candidates": 2,
+      "errors": [
+        "HTTP 503 Image search is temporarily overloaded — please retry.",
+        "HTTP 503 Image search is temporarily overloaded — please retry.",
+        "HTTP 503 Image search is temporarily overloaded — please retry."
+      ]
+    }
+  },
+  "merge": {
+    "runAt": "2026-10-04T12:32:58.206Z",
+    "added": 85,
+    "retired": 61,
+    "updated": 42,
+    "wouldRetireStale": 100,
+    "usageStatus": "ok",
+    "usageTrackingDays": 0,
+    "perLibrary": {
+      "x-trending": {
+        "before": 100,
+        "added": 57,
+        "retired": 7,
+        "after": 150
+      },
+      "civitai-trending": {
+        "before": 0,
+        "added": 2,
+        "retired": 0,
+        "after": 2
+      },
+      "youmind-gpt-image-2": {
+        "before": 126,
+        "added": 24,
+        "retired": 26,
+        "after": 124
+      },
+      "youmind-nano-banana-pro": {
+        "before": 129,
+        "added": 0,
+        "retired": 4,
+        "after": 125
+      },
+      "awesome-gpt4o-image-prompts": {
+        "before": 76,
+        "added": 0,
+        "retired": 3,
+        "after": 73
+      },
+      "banana-prompt-quicker": {
+        "before": 285,
+        "added": 2,
+        "retired": 0,
+        "after": 287
+      },
+      "freestylefly-gpt-image-2": {
+        "before": 541,
+        "added": 0,
+        "retired": 20,
+        "after": 521
+      },
+      "awesome-gpt-image": {
+        "before": 53,
+        "added": 0,
+        "retired": 1,
+        "after": 52
+      }
+    },
+    "coverStats": {
+      "ok": 2,
+      "cached": 117,
+      "skipped": 0,
+      "failed": 3
+    },
+    "xChecks": {
+      "checked": 866,
+      "gone": 30,
+      "refreshed": 836,
+      "errors": 0
+    },
+    "retiredByReason": {
+      "upstream-removed": 24,
+      "source-deleted": 30,
+      "cap": 7
+    }
+  },
+  "picks": {
+    "runAt": "2026-10-04T12:33:46.436Z",
+    "picks": [
+      {
+        "id": "x-trending:2096555280306000120",
+        "title": "夜景照片转手绘水彩版画",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 5.78,
+        "rank": 1,
+        "status": "new",
+        "author": "@Alina_with_Ai",
+        "sourceUrl": "https://x.com/Alina_with_Ai/status/2096555280306000120"
+      },
+      {
+        "id": "x-trending:2102724961408626735",
+        "title": "上下分屏：实拍旅行照 + 插画",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 5.774,
+        "rank": 2,
+        "status": "new",
+        "author": "@MahnoorAi12",
+        "sourceUrl": "https://x.com/MahnoorAi12/status/2102724961408626735"
+      },
+      {
+        "id": "x-trending:2104278802683851083",
+        "title": "黑白网点插画风格（sref）",
+        "model": "Midjourney",
+        "library": "x-trending",
+        "score": 5.387,
+        "rank": 3,
+        "status": "new",
+        "author": "@areej_design",
+        "sourceUrl": "https://x.com/areej_design/status/2104278802683851083"
+      },
+      {
+        "id": "x-trending:2099707375943066094",
+        "title": "街头时装大片（视频）",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 5.236,
+        "rank": 4,
+        "status": "new",
+        "author": "@AIwithkhan",
+        "sourceUrl": "https://x.com/AIwithkhan/status/2099707375943066094"
+      },
+      {
+        "id": "x-trending:2103696195000709627",
+        "title": "旅行者剪影双重曝光海报",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 5.045,
+        "rank": 5,
+        "status": "new",
+        "author": "@Arina_hoqe",
+        "sourceUrl": "https://x.com/Arina_hoqe/status/2103696195000709627"
+      },
+      {
+        "id": "x-trending:2102261738280489425",
+        "title": "照片转复古剪贴簿",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 4.819,
+        "rank": 6,
+        "status": "new",
+        "author": "@Sairah_0",
+        "sourceUrl": "https://x.com/Sairah_0/status/2102261738280489425"
+      },
+      {
+        "id": "x-trending:2106347953711661482",
+        "title": "Create a 20-second heartwarming",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 4.808,
+        "rank": 7,
+        "status": "new",
+        "author": "@Zarnab_with_Ai",
+        "sourceUrl": "https://x.com/Zarnab_with_Ai/status/2106347953711661482"
+      },
+      {
+        "id": "x-trending:2105146792681832481",
+        "title": "2000 年代韩国 DV 生日 Vlog",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 4.765,
+        "rank": 8,
+        "status": "new",
+        "author": "@saniaspeaks_",
+        "sourceUrl": "https://x.com/saniaspeaks_/status/2105146792681832481"
+      },
+      {
+        "id": "x-trending:2105298953235472410",
+        "title": "【主体】 × 【风格】 × 【构图】 ×…",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 4.74,
+        "rank": 9,
+        "status": "new",
+        "author": "@DeepBlueX0",
+        "sourceUrl": "https://x.com/DeepBlueX0/status/2105298953235472410"
+      },
+      {
+        "id": "x-trending:2106560621932384657",
+        "title": "浴室里的小宝宝 3D 动画",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 4.729,
+        "rank": 10,
+        "status": "new",
+        "author": "@Zarnab_with_Ai",
+        "sourceUrl": "https://x.com/Zarnab_with_Ai/status/2106560621932384657"
+      },
+      {
+        "id": "x-trending:2105256819623129130",
+        "title": "森林草地上的动物朋友 3D 短片",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 4.703,
+        "rank": 11,
+        "status": "new",
+        "author": "@Zarnab_with_Ai",
+        "sourceUrl": "https://x.com/Zarnab_with_Ai/status/2105256819623129130"
+      },
+      {
+        "id": "x-trending:2103078313111740842",
+        "title": "角色连续性设定表",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 4.691,
+        "rank": 12,
+        "status": "new",
+        "author": "@ElsaSofia__AI",
+        "sourceUrl": "https://x.com/ElsaSofia__AI/status/2103078313111740842"
+      },
+      {
+        "id": "youmind-gpt-image-2:2a0e016186eac74c",
+        "title": "个人资料 / 头像 - GPT Image 黑色缎面连衣裙人像",
+        "model": "GPT Image",
+        "library": "youmind-gpt-image-2",
+        "score": 4.664,
+        "rank": 13,
+        "status": "new",
+        "author": "Prompt アトリエ｜AI画像プロンプト",
+        "sourceUrl": "https://x.com/CyberTotal2026/status/2106251146767511802"
+      },
+      {
+        "id": "x-trending:2103092900842381493",
+        "title": "独立艺术画册风海报",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 4.643,
+        "rank": 14,
+        "status": "new",
+        "author": "@MahnoorAi12",
+        "sourceUrl": "https://x.com/MahnoorAi12/status/2103092900842381493"
+      },
+      {
+        "id": "x-trending:2103849845467537562",
+        "title": "猎人遭遇巨兽",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 4.6,
+        "rank": 16,
+        "status": "new",
+        "author": "@ShamsAmin56",
+        "sourceUrl": "https://x.com/ShamsAmin56/status/2103849845467537562"
+      },
+      {
+        "id": "x-trending:2104552578394575105",
+        "title": "游戏角色手持 Vlog",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 4.571,
+        "rank": 20,
+        "status": "new",
+        "author": "@GlitterPixely",
+        "sourceUrl": "https://x.com/GlitterPixely/status/2104552578394575105"
+      },
+      {
+        "id": "x-trending:2086152970908086703",
+        "title": "文艺复兴风读书人插画",
+        "model": "Nano Banana",
+        "library": "x-trending",
+        "score": 4.535,
+        "rank": 21,
+        "status": "new",
+        "author": "@heysidoku",
+        "sourceUrl": "https://x.com/heysidoku/status/2086152970908086703"
+      },
+      {
+        "id": "x-trending:2093574426642264501",
+        "title": "吞下光剑化身大天使",
+        "model": "Seedance",
+        "library": "x-trending",
+        "score": 4.524,
+        "rank": 22,
+        "status": "new",
+        "author": "@itsSaira_1",
+        "sourceUrl": "https://x.com/itsSaira_1/status/2093574426642264501"
+      },
+      {
+        "id": "x-trending:2089537788354195539",
+        "title": "角色 360° 旋转 + 设定图",
+        "model": "Hailuo",
+        "library": "x-trending",
+        "score": 4.417,
+        "rank": 30,
+        "status": "new",
+        "author": "@PhotogenicWeekE",
+        "sourceUrl": "https://x.com/PhotogenicWeekE/status/2089537788354195539"
+      },
+      {
+        "id": "x-trending:2099122632063127760",
+        "title": "80 年代印度动作片主角",
+        "model": "Nano Banana",
+        "library": "x-trending",
+        "score": 4.298,
+        "rank": 44,
+        "status": "new",
+        "author": "@RAVIKUMARSAHU78",
+        "sourceUrl": "https://x.com/RAVIKUMARSAHU78/status/2099122632063127760"
+      },
+      {
+        "id": "youmind-nano-banana-pro:efa9f3572ff8230d",
+        "title": "社交媒体帖子 - 精品店时尚编辑人像",
+        "model": "Nano Banana",
+        "library": "youmind-nano-banana-pro",
+        "score": 4.271,
+        "rank": 48,
+        "status": "new",
+        "author": "Nawal",
+        "sourceUrl": "https://x.com/nawalsehar/status/2105897710918242518"
+      },
+      {
+        "id": "x-trending:2096209304537932228",
+        "title": "半写实油画肖像",
+        "model": "Nano Banana",
+        "library": "x-trending",
+        "score": 4.231,
+        "rank": 55,
+        "status": "new",
+        "author": "@HustleXR",
+        "sourceUrl": "https://x.com/HustleXR/status/2096209304537932228"
+      },
+      {
+        "id": "x-trending:2106380334623600930",
+        "title": "同一张脸的时装写真",
+        "model": "Nano Banana",
+        "library": "x-trending",
+        "score": 4.222,
+        "rank": 56,
+        "status": "new",
+        "author": "@Elvorya",
+        "sourceUrl": "https://x.com/Elvorya/status/2106380334623600930"
+      },
+      {
+        "id": "x-trending:2085930145374966138",
+        "title": "微缩农舍建造延时（第一阶段）",
+        "model": "Nano Banana",
+        "library": "x-trending",
+        "score": 4.098,
+        "rank": 70,
+        "status": "new",
+        "author": "@Strength04_X",
+        "sourceUrl": "https://x.com/Strength04_X/status/2085930145374966138"
+      },
+      {
+        "id": "youmind-nano-banana-pro:0221fd936eb7e0aa",
+        "title": "产品营销 - 电影感编辑风格卧室人像",
+        "model": "Nano Banana",
+        "library": "youmind-nano-banana-pro",
+        "score": 4.09,
+        "rank": 74,
+        "status": "new",
+        "author": "Elvorya",
+        "sourceUrl": "https://x.com/Elvorya/status/2104936510046794177"
+      },
+      {
+        "id": "x-trending:2086412223061135392",
+        "title": "角色登场介绍动画",
+        "model": "Hailuo",
+        "library": "x-trending",
+        "score": 4.071,
+        "rank": 76,
+        "status": "new",
+        "author": "@aimikoda",
+        "sourceUrl": "https://x.com/aimikoda/status/2086412223061135392"
+      },
+      {
+        "id": "x-trending:2105751043451572475",
+        "title": "Sweet Dreams, my friends Made with Midjourney + Seeadance",
+        "model": "Midjourney",
+        "library": "x-trending",
+        "score": 4.06,
+        "rank": 79,
+        "status": "new",
+        "author": "@minuitIA",
+        "sourceUrl": "https://x.com/minuitIA/status/2105751043451572475"
+      },
+      {
+        "id": "youmind-nano-banana-pro:42c38fd5de06da24",
+        "title": "个人资料 / 头像 - 温馨居家生活方式人像",
+        "model": "Nano Banana",
+        "library": "youmind-nano-banana-pro",
+        "score": 4.042,
+        "rank": 81,
+        "status": "new",
+        "author": "Aynelle",
+        "sourceUrl": "https://x.com/aynellex/status/2106031986003615843"
+      },
+      {
+        "id": "dianran-picks:ink-mountains",
+        "title": "水墨远山",
+        "model": "通用",
+        "library": "dianran-picks",
+        "score": 4.035,
+        "rank": 82,
+        "status": "new",
+        "author": "点染",
+        "sourceUrl": ""
+      },
+      {
+        "id": "civitai-trending:144251268",
+        "title": "black and white ink wash illustration of two cats — one…",
+        "model": "Krea 2",
+        "library": "civitai-trending",
+        "score": 3.929,
+        "rank": 102,
+        "status": "new",
+        "author": "FreijaFoxy",
+        "sourceUrl": "https://civitai.com/images/144251268"
+      }
+    ],
+    "added": [
+      "x-trending:2096555280306000120",
+      "x-trending:2102724961408626735",
+      "x-trending:2104278802683851083",
+      "x-trending:2099707375943066094",
+      "x-trending:2103696195000709627",
+      "x-trending:2102261738280489425",
+      "x-trending:2106347953711661482",
+      "x-trending:2105146792681832481",
+      "x-trending:2105298953235472410",
+      "x-trending:2106560621932384657",
+      "x-trending:2105256819623129130",
+      "x-trending:2103078313111740842",
+      "youmind-gpt-image-2:2a0e016186eac74c",
+      "x-trending:2103092900842381493",
+      "x-trending:2103849845467537562",
+      "x-trending:2104552578394575105",
+      "x-trending:2086152970908086703",
+      "x-trending:2093574426642264501",
+      "x-trending:2089537788354195539",
+      "x-trending:2099122632063127760",
+      "youmind-nano-banana-pro:efa9f3572ff8230d",
+      "x-trending:2096209304537932228",
+      "x-trending:2106380334623600930",
+      "x-trending:2085930145374966138",
+      "youmind-nano-banana-pro:0221fd936eb7e0aa",
+      "x-trending:2086412223061135392",
+      "x-trending:2105751043451572475",
+      "youmind-nano-banana-pro:42c38fd5de06da24",
+      "dianran-picks:ink-mountains",
+      "civitai-trending:144251268"
+    ],
+    "dropped": [
+      {
+        "id": "dianran-picks:ink-mountains",
+        "reason": "排名跌出前 45（当前第 82 名）",
+        "title": "水墨远山"
+      },
+      {
+        "id": "dianran-picks:neon-city",
+        "reason": "排名跌出前 45（当前第 169 名）",
+        "title": "霓虹夜城"
+      },
+      {
+        "id": "dianran-picks:product-poster",
+        "reason": "排名跌出前 45（当前第 170 名）",
+        "title": "电商主图"
+      },
+      {
+        "id": "dianran-picks:bauhaus",
+        "reason": "排名跌出前 45（当前第 171 名）",
+        "title": "包豪斯几何"
+      },
+      {
+        "id": "dianran-picks:lotus-moon",
+        "reason": "排名跌出前 45（当前第 172 名）",
+        "title": "荷塘月色"
+      },
+      {
+        "id": "dianran-picks:nebula",
+        "reason": "排名跌出前 45（当前第 173 名）",
+        "title": "星云"
+      },
+      {
+        "id": "dianran-picks:silk-ribbons",
+        "reason": "排名跌出前 45（当前第 174 名）",
+        "title": "飞天绸带"
+      },
+      {
+        "id": "dianran-picks:snow-lake",
+        "reason": "排名跌出前 45（当前第 175 名）",
+        "title": "雪山湖泊"
+      }
+    ],
+    "perModel": {
+      "GPT Image": 8,
+      "Midjourney": 2,
+      "Seedance": 8,
+      "Nano Banana": 8,
+      "Hailuo": 2,
+      "通用": 1,
+      "Krea 2": 1
+    }
+  },
+  "finalize": {
+    "version": "prompts-2026-10-04",
+    "previousVersion": "covers-v4",
+    "pruned": 173,
+    "counts": {
+      "awesome-gpt-image": 52,
+      "awesome-gpt4o-image-prompts": 73,
+      "banana-prompt-quicker": 287,
+      "civitai-trending": 2,
+      "dianran-picks": 30,
+      "freestylefly-gpt-image-2": 521,
+      "x-trending": 150,
+      "youmind-gpt-image-2": 124,
+      "youmind-nano-banana-pro": 125
+    }
+  },
+  "usageStatus": "ok"
+}
