@@ -32,7 +32,8 @@ type ImageSettingsPanelProps = {
 export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = true, className = "w-[320px] space-y-4 rounded-2xl px-1 py-0.5", maxCount = 15, quickCount = 10 }: ImageSettingsPanelProps) {
     const { t } = useTranslation();
     const [snapDimensionToStep, setSnapDimensionToStep] = useState(true);
-    const quality = config.quality || "auto";
+    // 过渡：新默认 standard/hd 在旧四档 UI 中显示为 自动/高（P0-3 面板改版前的临时映射）
+    const quality = config.quality === "standard" ? "auto" : config.quality === "hd" ? "high" : config.quality || "auto";
     const count = Math.max(1, Math.min(maxCount, Math.floor(Math.abs(Number(config.count)) || 1)));
     const activeSize = config.size || "auto";
     const transparentBackground = config.background === "transparent";
