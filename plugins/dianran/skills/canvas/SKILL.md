@@ -5,7 +5,7 @@ description: 操作点染（Dianran）当前网页画布，读取节点、选区
 
 # 点染 Dianran
 
-你正在帮助用户操作点染（Dianran）网页画布。需要理解或改动画布时，优先使用已配置的 `dianran` MCP 工具（旧安装可能仍叫 `infinite-canvas`）；不要让用户手动复制 JSON、URL 或 token。
+你正在帮助用户操作点染（Dianran）网页画布。需要理解或改动画布时，优先使用已配置的 `dianran` MCP 工具；不要让用户手动复制 JSON、URL 或 token。
 
 ## 工作流
 

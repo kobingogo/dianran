@@ -56,21 +56,17 @@ Canvas Agent 默认只监听 `127.0.0.1`。网页第一次带正确 token 连接
 
 ```bash
 codex plugin remove dianran
-# 旧版本 / 上游安装的名字：
-codex plugin remove infinite-canvas
 ```
 
 手动添加 MCP 时移除 MCP：
 
 ```bash
 codex mcp remove dianran
-# 旧版本 / 上游安装的名字：
-codex mcp remove infinite-canvas
 ```
 
 ### Codex app 插件
 
-仓库内提供了 Codex app 插件：`plugins/dianran`。在 Codex app 中添加本仓库的 marketplace（`codex plugin marketplace add kobingogo/dianran`）后，可以安装 `点染 Dianran` 插件；插件会注册同一个 `dianran` MCP，并带上画布操作说明。0.7.0 起 MCP 名从 `infinite-canvas` 改为 `dianran`，配置目录从 `~/.infinite-canvas` 改为 `~/.dianran`（首次启动自动迁移旧 token / 地址）。
+仓库内提供了 Codex app 插件：`plugins/dianran`。在 Codex app 中添加本仓库的 marketplace（`codex plugin marketplace add kobingogo/dianran`）后，可以安装 `点染 Dianran` 插件；插件会注册同一个 `dianran` MCP，并带上画布操作说明。配置保存在 `~/.dianran/`。
 
 添加本地 marketplace 时建议使用仓库绝对路径，避免 Codex 从其他工作目录解析失败：
 
@@ -160,4 +156,4 @@ claude mcp add --scope user --transport stdio dianran -- npx -y @kobinflow/canva
 claude mcp add --scope user --transport stdio dianran -- node /path/to/dianran/canvas-agent/dist/index.js mcp
 ```
 
-Canvas Agent 调用 Claude Code 时会默认带上 `--allowedTools mcp__dianran__*`（兼容旧名 `mcp__infinite-canvas__*`），画布写操作仍由网页侧边栏确认。
+Canvas Agent 调用 Claude Code 时会默认带上 `--allowedTools mcp__dianran__*`，画布写操作仍由网页侧边栏确认。

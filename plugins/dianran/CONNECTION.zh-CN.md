@@ -39,7 +39,7 @@
 - 建议：
   - 把 Connect token 当密码看待，不要截图分享，不要把带口令的链接发给别人。
   - 不用的时候在终端按 Ctrl+C 关掉本地 Agent。
-  - 怀疑泄露时，删除 `~/.dianran/canvas-agent.json`（如果还留着旧版的 `~/.infinite-canvas/canvas-agent.json` 也一并删除，否则会被重新迁移回来），重启本地 Agent 会生成新口令并清空已绑定的网站，然后重新连接。
+  - 怀疑泄露时，删除 `~/.dianran/canvas-agent.json`，重启本地 Agent 会生成新口令并清空已绑定的网站，然后重新连接。
   - Codex 权限尽量用“每次询问”，只在信任的任务里临时切到自动。
 
 ## Codex 模式额外带来了什么
@@ -53,14 +53,3 @@
 - 完全访问：Codex 可以不经确认运行命令，风险最高。
 
 无论哪档，写入画布的操作都会在网页里显示出来，可以随时中断。
-
-## 关于名字（infinite-canvas → dianran）
-
-旧版插件和 MCP 叫 `infinite-canvas`。它来自上游项目，会运行上游的 `@basketikun/canvas-agent`，打开的也是上游站点。从 0.7.0 起：
-
-- 插件和 MCP 都改名为 `dianran`，运行我们自己发布的 `@kobinflow/canvas-agent`。
-- 配置目录改为 `~/.dianran/`。第一次运行时会自动沿用 `~/.infinite-canvas/` 里的旧口令和已绑定的网站。
-- 装过旧版的话，可以运行下面三条命令清理：
-  - `codex plugin remove infinite-canvas`
-  - `codex mcp remove infinite-canvas`
-  - `codex plugin marketplace remove infinite-canvas-local`

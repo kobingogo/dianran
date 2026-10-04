@@ -12,9 +12,6 @@ const AGENT_PLUGIN_MARKETPLACE_COMMAND = "codex plugin marketplace add kobingogo
 const AGENT_PLUGIN_ADD_COMMAND = "codex plugin add dianran@dianran-local";
 const AGENT_PLUGIN_REMOVE_COMMAND = "codex plugin remove dianran";
 const AGENT_MCP_REMOVE_COMMAND = "codex mcp remove dianran";
-// Installs made before canvas-agent 0.7.0 (or from upstream Infinite Canvas) used the name "infinite-canvas".
-const LEGACY_PLUGIN_REMOVE_COMMAND = "codex plugin remove infinite-canvas";
-const LEGACY_MCP_REMOVE_COMMAND = "codex mcp remove infinite-canvas";
 
 export function AgentConnectView({
     theme,
@@ -61,8 +58,6 @@ export function AgentConnectView({
                 {[
                     [t("agent.connect.removePlugin"), AGENT_PLUGIN_REMOVE_COMMAND],
                     [t("agent.connect.removeMcp"), AGENT_MCP_REMOVE_COMMAND],
-                    [t("agent.connect.removeLegacy"), LEGACY_PLUGIN_REMOVE_COMMAND],
-                    [t("agent.connect.removeLegacy"), LEGACY_MCP_REMOVE_COMMAND],
                 ].map(([label, command]) => (
                     <div key={command} className="flex items-center gap-2 rounded-md border bg-transparent px-2 py-1.5" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
                         <span className="shrink-0 text-[11px]" style={{ color: theme.node.muted }}>

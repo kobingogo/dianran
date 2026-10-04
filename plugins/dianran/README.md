@@ -15,16 +15,6 @@ codex plugin add dianran@dianran-local
 也可以先 `git clone https://github.com/kobingogo/dianran.git`，再 `codex plugin marketplace add "$(pwd)"`（Windows PowerShell 用 `"$PWD"`）。
 在分支合并到 main 之前，可加 `--ref <分支名>` 指定分支。
 
-### 从旧名字迁移
-
-早期版本（以及上游 Infinite Canvas）的插件和 MCP 都叫 `infinite-canvas`，并且会运行上游的 `@basketikun/canvas-agent`。如果装过，先移除：
-
-```bash
-codex plugin remove infinite-canvas
-codex mcp remove infinite-canvas
-codex plugin marketplace remove infinite-canvas-local
-```
-
 ## 安装（ZCode）
 
 - 打开 **Settings → Plugin Management → Discover**，点击右上角 **`+`** 添加 marketplace；
