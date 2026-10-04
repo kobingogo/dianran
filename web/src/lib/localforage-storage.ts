@@ -1,8 +1,9 @@
 import localforage from "localforage";
 import type { StateStorage } from "zustand/middleware";
+import { STORAGE_NS } from "@/constant/brand";
 
 localforage.config({
-    name: "infinite-canvas",
+    name: STORAGE_NS,
     storeName: "app_state",
 });
 

@@ -4,9 +4,10 @@ import { createZip, readZip } from "@/lib/zip";
 import { getMediaBlob, setMediaBlob } from "@/services/file-storage";
 import { getImageBlob, setImageBlob } from "@/services/image-storage";
 import type { Asset } from "@/stores/use-asset-store";
+import { EXPORT_APP_ID, type AppFileId } from "@/constant/brand";
 
 type AssetExportFile = {
-    app: "infinite-canvas";
+    app: AppFileId;
     version: 1;
     exportedAt: string;
     assets: Asset[];
@@ -37,7 +38,7 @@ export async function exportAssets(assets: Asset[], filename: string) {
         }),
     );
 
-    const data: AssetExportFile = { app: "infinite-canvas", version: 1, exportedAt: new Date().toISOString(), assets, files };
+    const data: AssetExportFile = { app: EXPORT_APP_ID, version: 1, exportedAt: new Date().toISOString(), assets, files };
     const zip = await createZip([{ name: "assets.json", data: JSON.stringify(data, null, 2) }, ...zipFiles]);
     saveAs(zip, filename);
 }

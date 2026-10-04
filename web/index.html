@@ -3,11 +3,31 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="description" content="一个无限画布创作工具" />
-        <link rel="icon" href="/logo.svg" />
-        <title>无限画布</title>
+        <title>点染 Dianran · 一点灵感，染成画面</title>
+        <meta name="description" content="点染 Dianran：节点式 AI 创作画布，在一张画布上完成生图、视频与文本的连续推演。" />
+        <meta name="application-name" content="点染" />
+        <meta name="apple-mobile-web-app-title" content="点染" />
+        <meta name="theme-color" content="#E8572A" />
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="点染 Dianran" />
+        <meta property="og:title" content="点染 Dianran · 一点灵感，染成画面" />
+        <meta property="og:description" content="节点式 AI 创作画布：生图、视频、文本在一张画布上连续推演。" />
+        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:locale" content="zh_CN" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="点染 Dianran · 一点灵感，染成画面" />
+        <meta name="twitter:description" content="节点式 AI 创作画布：生图、视频、文本在一张画布上连续推演。" />
+        <meta name="twitter:image" content="/og-image.png" />
         <script>
             try {
+                // [dianran] storage key kept from upstream (STORAGE_NS in src/constant/brand.ts) so existing themes survive.
                 var s = JSON.parse(localStorage.getItem("infinite-canvas:theme_store") || "{}");
                 var t = s.state && s.state.theme === "light" ? "light" : "dark";
                 document.documentElement.classList.toggle("dark", t === "dark");

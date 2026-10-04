@@ -3,15 +3,17 @@ import { initReactI18next } from "react-i18next";
 
 import enUS from "@/i18n/locales/en-US";
 import zhCN from "@/i18n/locales/zh-CN";
+import { brandOverrides, mergeDeep } from "@/i18n/brand-overrides";
+import { storageKey } from "@/constant/brand";
 
 export type AppLocale = "zh-CN" | "en-US";
 
-const LOCALE_STORAGE_KEY = "infinite-canvas:locale";
+const LOCALE_STORAGE_KEY = storageKey("locale");
 
 i18n.use(initReactI18next).init({
     resources: {
-        "zh-CN": { translation: zhCN },
-        "en-US": { translation: enUS },
+        "zh-CN": { translation: mergeDeep(zhCN, brandOverrides["zh-CN"]) },
+        "en-US": { translation: mergeDeep(enUS, brandOverrides["en-US"]) },
     },
     lng: (localStorage.getItem(LOCALE_STORAGE_KEY) as AppLocale) || "zh-CN",
     fallbackLng: "zh-CN",

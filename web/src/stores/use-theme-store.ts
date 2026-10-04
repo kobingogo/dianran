@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { storageKey } from "@/constant/brand";
 
 export type ThemeName = "light" | "dark";
 
@@ -14,6 +15,6 @@ export const useThemeStore = create<ThemeStore>()(
             theme: "dark",
             setTheme: (theme) => set({ theme }),
         }),
-        { name: "infinite-canvas:theme_store" },
+        { name: storageKey("theme_store") },
     ),
 );

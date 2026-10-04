@@ -1,12 +1,14 @@
 import { ArrowRight } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { App, Button, Image, Tag } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 
-import { fetchPrompts, type Prompt } from "@/services/api/prompts";
+import copy from "copy-to-clipboard";
+
+import { showcaseItems } from "@/pages/home/showcase";
+import { BRAND } from "@/constant/brand";
 import { navigationTools } from "@/constant/navigation-tools";
-import i18n from "@/i18n";
 import { cn } from "@/lib/utils";
 
 function Highlighter({ action, color, children }: { action: "highlight" | "underline"; color: string; children?: ReactNode }) {
@@ -24,18 +26,18 @@ function Highlighter({ action, color, children }: { action: "highlight" | "under
 
 export default function IndexPage() {
     const { message } = App.useApp();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const [primaryTool] = navigationTools;
-    const [promptShowcase, setPromptShowcase] = useState<Prompt[]>([]);
     const [previewIndex, setPreviewIndex] = useState(0);
     const [previewOpen, setPreviewOpen] = useState(false);
-
-    useEffect(() => {
-        void fetchPrompts({ pageSize: 12 })
-            .then((data) => setPromptShowcase(data.items))
-            .catch((error) => message.error(error instanceof Error ? error.message : i18n.t("home.promptError")));
-    }, [message]);
+    // [dianran] Local showcase instead of remote prompt sources (raw.githubusercontent.com is unreliable in mainland China).
+    const locale = i18n.resolvedLanguage === "en-US" ? "en-US" : "zh-CN";
+    const promptShowcase = showcaseItems.map((item) => ({ ...item, title: item.title[locale], coverUrl: item.cover }));
+    const copyPrompt = (prompt: string) => {
+        copy(prompt);
+        message.success(t("home.copied"));
+    };
 
     return (
         <main className="relative h-full overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-stone-950 dark:bg-[radial-gradient(rgba(245,245,244,.18)_1px,transparent_1px)] dark:text-stone-100">
@@ -44,15 +46,20 @@ export default function IndexPage() {
                 <div className="pointer-events-none absolute right-[23%] top-[48%] size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
 
                 <div className="relative flex min-h-[620px] flex-col items-center justify-center pt-10 text-center">
+                    <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#E8572A]/30 bg-[#E8572A]/5 px-3 py-1 text-xs font-medium tracking-wide text-[#C4421B] dark:text-[#FF9A75]">
+                        <img src={`${import.meta.env.BASE_URL}logo-color.svg`} alt="" className="size-4" />
+                        {t("home.eyebrow")}
+                    </div>
                     <h1 className="ai-title-aurora max-w-5xl text-balance text-5xl font-semibold tracking-normal sm:text-7xl lg:text-8xl">{t("meta.title")}</h1>
-                    <p className="mt-8 max-w-3xl text-balance text-lg leading-8 text-stone-500 dark:text-stone-400">
-                        <Trans i18nKey="home.description" components={{ canvas: <Highlighter action="underline" color="#FF9800" />, content: <Highlighter action="highlight" color="#87CEFA" /> }} />
+                    <p className="mt-5 text-xl font-medium tracking-wide text-[#C4421B] dark:text-[#FF9A75]">{t("home.tagline", { defaultValue: BRAND.taglineZh })}</p>
+                    <p className="mt-6 max-w-3xl text-balance text-lg leading-8 text-stone-500 dark:text-stone-400">
+                        <Trans i18nKey="home.description" components={{ canvas: <Highlighter action="underline" color="#E8572A" />, content: <Highlighter action="highlight" color="#9DB2DD" /> }} />
                     </p>
                     <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
                         <Button type="primary" size="large" onClick={() => navigate(`/${primaryTool.slug}`)} icon={<ArrowRight className="size-4" />} iconPlacement="end">
                             {t("home.start")}
                         </Button>
-                        <Button size="large" onClick={() => navigate("/canvas")}>
+                        <Button size="large" onClick={() => navigate("/image")}>
                             {t("home.openCanvas")}
                         </Button>
                     </div>
@@ -95,6 +102,23 @@ export default function IndexPage() {
                                     </div>
                                     <h3 className="text-sm font-medium">{item.title}</h3>
                                     <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/75">{item.prompt}</p>
+                                </div>
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        copyPrompt(item.prompt);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.key !== "Enter" && event.key !== " ") return;
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        copyPrompt(item.prompt);
+                                    }}
+                                    className="absolute right-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] text-white opacity-0 backdrop-blur transition group-hover:opacity-100 focus:opacity-100"
+                                >
+                                    {t("home.copyPrompt")}
                                 </div>
                             </button>
                         ))}

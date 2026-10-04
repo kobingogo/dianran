@@ -1,0 +1,41 @@
+/* [dianran] Brand accent layer (loaded after globals.css). Phase 1: accent colour only, no full redesign. */
+:root {
+    --brand: #e8572a;
+    --brand-strong: #c4421b;
+    --brand-soft: rgba(232, 87, 42, 0.1);
+    --brand-indigo: #2f4a7a;
+    --primary: #e8572a;
+    --primary-foreground: #ffffff;
+    --ring: rgba(232, 87, 42, 0.55);
+}
+
+.dark {
+    --brand: #f0663a;
+    --brand-strong: #ff7a4d;
+    --brand-soft: rgba(255, 122, 77, 0.14);
+    --brand-indigo: #8fa6d6;
+    --primary: #f0663a;
+    --primary-foreground: #ffffff;
+    --ring: rgba(255, 122, 77, 0.55);
+}
+
+/* Hero title: serif CJK + ink-to-vermilion shimmer instead of the upstream grey aurora. */
+h1.ai-title-aurora {
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    letter-spacing: 0.06em;
+    background: linear-gradient(90deg, #1c1a17 0%, #1c1a17 34%, #e8572a 52%, #2f4a7a 66%, #1c1a17 82%, #1c1a17 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.dark h1.ai-title-aurora {
+    background: linear-gradient(90deg, #f5f1ea 0%, #f5f1ea 34%, #ff7a4d 52%, #8fa6d6 66%, #f5f1ea 82%, #f5f1ea 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+::selection {
+    background: rgba(232, 87, 42, 0.25);
+}

@@ -21,6 +21,7 @@ import { useAssetStore } from "@/stores/use-asset-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
+import { STORAGE_NS, storageKey } from "@/constant/brand";
 
 type GeneratedImage = {
     id: string;
@@ -63,9 +64,9 @@ type GenerationLogConfig = Pick<AiConfig, "model" | "imageModel" | "quality" | "
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 
-const LOG_STORE_KEY = "infinite-canvas:image_generation_logs";
+const LOG_STORE_KEY = storageKey("image_generation_logs");
 const RESULT_ACTION_BUTTON_CLASS = "min-w-0 px-1.5 [&_.ant-btn-icon]:shrink-0 [&>span:last-child]:min-w-0 [&>span:last-child]:truncate";
-const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
+const logStore = localforage.createInstance({ name: STORAGE_NS, storeName: "image_generation_logs" });
 
 export default function ImagePage() {
     const { message } = App.useApp();

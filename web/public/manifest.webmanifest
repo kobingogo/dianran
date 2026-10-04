@@ -1,0 +1,17 @@
+{
+    "name": "点染 Dianran",
+    "short_name": "点染",
+    "description": "节点式 AI 创作画布：生图、视频、文本在一张画布上连续推演。",
+    "lang": "zh-CN",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#F6F1E8",
+    "theme_color": "#E8572A",
+    "icons": [
+        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+        { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+    ]
+}

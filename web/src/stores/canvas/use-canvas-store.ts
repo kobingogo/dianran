@@ -6,6 +6,7 @@ import i18n from "@/i18n";
 import { localForageStorage } from "@/lib/localforage-storage";
 import type { CanvasBackgroundMode } from "@/lib/canvas-theme";
 import type { CanvasAssistantSession, CanvasConnection, CanvasNodeData, ViewportTransform } from "@/types/canvas";
+import { storageKey } from "@/constant/brand";
 
 export type CanvasProject = {
     id: string;
@@ -40,7 +41,7 @@ type CanvasStore = {
 };
 
 const initialViewport: ViewportTransform = { x: 0, y: 0, k: 1 };
-const CANVAS_STORE_KEY = "infinite-canvas:canvas_store";
+const CANVAS_STORE_KEY = storageKey("canvas_store");
 type PersistedCanvasState = Pick<CanvasStore, "projects" | "deletedProjects">;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let queuedPersistState: PersistedCanvasState | null = null;

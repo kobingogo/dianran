@@ -6,6 +6,8 @@ COPY web/package.json web/bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --cache-dir=/root/.bun/install/cache
 COPY VERSION /app/VERSION
 COPY CHANGELOG.md /app/CHANGELOG.md
+# [dianran] product version + changelog (preferred by vite.config.ts)
+COPY brand/VERSION brand/CHANGELOG.md /app/brand/
 COPY web ./
 RUN bun run build
 
