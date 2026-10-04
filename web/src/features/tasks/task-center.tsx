@@ -1,12 +1,12 @@
 // [dianran] Lightweight task center: floating pill with the live list of generation requests.
-import { useEffect, useState } from "react";
-import { Popover } from "antd";
+import { useEffect } from "react";
 import { AudioLines, CheckCircle2, CircleSlash, Clock3, FileText, ImageIcon, ListChecks, LoaderCircle, Video, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 
 import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 import { isActiveTask, useTaskStore, type GenerationTask } from "./task-store";
+import { cn } from "@/lib/utils";
 import { formatElapsed, phaseHint, phaseLabel } from "./task-labels";
 import { useNow } from "./use-now";
 import { useAgentStore } from "@/stores/use-agent-store";
@@ -62,54 +62,76 @@ export function TaskCenter({ className }: { className?: string }) {
     const agentWidth = useAgentStore((state) => state.width);
     const tasks = useTaskStore((state) => state.tasks);
     const clearFinished = useTaskStore((state) => state.clearFinished);
-    const [open, setOpen] = useState(false);
+    const open = useTaskStore((state) => state.centerOpen);
+    const setOpen = useTaskStore((state) => state.setCenterOpen);
     const active = tasks.filter(isActiveTask);
     const now = useNow(tasks.length > 0, active.length > 0 || open ? 1000 : 5000);
     const recentFailed = tasks.filter((task) => task.phase === "failed" && now - (task.endedAt || 0) < RECENT_MS);
-    const visible = tasks.length > 0 && (active.length > 0 || open || tasks.some((task) => now - (task.endedAt || now) < RECENT_MS));
+    const hasRecent = tasks.length > 0 && (active.length > 0 || tasks.some((task) => now - (task.endedAt || now) < RECENT_MS));
+    // Off the canvas editor the rail / phone chip is the entry, so the floating pill only stays on the canvas.
+    const showPill = className ? hasRecent : onCanvas && hasRecent;
 
     useEffect(() => {
+        if (!open) return;
         const onKey = (event: KeyboardEvent) => {
             if (event.key === "Escape") setOpen(false);
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, []);
+    }, [open, setOpen]);
 
-    if (!visible) return null;
-
-    const content = (
-        <div className="w-[min(340px,calc(100vw-48px))]" data-task-center>
-            <div className="mb-1 flex items-center justify-between">
-                <div className="text-sm font-semibold">{t("tasks.title")}</div>
-                <button type="button" className="text-[11px] text-stone-400 transition hover:text-stone-700 dark:hover:text-stone-200" onClick={clearFinished}>
-                    {t("tasks.clear")}
-                </button>
-            </div>
-            <div className="mb-1 text-[11px] leading-4 text-stone-400">{t("tasks.description")}</div>
-            <ul className="max-h-[50vh] overflow-y-auto">
-                {tasks.map((task) => (
-                    <TaskRow key={task.id} task={task} now={now} />
-                ))}
-            </ul>
-        </div>
-    );
+    if (!showPill && !open) return null;
 
     return (
-        <Popover content={content} trigger="click" open={open} onOpenChange={setOpen} placement={onCanvas ? "bottomRight" : "topLeft"} arrow={false}>
-            <button
-                type="button"
-                className={
-                    className ||
-                    `fixed z-[65] inline-flex h-9 items-center gap-2 rounded-full border border-stone-200 bg-white/95 px-3.5 text-xs font-medium text-stone-700 shadow-lg backdrop-blur transition-[right,box-shadow] duration-300 hover:shadow-xl dark:border-stone-700 dark:bg-stone-900/95 dark:text-stone-200 ${onCanvas ? "top-[60px] sm:top-[68px]" : "bottom-4 left-4"}`
-                }
-                style={onCanvas && !className ? { right: agentOpen && window.innerWidth >= 640 ? agentWidth + 17 : 16 } : undefined}
-                aria-label={t("tasks.title")}
-                data-task-center-trigger
-            >
-                {active.length ? <LoaderCircle className="size-3.5 animate-spin text-[var(--brand,#E8572A)]" /> : recentFailed.length ? <XCircle className="size-3.5 text-red-500" /> : <ListChecks className="size-3.5" />}
-                {active.length ? t("tasks.running", { count: active.length }) : recentFailed.length ? t("tasks.failedCount", { count: recentFailed.length }) : t("tasks.recent")}
-            </button>
-        </Popover>
+        <>
+            {open ? (
+                <>
+                    <button type="button" tabIndex={-1} className="fixed inset-0 z-[64] cursor-default bg-transparent" aria-label={t("tasks.close")} onClick={() => setOpen(false)} />
+                    <div
+                        role="dialog"
+                        aria-label={t("tasks.title")}
+                        data-task-center
+                        className={cn(
+                            "fixed z-[66] w-[min(340px,calc(100vw-24px))] rounded-xl border border-stone-200 bg-white p-3 shadow-xl dark:border-stone-700 dark:bg-stone-900",
+                            onCanvas ? "top-[68px]" : "top-[4.25rem] right-3 md:bottom-4 md:left-24 md:right-auto md:top-auto",
+                        )}
+                        style={onCanvas ? { right: agentOpen && window.innerWidth >= 640 ? agentWidth + 17 : 16 } : undefined}
+                    >
+                        <div className="mb-1 flex items-center justify-between">
+                            <div className="text-sm font-semibold">{t("tasks.title")}</div>
+                            <button type="button" className="text-[11px] text-stone-400 transition hover:text-stone-700 dark:hover:text-stone-200" onClick={clearFinished}>
+                                {t("tasks.clear")}
+                            </button>
+                        </div>
+                        <div className="mb-1 text-[11px] leading-4 text-stone-400">{t("tasks.description")}</div>
+                        {tasks.length ? (
+                            <ul className="max-h-[50vh] overflow-y-auto">
+                                {tasks.map((task) => (
+                                    <TaskRow key={task.id} task={task} now={now} />
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="py-6 text-center text-xs text-stone-400">{t("tasks.empty")}</p>
+                        )}
+                    </div>
+                </>
+            ) : null}
+            {showPill && !open ? (
+                <button
+                    type="button"
+                    className={
+                        className ||
+                        `fixed z-[65] inline-flex h-9 items-center gap-2 rounded-full border border-stone-200 bg-white/95 px-3.5 text-xs font-medium text-stone-700 shadow-lg backdrop-blur transition-[right,box-shadow] duration-300 hover:shadow-xl dark:border-stone-700 dark:bg-stone-900/95 dark:text-stone-200 ${onCanvas ? "top-[60px] sm:top-[68px]" : "right-3 bottom-[calc(56px+env(safe-area-inset-bottom,0px)+12px)] md:bottom-4 md:left-24 md:right-auto"}`
+                    }
+                    style={onCanvas && !className ? { right: agentOpen && window.innerWidth >= 640 ? agentWidth + 17 : 16 } : undefined}
+                    aria-label={t("tasks.title")}
+                    data-task-center-trigger
+                    onClick={() => setOpen(true)}
+                >
+                    {active.length ? <LoaderCircle className="size-3.5 animate-spin text-[var(--brand,#E8572A)]" /> : recentFailed.length ? <XCircle className="size-3.5 text-red-500" /> : <ListChecks className="size-3.5" />}
+                    {active.length ? t("tasks.running", { count: active.length }) : recentFailed.length ? t("tasks.failedCount", { count: recentFailed.length }) : t("tasks.recent")}
+                </button>
+            ) : null}
+        </>
     );
 }
