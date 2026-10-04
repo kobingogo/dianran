@@ -39,3 +39,24 @@ h1.ai-title-aurora {
 ::selection {
     background: rgba(232, 87, 42, 0.25);
 }
+
+/* [dianran] phase4: homepage hero strip marquee */
+@keyframes dr-marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+.dr-marquee {
+    animation: dr-marquee 80s linear infinite;
+}
+.dr-marquee:hover {
+    animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+    .dr-marquee {
+        animation: none;
+    }
+}
