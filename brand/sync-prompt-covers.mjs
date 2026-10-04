@@ -3,7 +3,7 @@
 // web/public/prompt-sources/covers/, and rewrite the snapshot JSON to point at our own domain.
 // Covers hosted on X (pbs.twimg.com), GitHub's camo proxy, linux.do and similar hosts are fetched through a list of
 // candidate URLs (X "small" renditions, the decoded camo target, the forum's original upload); only images that are
-// truly gone (deleted posts, 404) fall back to the local placeholder in the UI. Run after sync-prompts.mjs.
+// truly gone (deleted posts, 404) are dropped from the snapshot, as are NSFW-tagged entries. Run after sync-prompts.mjs.
 // Usage: node brand/sync-prompt-covers.mjs
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -123,7 +123,9 @@ for (const source of [{ path: "dianran-picks.json" }, { path: "x-trending.json" 
         }
         item.referenceImageUrls = item.coverUrl ? [item.coverUrl, ...localRefs] : localRefs;
     });
-    writeFileSync(path, JSON.stringify(items));
+    // Entries without a bundled cover (image gone, or NSFW-tagged) are dropped from the snapshot entirely.
+    const kept = items.filter((item) => item.coverUrl);
+    writeFileSync(path, JSON.stringify(kept));
     console.log(`${source.path}: done`, JSON.stringify(stats));
 }
 console.log("covers ->", outDir, stats);

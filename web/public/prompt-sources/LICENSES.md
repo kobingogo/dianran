@@ -4,13 +4,13 @@ These files are snapshots of the normalized JSON published by
 [yukkcat/image-prompts](https://github.com/yukkcat/image-prompts) (MIT), served from this site so the app
 works without reaching GitHub. Prompt text belongs to the original authors under the licenses below.
 Cover images are bundled as small WebP thumbnails in covers/ (brand/sync-prompt-covers.mjs downloads them, including X/forum-hosted
-ones, and rewrites coverUrl / referenceImageUrls). Records whose image is gone (deleted post, 404) or that upstream tags NSFW show a
-local placeholder. The app never loads prompt images from external hosts.
+ones, and rewrites coverUrl / referenceImageUrls). Records whose image is gone (deleted post, 404) or that upstream tags NSFW are
+removed from the snapshot. The app never loads prompt images from external hosts.
 
 | Source | Upstream | License |
 | --- | --- | --- |
 | 点染精选 (dianran-picks) | this project | MIT |
-| X 热门 · 近两月 (x-trending) | public posts on X, see each record's sourceUrl | © each post's author; quoted with attribution |
+| X 热门 (x-trending) | public posts on X, see each record's sourceUrl | © each post's author; quoted with attribution |
 | YouMind GPT Image 2 | https://github.com/YouMind-OpenLab/awesome-gpt-image-2 | CC BY 4.0 |
 | YouMind Nano Banana Pro | https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts | CC BY 4.0 |
 | Awesome GPT-4o | https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts | MIT |
