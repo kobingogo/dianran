@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./tokens.css";
 @source "../../../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
@@ -14,8 +15,10 @@
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
-    --font-heading: var(--font-sans);
+    --font-heading: var(--font-serif);
     --font-sans: var(--font-sans);
+    --font-serif: var(--font-serif);
+    --font-mono: var(--font-mono);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,77 +52,78 @@
 }
 
 :root {
-    --radius: 0.625rem;
-    --border: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --input: oklch(0.922 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --radius: var(--r-md);
+    --background: var(--paper-1);
+    --foreground: var(--ink-900);
+    --card: var(--paper-0);
+    --card-foreground: var(--ink-900);
+    --popover: var(--paper-0);
+    --popover-foreground: var(--ink-900);
+    --primary: var(--zhu-500);
+    --primary-foreground: #ffffff;
+    --secondary: var(--paper-2);
+    --secondary-foreground: var(--ink-900);
+    --muted: var(--paper-2);
+    --muted-foreground: var(--ink-500);
+    --accent: var(--paper-2);
+    --accent-foreground: var(--ink-900);
+    --destructive: var(--danger);
+    --border: var(--line);
+    --input: var(--line);
+    --ring: var(--zhu-500);
+    --chart-1: var(--zhu-500);
+    --chart-2: var(--dai-600);
+    --chart-3: var(--ok);
+    --chart-4: var(--warn);
+    --chart-5: var(--ink-700);
+    --sidebar: var(--paper-0);
+    --sidebar-foreground: var(--ink-900);
+    --sidebar-primary: var(--zhu-500);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--paper-2);
+    --sidebar-accent-foreground: var(--ink-900);
+    --sidebar-border: var(--line);
+    --sidebar-ring: var(--zhu-500);
 }
 
+/* Same aliases. Raw tokens flip under .dark, so both themes stay on the paper/ink scale. */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --border: oklch(1 0 0 / 10%);
-    --ring: oklch(0.556 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --input: oklch(1 0 0 / 15%);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: var(--paper-1);
+    --foreground: var(--ink-900);
+    --card: var(--paper-0);
+    --card-foreground: var(--ink-900);
+    --popover: var(--paper-0);
+    --popover-foreground: var(--ink-900);
+    --primary: var(--zhu-500);
+    --primary-foreground: #ffffff;
+    --secondary: var(--paper-2);
+    --secondary-foreground: var(--ink-900);
+    --muted: var(--paper-2);
+    --muted-foreground: var(--ink-500);
+    --accent: var(--paper-2);
+    --accent-foreground: var(--ink-900);
+    --destructive: var(--danger);
+    --border: var(--line);
+    --input: var(--line);
+    --ring: var(--zhu-500);
+    --chart-1: var(--zhu-500);
+    --chart-2: var(--dai-600);
+    --chart-3: var(--ok);
+    --chart-4: var(--warn);
+    --chart-5: var(--ink-700);
+    --sidebar: var(--paper-0);
+    --sidebar-foreground: var(--ink-900);
+    --sidebar-primary: var(--zhu-500);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--paper-2);
+    --sidebar-accent-foreground: var(--ink-900);
+    --sidebar-border: var(--line);
+    --sidebar-ring: var(--zhu-500);
 }
 
 @layer base {
     * {
-        @apply border-border outline-ring/50;
+        @apply border-border;
     }
     html,
     body {
@@ -128,6 +132,13 @@
     }
     body {
         @apply bg-background text-foreground;
+        background-image: var(--paper-noise);
+    }
+    h1,
+    h2,
+    h3,
+    .font-serif {
+        font-family: var(--font-serif);
     }
     textarea {
         resize: none;
@@ -141,32 +152,12 @@
 }
 
 @layer utilities {
+    /* Solid ink. Page-level title treatments land in a later pass. */
     .ai-title-aurora {
-        background: linear-gradient(90deg, #111827 0%, #111827 36%, #6b7280 54%, #111827 72%, #111827 100%);
-        background-size: 220% 100%;
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        animation: ai-title-aurora 7s ease-in-out infinite;
-    }
-
-    .dark .ai-title-aurora {
-        background: linear-gradient(90deg, #fafaf9 0%, #fafaf9 36%, #a8a29e 54%, #fafaf9 72%, #fafaf9 100%);
-        background-size: 220% 100%;
-        -webkit-background-clip: text;
-        background-clip: text;
-    }
-
-    @keyframes ai-title-aurora {
-        0%,
-        100% {
-            background-position: 0% 50%;
-            filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
-        }
-        50% {
-            background-position: 100% 50%;
-            filter: drop-shadow(0 12px 28px rgba(28, 25, 23, 0.08));
-        }
+        color: var(--ink-900);
+        background: none;
+        -webkit-text-fill-color: currentColor;
+        animation: none;
     }
 
     .hide-scrollbar {
@@ -452,7 +443,6 @@
             transform: translate(0, 0) rotate(0) scale(1);
         }
     }
-
 }
 
 ::view-transition-old(root),
@@ -606,4 +596,54 @@
     padding: 0.5rem 0.8rem;
     border-radius: 0.6rem;
     font-size: 0.75rem;
+}
+
+html {
+    font-family: var(--font-sans);
+}
+
+pre,
+code,
+kbd,
+samp {
+    font-family: var(--font-mono);
+}
+
+/* Cinnabar focus ring: 2px stroke, 2px offset. !important beats antd css-in-js outlines. */
+:focus-visible {
+    outline: 2px solid var(--zhu-500) !important;
+    outline-offset: 2px !important;
+}
+
+.ant-input-affix-wrapper-focused,
+.ant-input-number-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+    outline: 2px solid var(--zhu-500) !important;
+    outline-offset: 2px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 120ms !important;
+        transition-property: opacity, color, background-color, border-color, outline-color !important;
+    }
+
+    /* Loading indicators stay in motion; everything else collapses to a short fade. */
+    .animate-spin,
+    .anticon-spin,
+    .ant-spin-dot-item {
+        animation-duration: 1s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    .ant-spin-dot-spin {
+        animation-duration: 1.2s !important;
+        animation-iteration-count: infinite !important;
+    }
 }
