@@ -148,11 +148,11 @@ export function autoTitle(post, prompt, model) {
 
 // ---------- scoring ----------
 // Unknown bookmarks/reposts are imputed from likes (median ratios of the hand-curated X library) so entries whose
-// source only exposes likes (GitHub records refreshed from X, Civitai reactions) stay comparable.
-export function engagementTotal(e, weights, impute = {}) {
+// source only exposes likes (GitHub records refreshed from X) stay comparable. Not applied to Civitai (no bookmarks/reposts there).
+export function engagementTotal(e, weights, impute = {}, isXPost = true) {
     if (!e) return null;
     const filled = { ...e };
-    if (typeof e.likes === "number") for (const k of ["bookmarks", "reposts"]) if (typeof e[k] !== "number" && impute[k]) filled[k] = e.likes * impute[k];
+    if (isXPost && typeof e.likes === "number") for (const k of ["bookmarks", "reposts"]) if (typeof e[k] !== "number" && impute[k]) filled[k] = e.likes * impute[k];
     const vals = ["likes", "bookmarks", "reposts"].map((k) => (typeof filled[k] === "number" ? filled[k] * (weights[k] ?? 1) : 0));
     const known = ["likes", "bookmarks", "reposts"].some((k) => typeof e[k] === "number");
     return known ? vals.reduce((a, b) => a + b, 0) : null;
@@ -161,7 +161,7 @@ export function engagementTotal(e, weights, impute = {}) {
 // Score = engagement normalised by author followers (log scale) + freshness decay + on-site usage.
 export function scoreEntry(entry, libraryId, usage, cfg, now = Date.now()) {
     const s = cfg.score;
-    const eng = engagementTotal(entry.engagement, s.engagementWeights, s.imputeFromLikes);
+    const eng = engagementTotal(entry.engagement, s.engagementWeights, s.imputeFromLikes, Boolean(tweetIdFromUrl(entry.sourceUrl)));
     let engagementScore;
     if (eng === null) engagementScore = s.unknownEngagementPrior[libraryId] ?? s.unknownEngagementPrior.default;
     else {

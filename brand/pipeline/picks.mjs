@@ -74,10 +74,14 @@ for (const id of [...prevIds].sort((a, b) => (rank.get(a) || 1e9) - (rank.get(b)
     if (!r || r > P.keepWithinRank) { dropped.push({ id, reason: `排名跌出前 ${P.keepWithinRank}（当前第 ${r || "—"} 名）` }); continue; }
     if (!trySelect(id, "kept")) dropped.push({ id, reason: `同模型（${modelOf(id)}）已满 ${P.perModel} 条或与其他精选重复` });
 }
+const prevSet = new Set(prevIds);
 for (const id of ranked) {
     if (selected.length >= P.cap) break;
-    trySelect(id, "new");
+    trySelect(id, prevSet.has(id) ? "kept" : "new");
 }
+// A previous pick that falls outside the top 45 can still be re-selected while filling (e.g. when model caps push the
+// fill deeper than rank 45); it then simply stays a pick.
+for (let i = dropped.length - 1; i >= 0; i--) if (selected.includes(dropped[i].id)) dropped.splice(i, 1);
 
 // Records: own picks stay as they are; others become copies that point back to the original.
 const prevPickedAt = new Map(previous.map((p) => [p.pickOf || p.id, p.pickedAt]));
