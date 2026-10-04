@@ -13,6 +13,8 @@ function isReturnableRoute(path: string) {
 
 export function rememberNonCanvasRoute(pathname: string, search = "") {
     if (CANVAS_EDITOR_PATH.test(pathname)) return;
+    // /canvas?mode=new|recent only auto-opens a canvas; returning there would create another one.
+    if (pathname === "/canvas" && /(?:^|[?&])mode=(?:new|recent)(?:&|$)/.test(search)) return;
     const next = `${pathname}${search}`;
     if (!isReturnableRoute(next)) return;
     memoryRoute = next;

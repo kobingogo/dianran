@@ -34,7 +34,8 @@ export default function CanvasPage() {
     const agentQuery = agentMode ? `?${searchParams.toString()}` : "";
     const enterProject = (id: string) => {
         const agentHash = hasAgentUrlBootstrap(window.location.hash) ? window.location.hash : "";
-        navigate(`/canvas/${id}${agentQuery}${agentHash}`, { replace: Boolean(agentHash) });
+        // mode=new|recent is a transient launcher URL: replace it so browser Back does not spawn another canvas.
+        navigate(`/canvas/${id}${agentQuery}${agentHash}`, { replace: Boolean(agentHash) || mode === "new" || mode === "recent" });
     };
     const createAndEnter = () => enterProject(createProject(t("canvas.defaultTitle", { count: projects.length + 1 })));
     const importCanvas = async (file?: File) => {

@@ -529,7 +529,7 @@ export default function ImagePage() {
                                 </div>
                             </>
                         ) : (
-                            <WorkbenchEmpty title="写一句话就能开始" hint="在左侧描述想要的画面，或点一个示例；结果可下载、存入素材，或作为参考图继续创作。" examples={t("workbenchUi.imageExamples").split("|").filter(Boolean)} onPick={setPrompt} />
+                            <WorkbenchEmpty title="写一句话就能开始" hint="描述想要的画面，或点一个示例；结果可下载、存入素材，或作为参考图继续创作。" examples={t("workbenchUi.imageExamples").split("|").filter(Boolean)} onPick={setPrompt} />
                         )}
                     </WorkbenchResults>
                 }
