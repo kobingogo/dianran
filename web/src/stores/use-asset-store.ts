@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { localForageStorage } from "@/lib/localforage-storage";
 import { cleanupUnusedImages, ensureImagePreview, previewUrlFor, resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { cleanupUnusedMedia, resolveMediaUrl } from "@/services/file-storage";
+import { storageKey } from "@/constant/brand";
 
 export type AssetKind = "text" | "image" | "video";
 export type TextAsset = AssetBase<"text"> & { data: { content: string } };
@@ -42,7 +43,7 @@ export function assetCoverUrl(asset: Asset) {
     return asset.kind === "image" && cover === own ? previewUrlFor(asset.data.storageKey) || cover : cover;
 }
 
-const ASSET_STORE_KEY = "infinite-canvas:asset_store";
+const ASSET_STORE_KEY = storageKey("asset_store");
 
 const assetStorage: PersistStorage<AssetStore> = {
     getItem: async (name) => {

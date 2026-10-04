@@ -1,7 +1,7 @@
 services:
   app:
-    image: ghcr.io/basketikun/infinite-canvas:latest
-    container_name: infinite-canvas
+    image: ghcr.io/kobingogo/dianran:latest
+    container_name: dianran
     ports:
       - "3000:3000"
     restart: unless-stopped

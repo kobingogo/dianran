@@ -22,6 +22,7 @@ import { boolConfig, modelOptionLabel, useConfigStore, useEffectiveConfig, type 
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
+import { STORAGE_NS, storageKey } from "@/constant/brand";
 
 type GeneratedVideo = {
     id: string;
@@ -64,8 +65,8 @@ type GenerationLogConfig = Pick<AiConfig, "model" | "videoModel" | "size" | "vqu
 
 type UpdateAiConfig = <K extends keyof AiConfig>(key: K, value: AiConfig[K]) => void;
 
-const LOG_STORE_KEY = "infinite-canvas:video_generation_logs";
-const logStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
+const LOG_STORE_KEY = storageKey("video_generation_logs");
+const logStore = localforage.createInstance({ name: STORAGE_NS, storeName: "video_generation_logs" });
 
 export default function VideoPage() {
     const { message } = App.useApp();

@@ -11,4 +11,10 @@ interface ImportMetaEnv {
     readonly VITE_ANALYTICS_GA4_ID?: string;
     // Baidu Analytics site ID
     readonly VITE_ANALYTICS_BAIDU_ID?: string;
+    // [dianran] Brand / link configuration, see src/constant/brand.ts
+    readonly VITE_HOMEPAGE_URL?: string;
+    readonly VITE_DOC_URL?: string;
+    readonly VITE_VERSION_CHECK_URL?: string;
+    readonly VITE_CHANGELOG_URL?: string;
+    readonly VITE_PLUGIN_REGISTRY_URL?: string;
 }

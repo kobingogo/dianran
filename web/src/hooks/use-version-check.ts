@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { App } from "antd";
 import { useTranslation } from "react-i18next";
 import { APP_VERSION } from "@/constant/env";
+import { CHANGELOG_URL, VERSION_CHECK_URL } from "@/constant/brand";
 import { parseChangelog, type ReleaseInfo } from "@/lib/release";
 
-const latestVersionUrl = "https://raw.githubusercontent.com/basketikun/infinite-canvas/main/VERSION";
-const latestChangelogUrl = "https://raw.githubusercontent.com/basketikun/infinite-canvas/main/CHANGELOG.md";
+// [dianran] Remote update checks are opt-in via VITE_VERSION_CHECK_URL / VITE_CHANGELOG_URL; by default only the bundled CHANGELOG is shown.
+const latestVersionUrl = VERSION_CHECK_URL;
+const latestChangelogUrl = CHANGELOG_URL;
 
 function readLocalReleases(): ReleaseInfo[] {
     return __APP_RELEASES__ || [];
@@ -35,6 +37,7 @@ export function useVersionCheck() {
     const hasNewVersion = isNewerVersion(latestVersion, currentVersion);
 
     const checkLatestVersion = useCallback(async () => {
+        if (!latestVersionUrl) return false;
         try {
             const response = await fetch(latestVersionUrl);
             if (!response.ok) return false;
@@ -48,6 +51,12 @@ export function useVersionCheck() {
 
     const checkLatestRelease = useCallback(
         async (showMessage = false) => {
+            if (!latestVersionUrl || !latestChangelogUrl) {
+                setLatestVersion(currentVersion);
+                setReleases(localReleases);
+                if (showMessage) message.success(t("version.updated"));
+                return true;
+            }
             setChecking(true);
             try {
                 const [versionResponse, changelogResponse] = await Promise.all([fetch(latestVersionUrl), fetch(latestChangelogUrl)]);

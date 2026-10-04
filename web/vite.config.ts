@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -7,8 +7,13 @@ import { defineConfig, type Plugin } from "vite";
 import { parseChangelog } from "./src/lib/release";
 
 const webDir = dirname(fileURLToPath(import.meta.url));
-const localVersion = readFileSync(resolve(webDir, "../VERSION"), "utf8").trim() || "dev";
-const localChangelog = readFileSync(resolve(webDir, "../CHANGELOG.md"), "utf8");
+// [dianran] Product version + changelog live in brand/ so upstream VERSION / CHANGELOG.md merges never conflict.
+const readFirst = (...files: string[]) => {
+    const file = files.map((name) => resolve(webDir, name)).find((path) => existsSync(path));
+    return file ? readFileSync(file, "utf8") : "";
+};
+const localVersion = readFirst("../brand/VERSION", "../VERSION").trim() || "dev";
+const localChangelog = readFirst("../brand/CHANGELOG.md", "../CHANGELOG.md");
 
 // Expose /plugins/index.json with local plugin files from public/plugins.
 // The frontend can discover and list them when enabled; development reads the directory live, while builds emit a static registry.

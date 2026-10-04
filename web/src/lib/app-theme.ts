@@ -1,11 +1,15 @@
 import type { ThemeConfig } from "antd";
 import { theme as antdTheme } from "antd";
+import { BRAND } from "@/constant/brand";
 
 const neutral = {
     light: {
-        primary: "#171717",
-        primaryHover: "#000000",
+        // [dianran] Vermilion brand accent (was neutral black).
+        primary: BRAND.primaryColor,
+        primaryHover: "#D24A20",
         primaryText: "#ffffff",
+        link: "#171717",
+        linkHover: "#000000",
         elevatedBg: "#ffffff",
         itemHoverBg: "rgba(23, 23, 23, 0.06)",
         itemSelectedBg: "rgba(23, 23, 23, 0.1)",
@@ -15,9 +19,11 @@ const neutral = {
         tableSelectedHoverBg: "rgba(17, 17, 17, 0.08)",
     },
     dark: {
-        primary: "#fafafa",
-        primaryHover: "#ffffff",
-        primaryText: "#171717",
+        primary: "#F0663A",
+        primaryHover: "#FF7A4D",
+        primaryText: "#ffffff",
+        link: "#fafafa",
+        linkHover: "#ffffff",
         elevatedBg: "#1c1917",
         itemHoverBg: "rgba(250, 250, 249, 0.08)",
         itemSelectedBg: "rgba(250, 250, 249, 0.12)",
@@ -33,13 +39,14 @@ export function getAntThemeConfig(dark: boolean): ThemeConfig {
 
     return {
         algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-        cssVar: { key: dark ? "infinite-canvas-dark" : "infinite-canvas-light" },
+        cssVar: { key: dark ? `${BRAND.id}-dark` : `${BRAND.id}-light` },
         token: {
             colorPrimary: color.primary,
             colorInfo: color.primary,
-            colorLink: color.primary,
-            colorLinkHover: color.primaryHover,
-            colorLinkActive: color.primary,
+            // [dianran] Links stay neutral (as upstream); only primary actions use the brand colour.
+            colorLink: color.link,
+            colorLinkHover: color.linkHover,
+            colorLinkActive: color.link,
             colorTextLightSolid: color.primaryText,
             colorBgElevated: color.elevatedBg,
             controlItemBgHover: color.itemHoverBg,
