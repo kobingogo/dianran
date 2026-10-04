@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import { ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -7,6 +7,28 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
 import { CanvasNodeType, type ConnectionHandle, type Position } from "@/types/canvas";
 
+/**
+ * [dianran] phase4: the create menus live inside the zoomed world layer, so they used to shrink/grow with the canvas zoom
+ * (unreadable at 25%, huge at 300%) and could open off-screen near the bottom/right edge. Counter-scale them to a constant
+ * screen size and nudge them back inside the viewport.
+ */
+function useScreenSpaceMenu(ref: RefObject<HTMLDivElement | null>, scale: number, x: number, y: number) {
+    useLayoutEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const k = scale > 0 ? scale : 1;
+        el.style.transformOrigin = "top left";
+        el.style.transform = `scale(${1 / k})`;
+        const rect = el.getBoundingClientRect();
+        const margin = 12;
+        let dx = 0;
+        let dy = 0;
+        if (rect.bottom > window.innerHeight - margin) dy = Math.max(window.innerHeight - margin - rect.bottom, margin - rect.top);
+        if (rect.right > window.innerWidth - margin) dx = Math.max(window.innerWidth - margin - rect.right, margin - rect.left);
+        el.style.transform = `translate(${dx / k}px, ${dy / k}px) scale(${1 / k})`;
+    }, [ref, scale, x, y]);
+}
+
 export type PendingConnectionCreate = {
     connection: ConnectionHandle;
     position: Position;
@@ -14,17 +36,22 @@ export type PendingConnectionCreate = {
 
 export function ConnectionCreateMenu({
     pending,
+    scale = 1,
     onCreate,
     onClose,
 }: {
     pending: PendingConnectionCreate;
+    scale?: number;
     onCreate: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Config | CanvasNodeType.Video | CanvasNodeType.Audio) => void;
     onClose: () => void;
 }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
+    const menuRef = useRef<HTMLDivElement>(null);
+    useScreenSpaceMenu(menuRef, scale, pending.position.x, pending.position.y);
     return (
         <div
+            ref={menuRef}
             className="absolute z-[120] w-[300px] rounded-[18px] border p-3 shadow-2xl backdrop-blur"
             data-connection-create-menu
             style={{ left: pending.position.x, top: pending.position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
@@ -75,11 +102,12 @@ export function ConnectionCreateOption({ theme, icon, title, description, onClic
     );
 }
 
-export function NodeCreateMenu({ position, onCreate, onClose }: { position: Position; onCreate: (type: string) => void; onClose: () => void }) {
+export function NodeCreateMenu({ position, scale = 1, onCreate, onClose }: { position: Position; scale?: number; onCreate: (type: string) => void; onClose: () => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
     useNodeRegistryVersion();
     const menuRef = useRef<HTMLDivElement>(null);
+    useScreenSpaceMenu(menuRef, scale, position.x, position.y);
     const definitions = listNodeDefinitions().filter((def) => def.showInCreateMenu !== false);
     // Close automatically when clicking outside the menu.
     useEffect(() => {

@@ -190,3 +190,19 @@ export function buildAngleLabel(params: CanvasImageAngleParams) {
 export function buildAnglePrompt(params: CanvasImageAngleParams) {
     return i18n.t("canvas.generation.anglePrompt", { angle: buildAngleLabel(params) });
 }
+
+/**
+ * [dianran] phase4: a copied/duplicated node must not inherit an in-flight generation. The running request only ever
+ * updates the original node id, so a pasted "loading" copy would spin forever (and a copied videoTaskId would make two
+ * nodes poll the same task). Drop the transient state; finished content stays.
+ */
+export function sanitizeClonedNode(node: CanvasNodeData): CanvasNodeData {
+    const metadata = node.metadata;
+    if (!metadata || (metadata.status !== "loading" && !metadata.videoTaskId)) return node;
+    const next = { ...metadata };
+    if (next.status === "loading") next.status = undefined;
+    if (next.videoTaskId && !next.content) delete next.videoTaskId;
+    if (next.images) next.images = next.images.filter((image) => image.status !== "loading");
+    if (next.texts) next.texts = next.texts.filter((text) => text.status !== "loading");
+    return { ...node, metadata: next };
+}
