@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Modal, Tag, Timeline } from "antd";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -21,14 +21,17 @@ function releaseTypeLabel(type: string, t: TFunction) {
 type VersionReleaseModalProps = {
     className?: string;
     style?: CSSProperties;
+    /** [dianran] Custom trigger (e.g. a menu item) instead of the default version button. */
+    renderTrigger?: (api: { open: () => void; hasNewVersion: boolean; version: string }) => ReactNode;
 };
 
-export function VersionReleaseModal({ className, style }: VersionReleaseModalProps) {
+export function VersionReleaseModal({ className, style, renderTrigger }: VersionReleaseModalProps) {
     const { t } = useTranslation();
     const { open, setOpen, openReleaseModal, latestVersion, releases, checking, hasNewVersion, checkLatestRelease } = useVersionCheck();
 
     return (
         <>
+            {renderTrigger ? renderTrigger({ open: openReleaseModal, hasNewVersion, version: APP_VERSION }) : (
             <button
                 type="button"
                 className={className || "shrink-0 cursor-pointer text-xs font-medium text-stone-500 transition hover:text-stone-950 dark:text-stone-400 dark:hover:text-white"}
@@ -41,6 +44,7 @@ export function VersionReleaseModal({ className, style }: VersionReleaseModalPro
                     {hasNewVersion ? <span className="absolute -right-1.5 -top-1 size-1.5 rounded-full bg-green-500" /> : null}
                 </span>
             </button>
+            )}
             <Modal title={t("version.title")} open={open} width={680} centered footer={null} onCancel={() => setOpen(false)}>
                 <div className="mb-5 grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">

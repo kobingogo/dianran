@@ -8,6 +8,7 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { DOCS_URL } from "@/constant/env";
+import { useHelpShortcut } from "@/features/shortcuts/use-help-shortcut";
 
 export function CanvasTopBar({
     title,
@@ -61,6 +62,8 @@ export function CanvasTopBar({
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
     const sidePanelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
     const toggleSidePanel = useCanvasSidePanelStore((state) => state.togglePanel);
+    // [dianran] "?" opens the shortcut panel.
+    useHelpShortcut(() => setShortcutsOpen(true));
 
     useEffect(() => {
         if (!isTitleEditing) return;
@@ -170,6 +173,7 @@ export function CanvasTopBar({
                     <Shortcut keys={["Delete / Backspace"]} value={t("canvas.shortcut.delete")} />
                     <Shortcut keys={["Esc"]} value={t("canvas.shortcut.escape")} />
                     <Shortcut keys={[t("canvas.shortcut.dropMedia")]} value={t("canvas.shortcut.upload")} />
+                    <Shortcut keys={["?"]} value={t("canvas.shortcut.help")} />
                 </div>
             </Modal>
         </>

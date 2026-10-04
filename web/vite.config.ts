@@ -51,6 +51,19 @@ export default defineConfig({
             "@": resolve(webDir, "src"),
         },
     },
+    // [dianran] Split stable vendor code into long-cacheable chunks; pages are lazy (see src/router.tsx).
+    build: {
+        chunkSizeWarningLimit: 1200,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (!id.includes("node_modules")) return undefined;
+                    if (/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom)\//.test(id)) return "vendor-react";
+                    return undefined;
+                },
+            },
+        },
+    },
     define: {
         __APP_VERSION__: JSON.stringify(localVersion),
         __APP_RELEASES__: JSON.stringify(parseChangelog(localChangelog)),

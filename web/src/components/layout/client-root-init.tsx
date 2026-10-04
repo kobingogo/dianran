@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { useConfigStore } from "@/stores/use-config-store";
 import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
+import { useOnboardingStore } from "@/features/onboarding/onboarding-store";
 
 export function ClientRootInit({ children }: { children: ReactNode }) {
     const { message } = App.useApp();
@@ -28,7 +29,9 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
         searchParams.delete("apikey");
         window.history.replaceState(null, "", `${window.location.pathname}${searchParams.size ? `?${searchParams}` : ""}${window.location.hash}`);
         const result = importChannelCredentials({ baseUrl, apiKey });
-        openConfigDialog(false, "channels");
+        // [dianran] Continue in the first-run guide (fetch models + pick defaults) instead of the raw settings panel.
+        if ((result.status === "created" || result.status === "updated") && baseUrl) useOnboardingStore.getState().show({ baseUrl, apiKey: apiKey || "", reason: "import" });
+        else openConfigDialog(false, "channels");
         if (result.status === "created") message.success(t("config.importedChannelCreated", { name: result.channelName }));
         else if (result.status === "updated") message.success(t("config.importedChannelUpdated", { name: result.channelName }));
         else if (result.status === "missing-base-url") message.error(t("config.importedChannelBaseUrlRequired"));

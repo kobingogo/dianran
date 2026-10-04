@@ -1,17 +1,19 @@
 {
-  "name": "@basketikun/canvas-agent",
+  "name": "@kobinflow/canvas-agent",
   "version": "0.6.0",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "canvas-agent": "dist/index.js"
+    "canvas-agent": "dist/index.js",
+    "dianran-agent": "dist/index.js"
   },
   "files": [
     "dist",
     "agent-instructions.md",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -42,5 +44,12 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "description": "Local agent bridge that lets Codex / Claude Code operate the Dianran (点染) canvas over MCP.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kobingogo/dianran.git",
+    "directory": "canvas-agent"
+  },
+  "homepage": "https://github.com/kobingogo/dianran/tree/main/canvas-agent"
 }
