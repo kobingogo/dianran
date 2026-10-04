@@ -2,6 +2,6 @@
     "name": "dianran-brand",
     "private": true,
     "type": "module",
-    "scripts": { "render": "bun run render.mjs" },
-    "devDependencies": { "@resvg/resvg-js": "^2.6.2", "png-to-ico": "^3.0.2" }
+    "scripts": { "render": "bun run render.mjs && bun run showcase.mjs" },
+    "devDependencies": { "@resvg/resvg-js": "^2.6.2", "png-to-ico": "^3.0.2", "sharp": "^0.34.0" }
 }
