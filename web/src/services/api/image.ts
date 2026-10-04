@@ -8,6 +8,7 @@ import { dataUrlToFile } from "@/lib/image-utils";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { imageToDataUrl } from "@/services/image-storage";
 import { imageSizePresets, inferMediaScale } from "@/lib/media-size";
+import { getImageCaps, mapImageQualityParam, type ImageChannelFormat } from "@/lib/model-capabilities";
 import type { ReferenceImage } from "@/types/image";
 import { presetApiFlags } from "@/constant/brand";
 
@@ -127,6 +128,24 @@ function normalizeQuality(quality: string) {
     const value = quality.trim().toLowerCase();
     const normalized = QUALITY_ALIASES[value] || value;
     return QUALITY_BASE[normalized] ? normalized : undefined;
+}
+
+function imageChannelFormat(config: Pick<AiConfig, "apiFormat" | "baseUrl">): ImageChannelFormat {
+    if (config.apiFormat === "gemini") return "gemini";
+    const api = imageApiOf(config as AiConfig);
+    return api === "siliconflow" || api === "chat" ? api : "openai";
+}
+
+/**
+ * Quality string placed on an OpenAI-style body.
+ * Legacy auto/high/medium/low keep the previous normalizeQuality behavior.
+ * New standard/hd values go through the capability table so gpt-image is not sent "standard"/"hd".
+ */
+function openAiQualityField(config: Pick<AiConfig, "quality" | "model" | "apiFormat" | "baseUrl">) {
+    const raw = config.quality.trim().toLowerCase();
+    if (raw !== "standard" && raw !== "hd" && raw !== "high-def") return normalizeQuality(config.quality);
+    const mapped = mapImageQualityParam(config.quality, getImageCaps(config.model, imageChannelFormat(config)));
+    return mapped.send && mapped.param === "quality" ? mapped.value : undefined;
 }
 
 /** Only "transparent" is forwarded; any other value (incl. empty) means keep the default opaque background. */
@@ -850,8 +869,8 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const script = resolveModelScript(config, config.model || config.imageModel);
     if (script) {
-        const quality = normalizeQuality(config.quality);
-        const requestSize = resolveRequestSize(quality, config.size);
+        const quality = openAiQualityField(requestConfig);
+        const requestSize = resolveRequestSize(normalizeQuality(config.quality), config.size);
         const background = normalizeBackground(config.background);
         try {
             const result = await runModelPlugin({
@@ -875,8 +894,8 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
-    const quality = normalizeQuality(config.quality);
-    const requestSize = resolveRequestSize(quality, config.size);
+    const quality = openAiQualityField(requestConfig);
+    const requestSize = resolveRequestSize(normalizeQuality(config.quality), config.size);
     const background = normalizeBackground(config.background);
     try {
         return await requestOpenAiCompatibleImages(requestConfig, prompt, [], n, requestSize, async () => {
@@ -912,8 +931,8 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     const requestPrompt = buildImageReferencePromptText(prompt, references);
     const script = resolveModelScript(config, config.model || config.imageModel);
     if (script) {
-        const quality = normalizeQuality(config.quality);
-        const requestSize = resolveRequestSize(quality, config.size);
+        const quality = openAiQualityField(requestConfig);
+        const requestSize = resolveRequestSize(normalizeQuality(config.quality), config.size);
         const background = normalizeBackground(config.background);
         const refs = await Promise.all(references.map((image) => imageToDataUrl(image)));
         try {
@@ -939,8 +958,8 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         }
     }
 
-    const quality = normalizeQuality(config.quality);
-    const requestSize = resolveRequestSize(quality, config.size);
+    const quality = openAiQualityField(requestConfig);
+    const requestSize = resolveRequestSize(normalizeQuality(config.quality), config.size);
     const background = normalizeBackground(config.background);
     const formData = new FormData();
     formData.set("model", requestConfig.model);

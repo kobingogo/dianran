@@ -9,7 +9,7 @@ import type { CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
 import { clampVideoSeconds } from "@/lib/media-size";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAssetStore } from "@/stores/use-asset-store";
-import { modelOptionLabel, modelOptionName, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore } from "@/stores/use-config-store";
+import { modelOptionLabel, modelOptionName, normalizeModelOptionValue, resolveVideoSize, selectableModelsByCapability, useConfigStore } from "@/stores/use-config-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 
 // Execute site-level Agent tools in the browser, including canvas lists, workbench generation, prompt search, and asset operations.
@@ -189,12 +189,12 @@ function runImageWorkbench(input: SiteToolInput, navigate: NavigateFunction) {
 
 function getVideoConfig() {
     const { config } = useConfigStore.getState();
-    const model = config.videoModel || config.model;
+    const model = config.videoModel.trim();
     return {
         current: {
             model,
-            modelName: modelOptionName(model),
-            size: config.size || "1280x720",
+            modelName: model ? modelOptionName(model) : "",
+            size: resolveVideoSize(config),
             seconds: config.videoSeconds || "6",
             resolution: config.vquality || "720",
             generateAudio: config.videoGenerateAudio !== "false",
@@ -221,7 +221,8 @@ function runVideoWorkbench(input: SiteToolInput, navigate: NavigateFunction) {
         applied.model = value;
     }
     if (typeof input.size === "string" && input.size.trim()) {
-        configStore.updateConfig("size", input.size);
+        // Agent protocol field stays `size`. Persist it on videoSize so image size is left alone.
+        configStore.updateConfig("videoSize", input.size);
         applied.size = input.size;
     }
     if (input.seconds != null && String(input.seconds).trim()) {

@@ -343,7 +343,7 @@ function InfiniteCanvasPage() {
                             ? applyGeneratedVideo(item, video, {
                                   prompt: item.metadata?.prompt,
                                   model: generationConfig.model,
-                                  size: generationConfig.size,
+                                  size: generationConfig.videoSize,
                                   seconds: generationConfig.videoSeconds,
                                   vquality: generationConfig.vquality,
                                   generateAudio: generationConfig.videoGenerateAudio,
@@ -2552,7 +2552,7 @@ function InfiniteCanvasPage() {
                 }
 
                 if (mode === "video") {
-                    const spec = nodeSizeFromRatio(generationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
+                    const spec = nodeSizeFromRatio(generationConfig.videoSize, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
                     const videoId = isEmptyVideoNode ? nodeId : nanoid();
                     const parent = sourceNode?.position || { x: 0, y: 0 };
@@ -2567,7 +2567,7 @@ function InfiniteCanvasPage() {
                             prompt: effectivePrompt,
                             status: NODE_STATUS_LOADING,
                             model: generationConfig.model,
-                            size: generationConfig.size,
+                            size: generationConfig.videoSize,
                             seconds: generationConfig.videoSeconds,
                             vquality: generationConfig.vquality,
                             generateAudio: generationConfig.videoGenerateAudio,
@@ -2586,7 +2586,7 @@ function InfiniteCanvasPage() {
                     const controller = startGenerationRequest(videoId, nodeId, nodeId, runController);
                     try {
                         await completeVideoNodeTask(videoId, generationConfig, effectivePrompt, generationContext.referenceImages, controller.signal, {
-                            size: generationConfig.size,
+                            size: generationConfig.videoSize,
                             seconds: generationConfig.videoSeconds,
                             vquality: generationConfig.vquality,
                             generateAudio: generationConfig.videoGenerateAudio,
@@ -2842,7 +2842,7 @@ function InfiniteCanvasPage() {
                 }
                 if (node.type === CanvasNodeType.Video) {
                     await completeVideoNodeTask(node.id, generationConfig, prompt, retryImages, controller.signal, {
-                        size: generationConfig.size,
+                        size: generationConfig.videoSize,
                         seconds: generationConfig.videoSeconds,
                         vquality: generationConfig.vquality,
                         generateAudio: generationConfig.videoGenerateAudio,

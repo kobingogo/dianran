@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
 import { DEFAULT_WEBDAV_DIRECTORY, storageKey } from "@/constant/brand";
+import { deriveVideoSize, DEFAULT_VIDEO_SIZE } from "@/lib/model-capabilities";
 
 export type ApiCallFormat = "openai" | "gemini";
 export type ModelCapability = "image" | "video" | "text" | "audio";
@@ -50,6 +51,8 @@ export type AiConfig = {
     models: string[];
     quality: string;
     size: string;
+    /** Video dimensions. Appended; image generation keeps using `size`. */
+    videoSize: string;
     background: string;
     count: string;
     canvasImageCount: string;
@@ -92,7 +95,6 @@ export const defaultConfig: AiConfig = {
             apiFormat: "openai",
             models: [
                 { name: "gpt-image-2", capability: "image" },
-                { name: "grok-imagine-video", capability: "video" },
                 { name: "gpt-5.5", capability: "text" },
                 { name: "gpt-4o-mini-tts", capability: "audio" },
             ],
@@ -100,7 +102,8 @@ export const defaultConfig: AiConfig = {
     ],
     model: "default::gpt-image-2",
     imageModel: "default::gpt-image-2",
-    videoModel: "default::grok-imagine-video",
+    // grok-imagine-video does not run on the official OpenAI base URL. New installs leave video unset.
+    videoModel: "",
     textModel: "default::gpt-5.5",
     audioModel: "default::gpt-4o-mini-tts",
     audioVoice: "alloy",
@@ -114,9 +117,10 @@ export const defaultConfig: AiConfig = {
     videoMode: "frames",
     systemPrompt: "",
     reasoningEffort: "auto",
-    models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
-    quality: "auto",
+    models: ["default::gpt-image-2", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+    quality: "standard",
     size: "1:1",
+    videoSize: DEFAULT_VIDEO_SIZE,
     background: "",
     count: "1",
     canvasImageCount: "3",
@@ -248,6 +252,10 @@ export const useConfigStore = create<ConfigStore>()(
                 if (!Array.isArray(persistedConfig.channels)) config.channels = [];
                 const channels = normalizeChannels(config);
                 const models = modelOptionsFromChannels(channels);
+                // Append videoSize. Do not rewrite the legacy image `size`, and do not rewrite quality
+                // (auto/high/medium/low stay stored; callers map them with normalizeImageQuality).
+                const videoSize = deriveVideoSize(typeof persistedConfig.videoSize === "string" ? persistedConfig.videoSize : undefined, typeof persistedConfig.size === "string" ? persistedConfig.size : undefined);
+                const quality = typeof persistedConfig.quality === "string" && persistedConfig.quality.trim() ? persistedConfig.quality : defaultConfig.quality;
                 return {
                     ...current,
                     webdav: { ...defaultWebdavSyncConfig, ...persistedWebdav },
@@ -259,6 +267,8 @@ export const useConfigStore = create<ConfigStore>()(
                         models,
                         imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
                         videoModel: normalizeModelOptionValue(config.videoModel, channels),
+                        quality,
+                        videoSize,
                         textModel: normalizeModelOptionValue(config.textModel || config.model, channels),
                         audioModel: normalizeModelOptionValue(config.audioModel || defaultConfig.audioModel, channels),
                         audioVoice: config.audioVoice || defaultConfig.audioVoice,
@@ -284,6 +294,11 @@ export const useConfigStore = create<ConfigStore>()(
 export function useEffectiveConfig() {
     const config = useConfigStore((state) => state.config);
     return useMemo(() => ({ ...config, channelMode: "local" as const }), [config]);
+}
+
+/** Video dimensions for a request. Reads `videoSize`, otherwise derives it from legacy `size` without writing either field. */
+export function resolveVideoSize(config: Pick<AiConfig, "videoSize" | "size">) {
+    return deriveVideoSize(config.videoSize, config.size);
 }
 
 /** Normalize a mixed list of raw model names or model objects into deduped ChannelModel entries. */

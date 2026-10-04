@@ -6,7 +6,7 @@ import { dataUrlToFile, readFileAsDataUrl } from "@/lib/image-utils";
 import { clampVideoSeconds, computeVideoSize, inferVideoRatio } from "@/lib/media-size";
 import { getMediaBlob, resolveMediaUrl, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { imageToDataUrl } from "@/services/image-storage";
-import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig } from "@/stores/use-config-store";
+import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, resolveVideoSize, withLocalProxy, type AiConfig } from "@/stores/use-config-store";
 import { runModelPlugin } from "./model-plugin";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
@@ -107,9 +107,9 @@ async function createPluginVideoTask(config: AiConfig, model: string, script: st
             audios,
             params: {
                 seconds: normalizeVideoSeconds(config.videoSeconds),
-                size: normalizeVideoSize(config.size, config.vquality),
+                size: normalizeVideoSize(resolveVideoSize(config), config.vquality),
                 resolution: normalizeVideoResolution(config.vquality),
-                ratio: videoAspectRatio(config.size),
+                ratio: videoAspectRatio(resolveVideoSize(config)),
                 generateAudio: boolConfig(config.videoGenerateAudio, true),
                 watermark: boolConfig(config.videoWatermark, false),
                 mode: resolveVideoMode(config.videoMode, refs.length),
@@ -155,7 +155,7 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
     body.append("model", modelOptionName(model));
     body.append("prompt", prompt);
     body.append("seconds", normalizeVideoSeconds(config.videoSeconds));
-    body.append("size", normalizeVideoSize(config.size, config.vquality) || "1280x720");
+    body.append("size", normalizeVideoSize(resolveVideoSize(config), config.vquality) || "1280x720");
     body.append("resolution_name", normalizeVideoResolution(config.vquality));
     body.append("generate_audio", String(boolConfig(config.videoGenerateAudio, true)));
     body.append("watermark", String(boolConfig(config.videoWatermark, false)));
@@ -223,7 +223,7 @@ async function createGeminiVideoTask(config: AiConfig, model: string, prompt: st
         const created = unwrapEnvelope((await axios.post<ApiEnvelope<GeminiVideoOperation>>(geminiVideoUrl(config, model, "predictLongRunning"), {
             instances: [instance],
             parameters: {
-                aspectRatio: videoAspectRatio(config.size),
+                aspectRatio: videoAspectRatio(resolveVideoSize(config)),
                 durationSeconds: Number(normalizeVideoSeconds(config.videoSeconds)) || 8,
                 resolution: normalizeVideoResolution(config.vquality),
                 generateAudio: boolConfig(config.videoGenerateAudio, true),
