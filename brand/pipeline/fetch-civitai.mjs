@@ -13,8 +13,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fetchedAt = nowIso();
 const stats = { authenticated: Boolean(process.env.CIVITAI_API_TOKEN), pages: 0, raw: 0, notSfw: 0, noPrompt: 0, lowReactions: 0, rejected: {}, duplicate: 0, candidates: 0, errors: [] };
 
-async function getPage(url) {
-    for (let attempt = 0; attempt < 6; attempt++) {
+const reactionsOf = (img) => ["likeCount", "heartCount", "laughCount", "cryCount"].reduce((sum, k) => sum + (img.stats?.[k] || 0), 0);
+function looksRanked(items, first) {
+    if (!items.length) return false;
+    const values = items.map(reactionsOf);
+    if (first && values[0] < cfg.minReactions) return false;
+    let inversions = 0;
+    for (let i = 1; i < values.length; i++) if (values[i] > values[i - 1] * 1.05 + 5) inversions++;
+    return inversions <= Math.max(3, values.length * 0.05);
+}
+
+async function getPage(url, first = false) {
+    for (let attempt = 0; attempt < 10; attempt++) {
         try {
             const headers = { "User-Agent": UA, Accept: "application/json" };
             // Civitai ToS §11.4 allows automated access through the public API "with your own valid credentials":
@@ -22,12 +32,15 @@ async function getPage(url) {
             if (process.env.CIVITAI_API_TOKEN) headers.Authorization = `Bearer ${process.env.CIVITAI_API_TOKEN}`;
             const response = await fetch(url, { headers, signal: AbortSignal.timeout(60_000) });
             const data = await response.json().catch(() => ({}));
-            if (response.ok && Array.isArray(data.items)) return data;
+            // Under load the API sometimes answers with a degraded, unsorted result set: require the page to look like a
+            // "Most Reactions" ranking (first item at or above the threshold, non-increasing) before accepting it.
+            if (response.ok && Array.isArray(data.items) && looksRanked(data.items, first)) return data;
+            if (response.ok && Array.isArray(data.items)) stats.errors.push("degraded page (not sorted by reactions), retrying");
             stats.errors.push(`HTTP ${response.status} ${data.error || ""}`.trim());
         } catch (error) {
             stats.errors.push(error.message);
         }
-        await sleep(3000 * (attempt + 1));
+        await sleep(Math.min(30_000, 4000 * (attempt + 1)));
     }
     return null;
 }
@@ -38,7 +51,7 @@ const seen = new Set();
 const out = [];
 let url = `https://civitai.com/api/v1/images?sort=Most%20Reactions&period=Week&nsfw=None&withMeta=true&limit=${cfg.pageSize}`;
 for (let page = 0; page < cfg.pages && url; page++) {
-    const data = await getPage(url);
+    const data = await getPage(url, page === 0);
     if (!data) break;
     stats.pages++;
     for (const img of data.items) {
@@ -47,7 +60,7 @@ for (let page = 0; page < cfg.pages && url; page++) {
         const prompt = String(img.meta?.prompt || "").trim();
         if (prompt.length < cfg.minPromptLength) { stats.noPrompt++; continue; }
         const s = img.stats || {};
-        const reactions = (s.likeCount || 0) + (s.heartCount || 0) + (s.laughCount || 0) + (s.cryCount || 0);
+        const reactions = reactionsOf(img);
         if (reactions < cfg.minReactions) { stats.lowReactions++; continue; }
         const reason = contentReject(prompt.toLowerCase(), { author: img.username }) || (prompt.replace(/\s/g, "").length < cfg.minPromptLength ? "too-short" : "");
         if (reason) { stats.rejected[reason] = (stats.rejected[reason] || 0) + 1; continue; }
