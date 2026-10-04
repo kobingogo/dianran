@@ -28,7 +28,7 @@ function Highlighter({ action, color, children }: { action: "highlight" | "under
 function HeroStrip({ items, locale }: { items: ShowcaseItem[]; locale: "zh-CN" | "en-US" }) {
     const loop = [...items, ...items];
     return (
-        <div className="relative -mx-6 mt-14 overflow-hidden py-4 [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]" aria-hidden="true">
+        <div className="relative -mx-6 mt-14 self-stretch overflow-hidden py-4 [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]" aria-hidden="true">
             <div className="dr-marquee flex w-max gap-4 px-2">
                 {loop.map((item, index) => (
                     <figure
