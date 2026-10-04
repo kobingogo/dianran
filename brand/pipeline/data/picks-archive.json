@@ -1,36 +1,4 @@
 {
-  "dianran-picks:ink-mountains": {
-    "id": "dianran-picks:ink-mountains",
-    "title": "水墨远山",
-    "prompt": "水墨画风格的层叠远山，晨雾在山谷间流动，一轮朱砂色的太阳，宣纸纹理，大面积留白，极简构图",
-    "description": "",
-    "coverUrl": "/showcase/ink-mountains.webp",
-    "referenceImageUrls": [
-      "/showcase/ink-mountains.webp"
-    ],
-    "tags": [
-      "国风",
-      "水墨"
-    ],
-    "author": "点染",
-    "createdAt": "2026-10-04",
-    "imageMode": "generate",
-    "source": "dianran",
-    "sourceUrl": "",
-    "postedAt": "2026-10-04T00:00:00.000Z",
-    "fetchedAt": "2026-10-04T12:27:20.773Z",
-    "engagement": {
-      "likes": null,
-      "bookmarks": null,
-      "reposts": null
-    },
-    "authorFollowers": null,
-    "model": "通用",
-    "status": "active",
-    "sourceId": "dianran-picks",
-    "archivedAt": "2026-10-04T12:33:46.436Z",
-    "archivedReason": "排名跌出前 45（当前第 82 名）"
-  },
   "dianran-picks:neon-city": {
     "id": "dianran-picks:neon-city",
     "title": "霓虹夜城",

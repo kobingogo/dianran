@@ -1,6 +1,6 @@
 {
   "date": "2026-10-04",
-  "seconds": 161,
+  "seconds": 222,
   "fetch": {
     "x": {
       "queries": {
@@ -69,22 +69,22 @@
       "authenticated": false,
       "pages": 4,
       "raw": 400,
-      "notSfw": 10,
-      "noPrompt": 66,
-      "lowReactions": 322,
-      "rejected": {},
-      "duplicate": 0,
-      "candidates": 2,
+      "notSfw": 15,
+      "noPrompt": 106,
+      "lowReactions": 158,
+      "rejected": {
+        "nsfw": 12
+      },
+      "duplicate": 4,
+      "candidates": 105,
       "errors": [
-        "HTTP 503 Image search is temporarily overloaded — please retry.",
-        "HTTP 503 Image search is temporarily overloaded — please retry.",
         "HTTP 503 Image search is temporarily overloaded — please retry."
       ]
     }
   },
   "merge": {
-    "runAt": "2026-10-04T12:32:58.206Z",
-    "added": 85,
+    "runAt": "2026-10-04T12:48:16.990Z",
+    "added": 145,
     "retired": 61,
     "updated": 42,
     "wouldRetireStale": 100,
@@ -99,9 +99,9 @@
       },
       "civitai-trending": {
         "before": 0,
-        "added": 2,
+        "added": 62,
         "retired": 0,
-        "after": 2
+        "after": 62
       },
       "youmind-gpt-image-2": {
         "before": 126,
@@ -141,10 +141,10 @@
       }
     },
     "coverStats": {
-      "ok": 2,
-      "cached": 117,
+      "ok": 0,
+      "cached": 60,
       "skipped": 0,
-      "failed": 3
+      "failed": 0
     },
     "xChecks": {
       "checked": 866,
@@ -152,6 +152,7 @@
       "refreshed": 836,
       "errors": 0
     },
+    "note": "首轮 Civitai API 过载（503 + 未排序的降级结果），只拿到 2 条；修复抓取器后补跑 Civitai（同一周更）",
     "retiredByReason": {
       "upstream-removed": 24,
       "source-deleted": 30,
@@ -159,7 +160,7 @@
     }
   },
   "picks": {
-    "runAt": "2026-10-04T12:33:46.436Z",
+    "runAt": "2026-10-04T12:49:19.640Z",
     "picks": [
       {
         "id": "x-trending:2096555280306000120",
@@ -177,7 +178,7 @@
         "title": "上下分屏：实拍旅行照 + 插画",
         "model": "GPT Image",
         "library": "x-trending",
-        "score": 5.774,
+        "score": 5.773,
         "rank": 2,
         "status": "new",
         "author": "@MahnoorAi12",
@@ -250,26 +251,26 @@
         "sourceUrl": "https://x.com/saniaspeaks_/status/2105146792681832481"
       },
       {
-        "id": "x-trending:2105298953235472410",
-        "title": "【主体】 × 【风格】 × 【构图】 ×…",
-        "model": "GPT Image",
-        "library": "x-trending",
-        "score": 4.74,
-        "rank": 9,
-        "status": "new",
-        "author": "@DeepBlueX0",
-        "sourceUrl": "https://x.com/DeepBlueX0/status/2105298953235472410"
-      },
-      {
         "id": "x-trending:2106560621932384657",
         "title": "浴室里的小宝宝 3D 动画",
         "model": "Seedance",
         "library": "x-trending",
-        "score": 4.729,
-        "rank": 10,
+        "score": 4.74,
+        "rank": 9,
         "status": "new",
         "author": "@Zarnab_with_Ai",
         "sourceUrl": "https://x.com/Zarnab_with_Ai/status/2106560621932384657"
+      },
+      {
+        "id": "x-trending:2105298953235472410",
+        "title": "【主体】 × 【风格】 × 【构图】 ×…",
+        "model": "GPT Image",
+        "library": "x-trending",
+        "score": 4.739,
+        "rank": 10,
+        "status": "new",
+        "author": "@DeepBlueX0",
+        "sourceUrl": "https://x.com/DeepBlueX0/status/2105298953235472410"
       },
       {
         "id": "x-trending:2105256819623129130",
@@ -287,7 +288,7 @@
         "title": "角色连续性设定表",
         "model": "GPT Image",
         "library": "x-trending",
-        "score": 4.691,
+        "score": 4.69,
         "rank": 12,
         "status": "new",
         "author": "@ElsaSofia__AI",
@@ -298,7 +299,7 @@
         "title": "个人资料 / 头像 - GPT Image 黑色缎面连衣裙人像",
         "model": "GPT Image",
         "library": "youmind-gpt-image-2",
-        "score": 4.664,
+        "score": 4.665,
         "rank": 13,
         "status": "new",
         "author": "Prompt アトリエ｜AI画像プロンプト",
@@ -320,7 +321,7 @@
         "title": "猎人遭遇巨兽",
         "model": "Seedance",
         "library": "x-trending",
-        "score": 4.6,
+        "score": 4.599,
         "rank": 16,
         "status": "new",
         "author": "@ShamsAmin56",
@@ -386,7 +387,7 @@
         "title": "社交媒体帖子 - 精品店时尚编辑人像",
         "model": "Nano Banana",
         "library": "youmind-nano-banana-pro",
-        "score": 4.271,
+        "score": 4.27,
         "rank": 48,
         "status": "new",
         "author": "Nawal",
@@ -397,7 +398,7 @@
         "title": "半写实油画肖像",
         "model": "Nano Banana",
         "library": "x-trending",
-        "score": 4.231,
+        "score": 4.23,
         "rank": 55,
         "status": "new",
         "author": "@HustleXR",
@@ -476,20 +477,20 @@
         "library": "dianran-picks",
         "score": 4.035,
         "rank": 82,
-        "status": "new",
+        "status": "kept",
         "author": "点染",
         "sourceUrl": ""
       },
       {
-        "id": "civitai-trending:144251268",
-        "title": "black and white ink wash illustration of two cats — one…",
+        "id": "civitai-trending:144099727",
+        "title": "The painting style is highly textured",
         "model": "Krea 2",
         "library": "civitai-trending",
-        "score": 3.929,
-        "rank": 102,
+        "score": 4.03,
+        "rank": 84,
         "status": "new",
-        "author": "FreijaFoxy",
-        "sourceUrl": "https://civitai.com/images/144251268"
+        "author": "space_takeiteasy",
+        "sourceUrl": "https://civitai.com/images/144099727"
       }
     ],
     "added": [
@@ -501,8 +502,8 @@
       "x-trending:2102261738280489425",
       "x-trending:2106347953711661482",
       "x-trending:2105146792681832481",
-      "x-trending:2105298953235472410",
       "x-trending:2106560621932384657",
+      "x-trending:2105298953235472410",
       "x-trending:2105256819623129130",
       "x-trending:2103078313111740842",
       "youmind-gpt-image-2:2a0e016186eac74c",
@@ -521,15 +522,9 @@
       "x-trending:2086412223061135392",
       "x-trending:2105751043451572475",
       "youmind-nano-banana-pro:42c38fd5de06da24",
-      "dianran-picks:ink-mountains",
-      "civitai-trending:144251268"
+      "civitai-trending:144099727"
     ],
     "dropped": [
-      {
-        "id": "dianran-picks:ink-mountains",
-        "reason": "排名跌出前 45（当前第 82 名）",
-        "title": "水墨远山"
-      },
       {
         "id": "dianran-picks:neon-city",
         "reason": "排名跌出前 45（当前第 169 名）",
@@ -577,14 +572,14 @@
     }
   },
   "finalize": {
-    "version": "prompts-2026-10-04",
+    "version": "prompts-2026-10-04.2",
     "previousVersion": "covers-v4",
-    "pruned": 173,
+    "pruned": 45,
     "counts": {
       "awesome-gpt-image": 52,
       "awesome-gpt4o-image-prompts": 73,
       "banana-prompt-quicker": 287,
-      "civitai-trending": 2,
+      "civitai-trending": 62,
       "dianran-picks": 30,
       "freestylefly-gpt-image-2": 521,
       "x-trending": 150,

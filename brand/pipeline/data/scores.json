@@ -1,5 +1,5 @@
 {
-  "runAt": "2026-10-04T12:32:58.206Z",
+  "runAt": "2026-10-04T12:48:16.990Z",
   "usageStatus": "ok",
   "scores": {
     "x-trending:2096555280306000120": {
@@ -12,21 +12,12 @@
       "hasCover": true
     },
     "x-trending:2102724961408626735": {
-      "total": 5.774,
+      "total": 5.773,
       "engagement": 4.086,
       "freshness": 0.844,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2099707375943066094": {
-      "total": 5.236,
-      "engagement": 3.752,
-      "freshness": 0.742,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
       "hasCover": true
     },
     "x-trending:2104278802683851083": {
@@ -38,76 +29,40 @@
       "model": "Midjourney",
       "hasCover": true
     },
-    "x-trending:2086412223061135392": {
-      "total": 4.071,
-      "engagement": 3.228,
-      "freshness": 0.422,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Hailuo",
-      "hasCover": true
-    },
-    "x-trending:2100222523535409655": {
-      "total": 4.318,
-      "engagement": 2.801,
-      "freshness": 0.759,
+    "x-trending:2099707375943066094": {
+      "total": 5.236,
+      "engagement": 3.752,
+      "freshness": 0.742,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2093574426642264501": {
-      "total": 4.524,
-      "engagement": 3.381,
-      "freshness": 0.572,
+    "x-trending:2103696195000709627": {
+      "total": 5.045,
+      "engagement": 3.287,
+      "freshness": 0.879,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2102261738280489425": {
+      "total": 4.819,
+      "engagement": 3.165,
+      "freshness": 0.827,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106347953711661482": {
+      "total": 4.808,
+      "engagement": 2.84,
+      "freshness": 0.984,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2085930145374966138": {
-      "total": 4.098,
-      "engagement": 3.272,
-      "freshness": 0.413,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2094663659951702414": {
-      "total": 4.588,
-      "engagement": 3.391,
-      "freshness": 0.599,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2089537788354195539": {
-      "total": 4.417,
-      "engagement": 3.453,
-      "freshness": 0.482,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Hailuo",
-      "hasCover": true
-    },
-    "x-trending:2099122632063127760": {
-      "total": 4.298,
-      "engagement": 2.85,
-      "freshness": 0.724,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2086044800051204496": {
-      "total": 4.42,
-      "engagement": 3.589,
-      "freshness": 0.415,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
       "hasCover": true
     },
     "x-trending:2105146792681832481": {
@@ -119,19 +74,91 @@
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2093738868436840604": {
-      "total": 4.383,
-      "engagement": 3.231,
-      "freshness": 0.576,
+    "x-trending:2105298953235472410": {
+      "total": 4.739,
+      "engagement": 2.857,
+      "freshness": 0.941,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2092079254775435448": {
-      "total": 3.869,
-      "engagement": 2.796,
-      "freshness": 0.537,
+    "x-trending:2106560621932384657": {
+      "total": 4.74,
+      "engagement": 2.754,
+      "freshness": 0.993,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2105256819623129130": {
+      "total": 4.703,
+      "engagement": 2.824,
+      "freshness": 0.939,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2103078313111740842": {
+      "total": 4.69,
+      "engagement": 2.978,
+      "freshness": 0.856,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2103092900842381493": {
+      "total": 4.643,
+      "engagement": 2.929,
+      "freshness": 0.857,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2094970821219627239": {
+      "total": 4.617,
+      "engagement": 3.404,
+      "freshness": 0.607,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2103849845467537562": {
+      "total": 4.599,
+      "engagement": 2.83,
+      "freshness": 0.885,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2094663659951702414": {
+      "total": 4.588,
+      "engagement": 3.391,
+      "freshness": 0.599,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2092227793073635474": {
+      "total": 4.578,
+      "engagement": 3.498,
+      "freshness": 0.54,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105242834404344265": {
+      "total": 4.577,
+      "engagement": 2.699,
+      "freshness": 0.939,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
@@ -146,13 +173,220 @@
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2086122377633575169": {
-      "total": 3.595,
-      "engagement": 2.761,
+    "x-trending:2086152970908086703": {
+      "total": 4.535,
+      "engagement": 3.701,
       "freshness": 0.417,
       "usage": 0,
       "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2093574426642264501": {
+      "total": 4.524,
+      "engagement": 3.381,
+      "freshness": 0.572,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2099006619988459985": {
+      "total": 4.486,
+      "engagement": 3.045,
+      "freshness": 0.72,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2105974631106818101": {
+      "total": 4.485,
+      "engagement": 2.548,
+      "freshness": 0.968,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2103047854205886949": {
+      "total": 4.449,
+      "engagement": 2.738,
+      "freshness": 0.855,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2099683790717325390": {
+      "total": 4.429,
+      "engagement": 2.946,
+      "freshness": 0.741,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2103999055118454900": {
+      "total": 4.425,
+      "engagement": 2.644,
+      "freshness": 0.89,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2086044800051204496": {
+      "total": 4.42,
+      "engagement": 3.589,
+      "freshness": 0.415,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2103139749540339890": {
+      "total": 4.418,
+      "engagement": 2.7,
+      "freshness": 0.859,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2089537788354195539": {
+      "total": 4.417,
+      "engagement": 3.453,
+      "freshness": 0.482,
+      "usage": 0,
+      "library": "x-trending",
       "model": "Hailuo",
+      "hasCover": true
+    },
+    "x-trending:2099872759866380704": {
+      "total": 4.391,
+      "engagement": 2.896,
+      "freshness": 0.747,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2093738868436840604": {
+      "total": 4.383,
+      "engagement": 3.231,
+      "freshness": 0.576,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106393688653922602": {
+      "total": 4.38,
+      "engagement": 2.408,
+      "freshness": 0.986,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2105287088874877312": {
+      "total": 4.375,
+      "engagement": 2.494,
+      "freshness": 0.941,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105219509791678731": {
+      "total": 4.369,
+      "engagement": 2.493,
+      "freshness": 0.938,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2091721687167586815": {
+      "total": 4.362,
+      "engagement": 3.305,
+      "freshness": 0.528,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2101162396563968324": {
+      "total": 4.358,
+      "engagement": 2.779,
+      "freshness": 0.789,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2101205826895827053": {
+      "total": 4.344,
+      "engagement": 2.762,
+      "freshness": 0.791,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2105945563040796764": {
+      "total": 4.328,
+      "engagement": 2.393,
+      "freshness": 0.967,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2100222523535409655": {
+      "total": 4.318,
+      "engagement": 2.801,
+      "freshness": 0.758,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2104106520808157221": {
+      "total": 4.315,
+      "engagement": 2.526,
+      "freshness": 0.895,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2106397932304191969": {
+      "total": 4.302,
+      "engagement": 2.33,
+      "freshness": 0.986,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2099122632063127760": {
+      "total": 4.298,
+      "engagement": 2.85,
+      "freshness": 0.724,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2105177817688539320": {
+      "total": 4.298,
+      "engagement": 2.425,
+      "freshness": 0.936,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
       "hasCover": true
     },
     "x-trending:2101185223761572026": {
@@ -173,139 +407,22 @@
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2100541954685895043": {
-      "total": 3.936,
-      "engagement": 2.398,
-      "freshness": 0.769,
+    "x-trending:2101963091647033700": {
+      "total": 4.257,
+      "engagement": 2.624,
+      "freshness": 0.817,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2099872759866380704": {
-      "total": 4.391,
-      "engagement": 2.896,
-      "freshness": 0.747,
+    "x-trending:2105641846768800214": {
+      "total": 4.258,
+      "engagement": 2.348,
+      "freshness": 0.955,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2092227793073635474": {
-      "total": 4.578,
-      "engagement": 3.498,
-      "freshness": 0.54,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2095331606202568932": {
-      "total": 4.093,
-      "engagement": 2.86,
-      "freshness": 0.616,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2102261738280489425": {
-      "total": 4.819,
-      "engagement": 3.165,
-      "freshness": 0.827,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2089539565313036364": {
-      "total": 3.356,
-      "engagement": 2.392,
-      "freshness": 0.482,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2094706661005103239": {
-      "total": 4.067,
-      "engagement": 2.867,
-      "freshness": 0.6,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2101162396563968324": {
-      "total": 4.358,
-      "engagement": 2.779,
-      "freshness": 0.789,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2103078313111740842": {
-      "total": 4.691,
-      "engagement": 2.978,
-      "freshness": 0.856,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2099006619988459985": {
-      "total": 4.486,
-      "engagement": 3.045,
-      "freshness": 0.72,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2086152970908086703": {
-      "total": 4.535,
-      "engagement": 3.701,
-      "freshness": 0.417,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2094626691234816034": {
-      "total": 3.746,
-      "engagement": 2.55,
-      "freshness": 0.598,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2091721687167586815": {
-      "total": 4.362,
-      "engagement": 3.305,
-      "freshness": 0.529,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2106393688653922602": {
-      "total": 4.379,
-      "engagement": 2.407,
-      "freshness": 0.986,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2099318165117473079": {
-      "total": 4.094,
-      "engagement": 2.634,
-      "freshness": 0.73,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
       "hasCover": true
     },
     "x-trending:2096807576168169628": {
@@ -317,307 +434,10 @@
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2105841226817933688": {
-      "total": 4.171,
-      "engagement": 2.245,
-      "freshness": 0.963,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2085368901886493151": {
-      "total": 3.601,
-      "engagement": 2.794,
-      "freshness": 0.403,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2103696195000709627": {
-      "total": 5.045,
-      "engagement": 3.287,
-      "freshness": 0.879,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2103849845467537562": {
-      "total": 4.6,
-      "engagement": 2.83,
-      "freshness": 0.885,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2094606854144000082": {
-      "total": 3.887,
-      "engagement": 2.692,
-      "freshness": 0.597,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2095336325977444847": {
-      "total": 3.655,
-      "engagement": 2.423,
-      "freshness": 0.616,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2099683790717325390": {
-      "total": 4.429,
-      "engagement": 2.946,
-      "freshness": 0.741,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2091724761424670980": {
-      "total": 3.733,
-      "engagement": 2.676,
-      "freshness": 0.529,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2096902953110299096": {
-      "total": 3.893,
-      "engagement": 2.576,
-      "freshness": 0.659,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2093602304733925744": {
-      "total": 3.863,
-      "engagement": 2.718,
-      "freshness": 0.572,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2096209304537932228": {
-      "total": 4.231,
-      "engagement": 2.951,
-      "freshness": 0.64,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2094338528964718601": {
-      "total": 3.579,
-      "engagement": 2.398,
-      "freshness": 0.591,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2103092900842381493": {
-      "total": 4.643,
-      "engagement": 2.929,
-      "freshness": 0.857,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2105242834404344265": {
-      "total": 4.577,
-      "engagement": 2.699,
-      "freshness": 0.939,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2101205826895827053": {
-      "total": 4.344,
-      "engagement": 2.762,
-      "freshness": 0.791,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2088943890284081169": {
-      "total": 3.186,
-      "engagement": 2.247,
-      "freshness": 0.47,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Midjourney",
-      "hasCover": true
-    },
-    "x-trending:2088930837785915413": {
-      "total": 3.47,
-      "engagement": 2.531,
-      "freshness": 0.469,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2094757845371908385": {
-      "total": 3.432,
-      "engagement": 2.229,
-      "freshness": 0.601,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2103139749540339890": {
-      "total": 4.418,
-      "engagement": 2.7,
-      "freshness": 0.859,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2104180932689494162": {
-      "total": 3.575,
-      "engagement": 1.78,
-      "freshness": 0.898,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2093545799011672085": {
-      "total": 3.447,
-      "engagement": 2.305,
-      "freshness": 0.571,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2106560621932384657": {
-      "total": 4.729,
-      "engagement": 2.743,
-      "freshness": 0.993,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2089556355384512991": {
-      "total": 3.717,
-      "engagement": 2.753,
-      "freshness": 0.482,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2101963091647033700": {
-      "total": 4.258,
-      "engagement": 2.624,
-      "freshness": 0.817,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105256819623129130": {
-      "total": 4.703,
-      "engagement": 2.824,
-      "freshness": 0.94,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2093740563954803034": {
-      "total": 3.482,
-      "engagement": 2.331,
-      "freshness": 0.576,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2094970821219627239": {
-      "total": 4.617,
-      "engagement": 3.404,
-      "freshness": 0.607,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
     "x-trending:2097520780477415812": {
-      "total": 4.239,
+      "total": 4.238,
       "engagement": 2.886,
       "freshness": 0.676,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2100444829880914240": {
-      "total": 4.202,
-      "engagement": 2.67,
-      "freshness": 0.766,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105533415026241635": {
-      "total": 4.074,
-      "engagement": 2.173,
-      "freshness": 0.951,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2085928284475584713": {
-      "total": 3.714,
-      "engagement": 2.888,
-      "freshness": 0.413,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2103047854205886949": {
-      "total": 4.449,
-      "engagement": 2.738,
-      "freshness": 0.855,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2087159952645517619": {
-      "total": 3.764,
-      "engagement": 2.893,
-      "freshness": 0.435,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2099035298126790949": {
-      "total": 4.182,
-      "engagement": 2.739,
-      "freshness": 0.721,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
@@ -626,97 +446,25 @@
     "x-trending:2102354773202895107": {
       "total": 4.239,
       "engagement": 2.578,
-      "freshness": 0.831,
+      "freshness": 0.83,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2095477330059903223": {
-      "total": 3.469,
-      "engagement": 2.229,
-      "freshness": 0.62,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2096083344396329267": {
-      "total": 3.823,
-      "engagement": 2.551,
-      "freshness": 0.636,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2096802050214617572": {
-      "total": 4.167,
-      "engagement": 2.855,
-      "freshness": 0.656,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2101911598889857028": {
-      "total": 4.173,
-      "engagement": 2.543,
-      "freshness": 0.815,
+    "x-trending:2106439652278411435": {
+      "total": 4.236,
+      "engagement": 2.26,
+      "freshness": 0.988,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2098247715054596288": {
-      "total": 4.004,
-      "engagement": 2.609,
-      "freshness": 0.697,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2099725642736845113": {
-      "total": 3.677,
-      "engagement": 2.192,
-      "freshness": 0.743,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2094267684968140993": {
-      "total": 3.925,
-      "engagement": 2.747,
-      "freshness": 0.589,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2094352344398123161": {
-      "total": 3.967,
-      "engagement": 2.784,
-      "freshness": 0.591,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2103999055118454900": {
-      "total": 4.425,
-      "engagement": 2.644,
-      "freshness": 0.891,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2088098956534493293": {
-      "total": 3.181,
-      "engagement": 2.275,
-      "freshness": 0.453,
+    "x-trending:2096209304537932228": {
+      "total": 4.23,
+      "engagement": 2.951,
+      "freshness": 0.639,
       "usage": 0,
       "library": "x-trending",
       "model": "Nano Banana",
@@ -731,118 +479,10 @@
       "model": "Nano Banana",
       "hasCover": true
     },
-    "x-trending:2104411770840633535": {
-      "total": 3.718,
-      "engagement": 1.905,
-      "freshness": 0.906,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Hailuo",
-      "hasCover": true
-    },
-    "x-trending:2097112285827268887": {
-      "total": 3.307,
-      "engagement": 1.977,
-      "freshness": 0.665,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Hailuo",
-      "hasCover": true
-    },
-    "x-trending:2087171906541965724": {
-      "total": 3.183,
-      "engagement": 2.312,
-      "freshness": 0.436,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedream",
-      "hasCover": true
-    },
-    "x-trending:2095714523806368177": {
-      "total": 3.369,
-      "engagement": 2.116,
-      "freshness": 0.626,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Midjourney",
-      "hasCover": true
-    },
-    "x-trending:2093379601170846155": {
-      "total": 3.169,
-      "engagement": 2.035,
-      "freshness": 0.567,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedream",
-      "hasCover": true
-    },
-    "x-trending:2094848918894809325": {
-      "total": 3.498,
-      "engagement": 2.291,
-      "freshness": 0.604,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2092419311973634557": {
-      "total": 3.497,
-      "engagement": 2.408,
-      "freshness": 0.544,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Kling",
-      "hasCover": true
-    },
-    "x-trending:2101697533705920970": {
-      "total": 3.769,
-      "engagement": 2.154,
-      "freshness": 0.808,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Veo",
-      "hasCover": true
-    },
-    "x-trending:2094976160459571512": {
-      "total": 3.768,
-      "engagement": 2.554,
-      "freshness": 0.607,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Midjourney",
-      "hasCover": true
-    },
-    "x-trending:2104102096882802907": {
-      "total": 3.924,
-      "engagement": 2.135,
-      "freshness": 0.895,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Veo",
-      "hasCover": true
-    },
-    "x-trending:2097386482587816342": {
-      "total": 3.074,
-      "engagement": 1.729,
-      "freshness": 0.672,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Veo",
-      "hasCover": true
-    },
-    "x-trending:2102677746359189525": {
-      "total": 3.431,
-      "engagement": 1.747,
-      "freshness": 0.842,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Veo",
-      "hasCover": true
-    },
-    "x-trending:2106347953711661482": {
-      "total": 4.808,
-      "engagement": 2.84,
-      "freshness": 0.984,
+    "x-trending:2100444829880914240": {
+      "total": 4.201,
+      "engagement": 2.67,
+      "freshness": 0.766,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
@@ -857,172 +497,55 @@
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2105219509791678731": {
-      "total": 4.369,
-      "engagement": 2.493,
-      "freshness": 0.938,
+    "x-trending:2099035298126790949": {
+      "total": 4.181,
+      "engagement": 2.739,
+      "freshness": 0.721,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2106439652278411435": {
-      "total": 4.233,
-      "engagement": 2.257,
-      "freshness": 0.988,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106238790666989717": {
-      "total": 4.064,
-      "engagement": 2.105,
+    "x-trending:2106245541508382774": {
+      "total": 4.182,
+      "engagement": 2.222,
       "freshness": 0.98,
       "usage": 0,
       "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105298953235472410": {
-      "total": 4.74,
-      "engagement": 2.857,
-      "freshness": 0.941,
-      "usage": 0,
-      "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2106251329085874184": {
-      "total": 4.12,
-      "engagement": 2.159,
-      "freshness": 0.98,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2104789066562547945": {
-      "total": 4.106,
-      "engagement": 2.264,
-      "freshness": 0.921,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105895841466663379": {
-      "total": 4.056,
-      "engagement": 2.125,
-      "freshness": 0.965,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2106230270282313997": {
-      "total": 3.932,
-      "engagement": 1.974,
+    "x-trending:2106235341548273915": {
+      "total": 4.179,
+      "engagement": 2.22,
       "freshness": 0.979,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2106304668796109249": {
-      "total": 4.033,
-      "engagement": 2.068,
-      "freshness": 0.982,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2106397932304191969": {
-      "total": 4.299,
-      "engagement": 2.326,
-      "freshness": 0.986,
+    "x-trending:2101911598889857028": {
+      "total": 4.173,
+      "engagement": 2.543,
+      "freshness": 0.815,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2105974631106818101": {
-      "total": 4.485,
-      "engagement": 2.548,
-      "freshness": 0.969,
+    "x-trending:2105841226817933688": {
+      "total": 4.171,
+      "engagement": 2.245,
+      "freshness": 0.963,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2105287088874877312": {
-      "total": 4.376,
-      "engagement": 2.494,
-      "freshness": 0.941,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2104106520808157221": {
-      "total": 4.315,
-      "engagement": 2.526,
-      "freshness": 0.895,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105945563040796764": {
-      "total": 4.328,
-      "engagement": 2.393,
-      "freshness": 0.967,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2106235620771451322": {
-      "total": 3.945,
-      "engagement": 1.986,
-      "freshness": 0.979,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106234670186733841": {
-      "total": 3.879,
-      "engagement": 1.921,
-      "freshness": 0.979,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2106349134038864282": {
-      "total": 4.007,
-      "engagement": 2.039,
-      "freshness": 0.984,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106389342084362564": {
-      "total": 3.781,
-      "engagement": 1.81,
-      "freshness": 0.986,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105177817688539320": {
-      "total": 4.298,
-      "engagement": 2.425,
-      "freshness": 0.936,
+    "x-trending:2096802050214617572": {
+      "total": 4.167,
+      "engagement": 2.855,
+      "freshness": 0.656,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
@@ -1037,143 +560,8 @@
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2106233291062001799": {
-      "total": 3.949,
-      "engagement": 1.99,
-      "freshness": 0.979,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105890316192755815": {
-      "total": 3.897,
-      "engagement": 1.967,
-      "freshness": 0.965,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2106237323046486362": {
-      "total": 3.876,
-      "engagement": 1.917,
-      "freshness": 0.98,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106031986003615843": {
-      "total": 3.845,
-      "engagement": 1.903,
-      "freshness": 0.971,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2106235341548273915": {
-      "total": 4.179,
-      "engagement": 2.22,
-      "freshness": 0.979,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106245541508382774": {
-      "total": 4.182,
-      "engagement": 2.222,
-      "freshness": 0.98,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2104924970291986885": {
-      "total": 3.754,
-      "engagement": 1.901,
-      "freshness": 0.926,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2104937619419537834": {
-      "total": 3.707,
-      "engagement": 1.853,
-      "freshness": 0.927,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Nano Banana",
-      "hasCover": true
-    },
-    "x-trending:2106604455151980846": {
-      "total": 3.708,
-      "engagement": 1.718,
-      "freshness": 0.995,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106206660582850732": {
-      "total": 3.86,
-      "engagement": 1.904,
-      "freshness": 0.978,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105895502181261608": {
-      "total": 3.776,
-      "engagement": 1.845,
-      "freshness": 0.965,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2105641846768800214": {
-      "total": 4.258,
-      "engagement": 2.348,
-      "freshness": 0.955,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106596983565898079": {
-      "total": 3.938,
-      "engagement": 1.948,
-      "freshness": 0.995,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2105881201257206211": {
-      "total": 3.61,
-      "engagement": 1.68,
-      "freshness": 0.965,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "GPT Image",
-      "hasCover": true
-    },
-    "x-trending:2105885652969791967": {
-      "total": 3.792,
-      "engagement": 1.862,
-      "freshness": 0.965,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Kling",
-      "hasCover": true
-    },
     "x-trending:2106198477533544868": {
-      "total": 4.123,
+      "total": 4.122,
       "engagement": 2.167,
       "freshness": 0.978,
       "usage": 0,
@@ -1181,55 +569,82 @@
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2105293200101417249": {
-      "total": 3.624,
-      "engagement": 1.742,
-      "freshness": 0.941,
+    "x-trending:2106251329085874184": {
+      "total": 4.119,
+      "engagement": 2.159,
+      "freshness": 0.98,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2104789066562547945": {
+      "total": 4.105,
+      "engagement": 2.264,
+      "freshness": 0.921,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2085930145374966138": {
+      "total": 4.098,
+      "engagement": 3.272,
+      "freshness": 0.413,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2099318165117473079": {
+      "total": 4.094,
+      "engagement": 2.634,
+      "freshness": 0.73,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2104157800104673455": {
-      "total": 3.541,
-      "engagement": 1.747,
-      "freshness": 0.897,
+    "x-trending:2095331606202568932": {
+      "total": 4.093,
+      "engagement": 2.86,
+      "freshness": 0.616,
       "usage": 0,
       "library": "x-trending",
-      "model": "Midjourney",
+      "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2106673885697524154": {
-      "total": 3.576,
-      "engagement": 1.581,
-      "freshness": 0.998,
-      "usage": 0,
-      "library": "x-trending",
-      "model": "Seedance",
-      "hasCover": true
-    },
-    "x-trending:2106272743352394142": {
-      "total": 3.573,
-      "engagement": 1.611,
-      "freshness": 0.981,
+    "x-trending:2105533415026241635": {
+      "total": 4.074,
+      "engagement": 2.173,
+      "freshness": 0.95,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2106246136990511260": {
-      "total": 3.671,
-      "engagement": 1.712,
-      "freshness": 0.98,
+    "x-trending:2086412223061135392": {
+      "total": 4.071,
+      "engagement": 3.228,
+      "freshness": 0.422,
       "usage": 0,
       "library": "x-trending",
-      "model": "Seedance",
+      "model": "Hailuo",
       "hasCover": true
     },
-    "x-trending:2106240889509089482": {
-      "total": 3.882,
-      "engagement": 1.923,
-      "freshness": 0.98,
+    "x-trending:2094706661005103239": {
+      "total": 4.066,
+      "engagement": 2.867,
+      "freshness": 0.6,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106238790666989717": {
+      "total": 4.064,
+      "engagement": 2.105,
+      "freshness": 0.979,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
@@ -1244,19 +659,163 @@
       "model": "Midjourney",
       "hasCover": true
     },
-    "x-trending:2105206745123758469": {
-      "total": 3.726,
-      "engagement": 1.851,
-      "freshness": 0.938,
+    "x-trending:2105895841466663379": {
+      "total": 4.055,
+      "engagement": 2.125,
+      "freshness": 0.965,
       "usage": 0,
       "library": "x-trending",
-      "model": "Midjourney",
+      "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2106350670614048958": {
-      "total": 3.777,
-      "engagement": 1.808,
+    "x-trending:2106304668796109249": {
+      "total": 4.032,
+      "engagement": 2.068,
+      "freshness": 0.982,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106349134038864282": {
+      "total": 4.007,
+      "engagement": 2.039,
       "freshness": 0.984,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2098247715054596288": {
+      "total": 4.004,
+      "engagement": 2.609,
+      "freshness": 0.697,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2094352344398123161": {
+      "total": 3.966,
+      "engagement": 2.784,
+      "freshness": 0.591,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106233291062001799": {
+      "total": 3.949,
+      "engagement": 1.99,
+      "freshness": 0.979,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2106235620771451322": {
+      "total": 3.944,
+      "engagement": 1.986,
+      "freshness": 0.979,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2106596983565898079": {
+      "total": 3.945,
+      "engagement": 1.956,
+      "freshness": 0.994,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2100541954685895043": {
+      "total": 3.936,
+      "engagement": 2.398,
+      "freshness": 0.769,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2106230270282313997": {
+      "total": 3.932,
+      "engagement": 1.974,
+      "freshness": 0.979,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2094267684968140993": {
+      "total": 3.924,
+      "engagement": 2.747,
+      "freshness": 0.589,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2104102096882802907": {
+      "total": 3.924,
+      "engagement": 2.135,
+      "freshness": 0.894,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Veo",
+      "hasCover": true
+    },
+    "x-trending:2105890316192755815": {
+      "total": 3.897,
+      "engagement": 1.967,
+      "freshness": 0.965,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2096902953110299096": {
+      "total": 3.893,
+      "engagement": 2.576,
+      "freshness": 0.659,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2094606854144000082": {
+      "total": 3.887,
+      "engagement": 2.692,
+      "freshness": 0.597,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106240889509089482": {
+      "total": 3.882,
+      "engagement": 1.923,
+      "freshness": 0.98,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2106234670186733841": {
+      "total": 3.879,
+      "engagement": 1.921,
+      "freshness": 0.979,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106237323046486362": {
+      "total": 3.876,
+      "engagement": 1.917,
+      "freshness": 0.979,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
@@ -1271,53 +830,206 @@
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2105983900556374504": {
-      "total": 3.48,
-      "engagement": 1.542,
-      "freshness": 0.969,
+    "x-trending:2092079254775435448": {
+      "total": 3.869,
+      "engagement": 2.796,
+      "freshness": 0.537,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2106233142994481153": {
-      "total": 3.417,
-      "engagement": 1.458,
-      "freshness": 0.979,
+    "x-trending:2093602304733925744": {
+      "total": 3.863,
+      "engagement": 2.718,
+      "freshness": 0.572,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2106399222077792409": {
-      "total": 3.433,
-      "engagement": 1.461,
+    "x-trending:2106206660582850732": {
+      "total": 3.862,
+      "engagement": 1.906,
+      "freshness": 0.978,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2106031986003615843": {
+      "total": 3.844,
+      "engagement": 1.903,
+      "freshness": 0.971,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2096083344396329267": {
+      "total": 3.823,
+      "engagement": 2.551,
+      "freshness": 0.636,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105885652969791967": {
+      "total": 3.792,
+      "engagement": 1.862,
+      "freshness": 0.965,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Kling",
+      "hasCover": true
+    },
+    "x-trending:2106389342084362564": {
+      "total": 3.781,
+      "engagement": 1.81,
       "freshness": 0.986,
       "usage": 0,
       "library": "x-trending",
-      "model": "GPT Image",
+      "model": "Seedance",
       "hasCover": true
     },
-    "x-trending:2105856314824126579": {
-      "total": 3.37,
-      "engagement": 1.443,
-      "freshness": 0.964,
+    "x-trending:2106350670614048958": {
+      "total": 3.777,
+      "engagement": 1.808,
+      "freshness": 0.984,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2105895502181261608": {
+      "total": 3.776,
+      "engagement": 1.845,
+      "freshness": 0.965,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
       "hasCover": true
     },
-    "x-trending:2105904909183029479": {
-      "total": 3.392,
-      "engagement": 1.461,
-      "freshness": 0.966,
+    "x-trending:2101697533705920970": {
+      "total": 3.769,
+      "engagement": 2.154,
+      "freshness": 0.807,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Veo",
+      "hasCover": true
+    },
+    "x-trending:2094976160459571512": {
+      "total": 3.768,
+      "engagement": 2.554,
+      "freshness": 0.607,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Midjourney",
+      "hasCover": true
+    },
+    "x-trending:2087159952645517619": {
+      "total": 3.764,
+      "engagement": 2.893,
+      "freshness": 0.435,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2104924970291986885": {
+      "total": 3.754,
+      "engagement": 1.901,
+      "freshness": 0.926,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2094626691234816034": {
+      "total": 3.746,
+      "engagement": 2.55,
+      "freshness": 0.598,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2091724761424670980": {
+      "total": 3.733,
+      "engagement": 2.676,
+      "freshness": 0.528,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105206745123758469": {
+      "total": 3.725,
+      "engagement": 1.851,
+      "freshness": 0.937,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Midjourney",
+      "hasCover": true
+    },
+    "x-trending:2104411770840633535": {
+      "total": 3.718,
+      "engagement": 1.905,
+      "freshness": 0.906,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Hailuo",
+      "hasCover": true
+    },
+    "x-trending:2089556355384512991": {
+      "total": 3.717,
+      "engagement": 2.753,
+      "freshness": 0.482,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2085928284475584713": {
+      "total": 3.714,
+      "engagement": 2.888,
+      "freshness": 0.413,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106604455151980846": {
+      "total": 3.708,
+      "engagement": 1.718,
+      "freshness": 0.995,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2104937619419537834": {
+      "total": 3.707,
+      "engagement": 1.853,
+      "freshness": 0.927,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2099725642736845113": {
+      "total": 3.677,
+      "engagement": 2.192,
+      "freshness": 0.743,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
       "hasCover": true
     },
     "x-trending:2106298018513490298": {
-      "total": 3.673,
+      "total": 3.672,
       "engagement": 1.709,
       "freshness": 0.982,
       "usage": 0,
@@ -1325,19 +1037,73 @@
       "model": "Veo",
       "hasCover": true
     },
-    "x-trending:2106591921594679614": {
-      "total": 3.269,
-      "engagement": 1.28,
-      "freshness": 0.994,
+    "x-trending:2106246136990511260": {
+      "total": 3.671,
+      "engagement": 1.712,
+      "freshness": 0.98,
       "usage": 0,
       "library": "x-trending",
       "model": "Seedance",
       "hasCover": true
     },
+    "x-trending:2095336325977444847": {
+      "total": 3.655,
+      "engagement": 2.423,
+      "freshness": 0.616,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105293200101417249": {
+      "total": 3.624,
+      "engagement": 1.742,
+      "freshness": 0.941,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105881201257206211": {
+      "total": 3.609,
+      "engagement": 1.68,
+      "freshness": 0.965,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2085368901886493151": {
+      "total": 3.601,
+      "engagement": 2.794,
+      "freshness": 0.403,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
     "x-trending:2106607115733553225": {
-      "total": 3.597,
-      "engagement": 1.607,
+      "total": 3.601,
+      "engagement": 1.611,
       "freshness": 0.995,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2086122377633575169": {
+      "total": 3.594,
+      "engagement": 2.761,
+      "freshness": 0.417,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Hailuo",
+      "hasCover": true
+    },
+    "x-trending:2094338528964718601": {
+      "total": 3.579,
+      "engagement": 2.398,
+      "freshness": 0.591,
       "usage": 0,
       "library": "x-trending",
       "model": "GPT Image",
@@ -1352,19 +1118,793 @@
       "model": "GPT Image",
       "hasCover": true
     },
+    "x-trending:2106673885697524154": {
+      "total": 3.608,
+      "engagement": 1.613,
+      "freshness": 0.998,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2104180932689494162": {
+      "total": 3.575,
+      "engagement": 1.78,
+      "freshness": 0.897,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2106272743352394142": {
+      "total": 3.573,
+      "engagement": 1.611,
+      "freshness": 0.981,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2104157800104673455": {
+      "total": 3.54,
+      "engagement": 1.747,
+      "freshness": 0.897,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Midjourney",
+      "hasCover": true
+    },
+    "x-trending:2094848918894809325": {
+      "total": 3.498,
+      "engagement": 2.291,
+      "freshness": 0.604,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2092419311973634557": {
+      "total": 3.496,
+      "engagement": 2.408,
+      "freshness": 0.544,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Kling",
+      "hasCover": true
+    },
+    "x-trending:2093740563954803034": {
+      "total": 3.482,
+      "engagement": 2.331,
+      "freshness": 0.576,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105983900556374504": {
+      "total": 3.48,
+      "engagement": 1.542,
+      "freshness": 0.969,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2088930837785915413": {
+      "total": 3.469,
+      "engagement": 2.531,
+      "freshness": 0.469,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2095477330059903223": {
+      "total": 3.469,
+      "engagement": 2.229,
+      "freshness": 0.62,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2093545799011672085": {
+      "total": 3.447,
+      "engagement": 2.305,
+      "freshness": 0.571,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2106399222077792409": {
+      "total": 3.433,
+      "engagement": 1.461,
+      "freshness": 0.986,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2094757845371908385": {
+      "total": 3.432,
+      "engagement": 2.229,
+      "freshness": 0.601,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2102677746359189525": {
+      "total": 3.43,
+      "engagement": 1.747,
+      "freshness": 0.842,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Veo",
+      "hasCover": true
+    },
+    "x-trending:2106233142994481153": {
+      "total": 3.417,
+      "engagement": 1.458,
+      "freshness": 0.979,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105904909183029479": {
+      "total": 3.392,
+      "engagement": 1.461,
+      "freshness": 0.966,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2105856314824126579": {
+      "total": 3.37,
+      "engagement": 1.443,
+      "freshness": 0.964,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "GPT Image",
+      "hasCover": true
+    },
+    "x-trending:2095714523806368177": {
+      "total": 3.369,
+      "engagement": 2.116,
+      "freshness": 0.626,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Midjourney",
+      "hasCover": true
+    },
+    "x-trending:2089539565313036364": {
+      "total": 3.356,
+      "engagement": 2.392,
+      "freshness": 0.482,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2097112285827268887": {
+      "total": 3.306,
+      "engagement": 1.977,
+      "freshness": 0.665,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Hailuo",
+      "hasCover": true
+    },
+    "x-trending:2106591921594679614": {
+      "total": 3.273,
+      "engagement": 1.285,
+      "freshness": 0.994,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedance",
+      "hasCover": true
+    },
+    "x-trending:2088943890284081169": {
+      "total": 3.186,
+      "engagement": 2.247,
+      "freshness": 0.47,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Midjourney",
+      "hasCover": true
+    },
+    "x-trending:2087171906541965724": {
+      "total": 3.183,
+      "engagement": 2.312,
+      "freshness": 0.436,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedream",
+      "hasCover": true
+    },
+    "x-trending:2088098956534493293": {
+      "total": 3.181,
+      "engagement": 2.275,
+      "freshness": 0.453,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Nano Banana",
+      "hasCover": true
+    },
+    "x-trending:2093379601170846155": {
+      "total": 3.169,
+      "engagement": 2.035,
+      "freshness": 0.567,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Seedream",
+      "hasCover": true
+    },
+    "x-trending:2097386482587816342": {
+      "total": 3.073,
+      "engagement": 1.729,
+      "freshness": 0.672,
+      "usage": 0,
+      "library": "x-trending",
+      "model": "Veo",
+      "hasCover": true
+    },
+    "civitai-trending:144251268": {
+      "total": 3.466,
+      "engagement": 1.594,
+      "freshness": 0.936,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
     "civitai-trending:144198296": {
-      "total": 3.918,
-      "engagement": 2.06,
+      "total": 3.454,
+      "engagement": 1.596,
       "freshness": 0.929,
       "usage": 0,
       "library": "civitai-trending",
       "model": "Krea 2",
       "hasCover": true
     },
-    "civitai-trending:144251268": {
-      "total": 3.929,
-      "engagement": 2.057,
+    "civitai-trending:143998952": {
+      "total": 4.01,
+      "engagement": 2.21,
+      "freshness": 0.9,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:143994719": {
+      "total": 4.006,
+      "engagement": 2.207,
+      "freshness": 0.899,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144072501": {
+      "total": 4.027,
+      "engagement": 2.205,
+      "freshness": 0.911,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144099727": {
+      "total": 4.03,
+      "engagement": 2.19,
+      "freshness": 0.92,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:143992601": {
+      "total": 4.006,
+      "engagement": 2.189,
+      "freshness": 0.909,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144024165": {
+      "total": 3.981,
+      "engagement": 2.175,
+      "freshness": 0.903,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144126796": {
+      "total": 4.007,
+      "engagement": 2.168,
+      "freshness": 0.92,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144063815": {
+      "total": 3.94,
+      "engagement": 2.123,
+      "freshness": 0.909,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144099861": {
+      "total": 3.946,
+      "engagement": 2.116,
+      "freshness": 0.915,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144164633": {
+      "total": 3.958,
+      "engagement": 2.112,
+      "freshness": 0.923,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144138002": {
+      "total": 3.927,
+      "engagement": 2.088,
+      "freshness": 0.919,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144119976": {
+      "total": 3.877,
+      "engagement": 2.044,
+      "freshness": 0.917,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144201545": {
+      "total": 3.87,
+      "engagement": 2.011,
+      "freshness": 0.929,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Qwen 2.1",
+      "hasCover": true
+    },
+    "civitai-trending:144155894": {
+      "total": 3.85,
+      "engagement": 2.006,
+      "freshness": 0.922,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144262374": {
+      "total": 3.865,
+      "engagement": 1.989,
+      "freshness": 0.938,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144111463": {
+      "total": 3.819,
+      "engagement": 1.988,
+      "freshness": 0.916,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144284729": {
+      "total": 3.867,
+      "engagement": 1.984,
+      "freshness": 0.942,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144159724": {
+      "total": 3.789,
+      "engagement": 1.945,
+      "freshness": 0.922,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Illustrious",
+      "hasCover": true
+    },
+    "civitai-trending:144315834": {
+      "total": 3.833,
+      "engagement": 1.941,
+      "freshness": 0.946,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144221528": {
+      "total": 3.775,
+      "engagement": 1.91,
+      "freshness": 0.933,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144245124": {
+      "total": 3.763,
+      "engagement": 1.893,
+      "freshness": 0.935,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144194896": {
+      "total": 3.749,
+      "engagement": 1.893,
+      "freshness": 0.928,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144210907": {
+      "total": 3.731,
+      "engagement": 1.868,
+      "freshness": 0.932,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144313137": {
+      "total": 3.759,
+      "engagement": 1.865,
+      "freshness": 0.947,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144312043": {
+      "total": 3.74,
+      "engagement": 1.849,
+      "freshness": 0.945,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144287707": {
+      "total": 3.736,
+      "engagement": 1.833,
+      "freshness": 0.952,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144121838": {
+      "total": 3.67,
+      "engagement": 1.83,
+      "freshness": 0.92,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:143999087": {
+      "total": 3.624,
+      "engagement": 1.824,
+      "freshness": 0.9,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144374684": {
+      "total": 3.73,
+      "engagement": 1.818,
+      "freshness": 0.956,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144290350": {
+      "total": 3.702,
+      "engagement": 1.817,
+      "freshness": 0.942,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144285949": {
+      "total": 3.697,
+      "engagement": 1.814,
+      "freshness": 0.942,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144312704": {
+      "total": 3.695,
+      "engagement": 1.801,
+      "freshness": 0.947,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:143986104": {
+      "total": 3.586,
+      "engagement": 1.789,
+      "freshness": 0.898,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "ZImageTurbo",
+      "hasCover": true
+    },
+    "civitai-trending:144000806": {
+      "total": 3.582,
+      "engagement": 1.782,
+      "freshness": 0.9,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Flux",
+      "hasCover": true
+    },
+    "civitai-trending:144509951": {
+      "total": 3.735,
+      "engagement": 1.782,
+      "freshness": 0.977,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Anima",
+      "hasCover": true
+    },
+    "civitai-trending:144372673": {
+      "total": 3.688,
+      "engagement": 1.777,
+      "freshness": 0.955,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144214411": {
+      "total": 3.633,
+      "engagement": 1.767,
+      "freshness": 0.933,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144246878": {
+      "total": 3.638,
+      "engagement": 1.758,
+      "freshness": 0.94,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144214375": {
+      "total": 3.612,
+      "engagement": 1.747,
+      "freshness": 0.933,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144387613": {
+      "total": 3.656,
+      "engagement": 1.742,
+      "freshness": 0.957,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Illustrious",
+      "hasCover": true
+    },
+    "civitai-trending:144121107": {
+      "total": 3.558,
+      "engagement": 1.719,
+      "freshness": 0.919,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144214394": {
+      "total": 3.581,
+      "engagement": 1.716,
+      "freshness": 0.933,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144264766": {
+      "total": 3.589,
+      "engagement": 1.711,
+      "freshness": 0.939,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:143998760": {
+      "total": 3.507,
+      "engagement": 1.707,
+      "freshness": 0.9,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:143998749": {
+      "total": 3.482,
+      "engagement": 1.682,
+      "freshness": 0.9,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144196985": {
+      "total": 3.536,
+      "engagement": 1.679,
+      "freshness": 0.929,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Flux",
+      "hasCover": true
+    },
+    "civitai-trending:144197806": {
+      "total": 3.535,
+      "engagement": 1.678,
+      "freshness": 0.929,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144214396": {
+      "total": 3.542,
+      "engagement": 1.677,
+      "freshness": 0.933,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144326001": {
+      "total": 3.565,
+      "engagement": 1.67,
+      "freshness": 0.947,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Pony",
+      "hasCover": true
+    },
+    "civitai-trending:144251540": {
+      "total": 3.539,
+      "engagement": 1.666,
       "freshness": 0.936,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144391215": {
+      "total": 3.582,
+      "engagement": 1.666,
+      "freshness": 0.958,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:113810556": {
+      "total": 3.643,
+      "engagement": 1.666,
+      "freshness": 0.989,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Flux",
+      "hasCover": true
+    },
+    "civitai-trending:144478882": {
+      "total": 3.614,
+      "engagement": 1.666,
+      "freshness": 0.974,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:143998748": {
+      "total": 3.464,
+      "engagement": 1.664,
+      "freshness": 0.9,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144348662": {
+      "total": 3.565,
+      "engagement": 1.663,
+      "freshness": 0.951,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144271354": {
+      "total": 3.538,
+      "engagement": 1.659,
+      "freshness": 0.94,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144214414": {
+      "total": 3.507,
+      "engagement": 1.642,
+      "freshness": 0.933,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144414225": {
+      "total": 3.547,
+      "engagement": 1.623,
+      "freshness": 0.962,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144386143": {
+      "total": 3.542,
+      "engagement": 1.622,
+      "freshness": 0.96,
+      "usage": 0,
+      "library": "civitai-trending",
+      "model": "Krea 2",
+      "hasCover": true
+    },
+    "civitai-trending:144214401": {
+      "total": 3.487,
+      "engagement": 1.622,
+      "freshness": 0.933,
       "usage": 0,
       "library": "civitai-trending",
       "model": "Krea 2",
@@ -1427,14 +1967,14 @@
     "youmind-gpt-image-2:e81bb195b4d5c371": {
       "total": 3.142,
       "engagement": 1.543,
-      "freshness": 0.8,
+      "freshness": 0.799,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
       "hasCover": true
     },
     "youmind-gpt-image-2:2a0e016186eac74c": {
-      "total": 4.664,
+      "total": 4.665,
       "engagement": 2.799,
       "freshness": 0.933,
       "usage": 0,
@@ -1461,7 +2001,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:66ee423ca14eb45e": {
-      "total": 2.189,
+      "total": 2.188,
       "engagement": 0.685,
       "freshness": 0.752,
       "usage": 0,
@@ -1488,7 +2028,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:df75ce78e563c20b": {
-      "total": 3.1,
+      "total": 3.099,
       "engagement": 1.205,
       "freshness": 0.947,
       "usage": 0,
@@ -1533,7 +2073,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:4409a8c6ba0e818a": {
-      "total": 3.378,
+      "total": 3.377,
       "engagement": 1.512,
       "freshness": 0.933,
       "usage": 0,
@@ -1542,7 +2082,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:5b9df90acde29949": {
-      "total": 3.845,
+      "total": 3.844,
       "engagement": 1.921,
       "freshness": 0.962,
       "usage": 0,
@@ -1560,7 +2100,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:b55c6d3cdd9767d5": {
-      "total": 3.926,
+      "total": 3.925,
       "engagement": 2.002,
       "freshness": 0.962,
       "usage": 0,
@@ -1578,7 +2118,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:acae2a6931b704a3": {
-      "total": 2.201,
+      "total": 2.2,
       "engagement": 0.364,
       "freshness": 0.918,
       "usage": 0,
@@ -1632,7 +2172,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:f64d1ad88009930d": {
-      "total": 2.935,
+      "total": 2.934,
       "engagement": 1.408,
       "freshness": 0.763,
       "usage": 0,
@@ -1668,7 +2208,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:968cd8effacb5bcd": {
-      "total": 3.292,
+      "total": 3.291,
       "engagement": 1.921,
       "freshness": 0.685,
       "usage": 0,
@@ -1686,7 +2226,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:813b245fd8b90472": {
-      "total": 3.67,
+      "total": 3.669,
       "engagement": 2.299,
       "freshness": 0.685,
       "usage": 0,
@@ -1695,7 +2235,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:56c1ef4be41e9300": {
-      "total": 1.714,
+      "total": 1.713,
       "engagement": 0.364,
       "freshness": 0.675,
       "usage": 0,
@@ -1713,7 +2253,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:833b8865c3cf7e8f": {
-      "total": 2.731,
+      "total": 2.73,
       "engagement": 0.836,
       "freshness": 0.947,
       "usage": 0,
@@ -1731,7 +2271,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:ef415bca16301c98": {
-      "total": 2.901,
+      "total": 2.9,
       "engagement": 1.064,
       "freshness": 0.918,
       "usage": 0,
@@ -1760,7 +2300,7 @@
     "youmind-gpt-image-2:2c8faf856c7318ec": {
       "total": 2.791,
       "engagement": 1.064,
-      "freshness": 0.864,
+      "freshness": 0.863,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
@@ -1769,14 +2309,14 @@
     "youmind-gpt-image-2:e908ebbed3ca2f46": {
       "total": 3.526,
       "engagement": 1.799,
-      "freshness": 0.864,
+      "freshness": 0.863,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
       "hasCover": true
     },
     "youmind-gpt-image-2:da16b1ff92f7bec3": {
-      "total": 3.181,
+      "total": 3.18,
       "engagement": 1.48,
       "freshness": 0.85,
       "usage": 0,
@@ -1794,7 +2334,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:919b0144d298adcd": {
-      "total": 3.266,
+      "total": 3.265,
       "engagement": 1.565,
       "freshness": 0.85,
       "usage": 0,
@@ -1830,9 +2370,9 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:b4d7dbca10493702": {
-      "total": 2.684,
+      "total": 2.683,
       "engagement": 1.085,
-      "freshness": 0.8,
+      "freshness": 0.799,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
@@ -1911,7 +2451,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:a33ef0997261f793": {
-      "total": 1.481,
+      "total": 1.48,
       "engagement": 0,
       "freshness": 0.74,
       "usage": 0,
@@ -1965,7 +2505,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:35175a7147ed71d6": {
-      "total": 1.735,
+      "total": 1.734,
       "engagement": 0.364,
       "freshness": 0.685,
       "usage": 0,
@@ -2046,7 +2586,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:4c48b1c5571454cf": {
-      "total": 3.485,
+      "total": 3.484,
       "engagement": 1.619,
       "freshness": 0.933,
       "usage": 0,
@@ -2055,7 +2595,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:73583cd74af48dc5": {
-      "total": 3.386,
+      "total": 3.385,
       "engagement": 1.52,
       "freshness": 0.933,
       "usage": 0,
@@ -2064,7 +2604,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:4da1a8f402767b68": {
-      "total": 2.901,
+      "total": 2.9,
       "engagement": 1.064,
       "freshness": 0.918,
       "usage": 0,
@@ -2082,7 +2622,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:d882808ea6d2a296": {
-      "total": 2.201,
+      "total": 2.2,
       "engagement": 0.364,
       "freshness": 0.918,
       "usage": 0,
@@ -2111,7 +2651,7 @@
     "youmind-gpt-image-2:a3bc1345fa9ef555": {
       "total": 1.781,
       "engagement": 0,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
@@ -2129,14 +2669,14 @@
     "youmind-gpt-image-2:14a9fd933d1fbd19": {
       "total": 3.104,
       "engagement": 1.323,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
       "hasCover": true
     },
     "youmind-gpt-image-2:af704c6369d3361a": {
-      "total": 2.964,
+      "total": 2.963,
       "engagement": 1.528,
       "freshness": 0.718,
       "usage": 0,
@@ -2172,7 +2712,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:0dcfe504ed5e7cad": {
-      "total": 3.71,
+      "total": 3.709,
       "engagement": 2.36,
       "freshness": 0.675,
       "usage": 0,
@@ -2208,7 +2748,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:fedb6ad442489fa4": {
-      "total": 1.673,
+      "total": 1.672,
       "engagement": 0.364,
       "freshness": 0.654,
       "usage": 0,
@@ -2307,7 +2847,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:302d06900f7a90e1": {
-      "total": 3.496,
+      "total": 3.495,
       "engagement": 1.572,
       "freshness": 0.962,
       "usage": 0,
@@ -2325,7 +2865,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:e2e0eeb0d12fcc5a": {
-      "total": 3.533,
+      "total": 3.532,
       "engagement": 1.579,
       "freshness": 0.977,
       "usage": 0,
@@ -2352,7 +2892,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:67083c186a6c81b2": {
-      "total": 1.504,
+      "total": 1.503,
       "engagement": 0,
       "freshness": 0.752,
       "usage": 0,
@@ -2408,7 +2948,7 @@
     "youmind-gpt-image-2:ba9a0261d7f5920c": {
       "total": 3.464,
       "engagement": 1.865,
-      "freshness": 0.8,
+      "freshness": 0.799,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
@@ -2424,7 +2964,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:c3a4937acd7ae619": {
-      "total": 1.954,
+      "total": 1.953,
       "engagement": 0,
       "freshness": 0.977,
       "usage": 0,
@@ -2433,7 +2973,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:c769abe698273f96": {
-      "total": 2.536,
+      "total": 2.535,
       "engagement": 0.612,
       "freshness": 0.962,
       "usage": 0,
@@ -2442,7 +2982,7 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:a8d6c54a25790a9b": {
-      "total": 3.086,
+      "total": 3.085,
       "engagement": 1.22,
       "freshness": 0.933,
       "usage": 0,
@@ -2469,9 +3009,9 @@
       "hasCover": true
     },
     "youmind-gpt-image-2:e608731eda4f69d5": {
-      "total": 3.395,
+      "total": 3.394,
       "engagement": 1.745,
-      "freshness": 0.825,
+      "freshness": 0.824,
       "usage": 0,
       "library": "youmind-gpt-image-2",
       "model": "GPT Image",
@@ -2631,7 +3171,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:e74211d4b99a949b": {
-      "total": 3.865,
+      "total": 3.864,
       "engagement": 2.028,
       "freshness": 0.918,
       "usage": 0,
@@ -2640,7 +3180,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:fc6ba66f4e480386": {
-      "total": 2.201,
+      "total": 2.2,
       "engagement": 0.364,
       "freshness": 0.918,
       "usage": 0,
@@ -2649,7 +3189,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:edcb0e7d4c6ca05e": {
-      "total": 3.317,
+      "total": 3.316,
       "engagement": 1.48,
       "freshness": 0.918,
       "usage": 0,
@@ -2678,16 +3218,16 @@
     "youmind-nano-banana-pro:21d3274dac59b877": {
       "total": 3.346,
       "engagement": 1.565,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
       "hasCover": true
     },
     "youmind-nano-banana-pro:5adfc7c850f4d8a3": {
-      "total": 3.081,
+      "total": 3.08,
       "engagement": 1.3,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2696,7 +3236,7 @@
     "youmind-nano-banana-pro:195141ae2142cea6": {
       "total": 3.068,
       "engagement": 1.287,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2705,7 +3245,7 @@
     "youmind-nano-banana-pro:ab0c15fba60a171b": {
       "total": 2.145,
       "engagement": 0.364,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2714,7 +3254,7 @@
     "youmind-nano-banana-pro:b6be149bee78fb07": {
       "total": 3.851,
       "engagement": 2.07,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2723,7 +3263,7 @@
     "youmind-nano-banana-pro:3c09713f7907efe1": {
       "total": 3.413,
       "engagement": 1.632,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2732,7 +3272,7 @@
     "youmind-nano-banana-pro:f52ebe921a36925c": {
       "total": 2.8,
       "engagement": 1.019,
-      "freshness": 0.891,
+      "freshness": 0.89,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2766,7 +3306,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:efa9f3572ff8230d": {
-      "total": 4.271,
+      "total": 4.27,
       "engagement": 2.347,
       "freshness": 0.962,
       "usage": 0,
@@ -2793,7 +3333,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:65e29ce57c90c5df": {
-      "total": 3.936,
+      "total": 3.935,
       "engagement": 2.07,
       "freshness": 0.933,
       "usage": 0,
@@ -2802,7 +3342,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:2a4c2f740f8aa85b": {
-      "total": 4.005,
+      "total": 4.004,
       "engagement": 2.139,
       "freshness": 0.933,
       "usage": 0,
@@ -2820,7 +3360,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:43630db5aa28ce43": {
-      "total": 2.201,
+      "total": 2.2,
       "engagement": 0.364,
       "freshness": 0.918,
       "usage": 0,
@@ -2885,16 +3425,16 @@
     "youmind-nano-banana-pro:09a1bba23e6d8074": {
       "total": 1.689,
       "engagement": 0.514,
-      "freshness": 0.588,
+      "freshness": 0.587,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
       "hasCover": true
     },
     "youmind-nano-banana-pro:66e38d6a640cffe3": {
-      "total": 3.063,
+      "total": 3.062,
       "engagement": 1.906,
-      "freshness": 0.579,
+      "freshness": 0.578,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2921,7 +3461,7 @@
     "youmind-nano-banana-pro:caf67c3c0437f10f": {
       "total": 1.74,
       "engagement": 0.685,
-      "freshness": 0.528,
+      "freshness": 0.527,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2930,7 +3470,7 @@
     "youmind-nano-banana-pro:8d6597156b5398b5": {
       "total": 2.431,
       "engagement": 1.408,
-      "freshness": 0.512,
+      "freshness": 0.511,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -2955,7 +3495,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:63aaccad28b62568": {
-      "total": 1.569,
+      "total": 1.568,
       "engagement": 0.744,
       "freshness": 0.412,
       "usage": 0,
@@ -3009,7 +3549,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:54c35bd1cb1158a8": {
-      "total": 2.353,
+      "total": 2.352,
       "engagement": 1.141,
       "freshness": 0.606,
       "usage": 0,
@@ -3090,7 +3630,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:81bf6d6e9d7d1122": {
-      "total": 1.094,
+      "total": 1.093,
       "engagement": 0.874,
       "freshness": 0.11,
       "usage": 0,
@@ -3234,7 +3774,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:594e1b3a07043c01": {
-      "total": 3.474,
+      "total": 3.473,
       "engagement": 2.185,
       "freshness": 0.644,
       "usage": 0,
@@ -3270,7 +3810,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:3c04a2a5d3024b11": {
-      "total": 1.614,
+      "total": 1.613,
       "engagement": 0.364,
       "freshness": 0.625,
       "usage": 0,
@@ -3279,7 +3819,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:96a80027b3b31967": {
-      "total": 2.607,
+      "total": 2.606,
       "engagement": 1.357,
       "freshness": 0.625,
       "usage": 0,
@@ -3288,7 +3828,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:1a008561c4f59236": {
-      "total": 2.73,
+      "total": 2.729,
       "engagement": 1.48,
       "freshness": 0.625,
       "usage": 0,
@@ -3342,7 +3882,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:5bafb8f427629eb9": {
-      "total": 3.162,
+      "total": 3.161,
       "engagement": 1.408,
       "freshness": 0.877,
       "usage": 0,
@@ -3351,7 +3891,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:80dd952dca50d845": {
-      "total": 3.111,
+      "total": 3.11,
       "engagement": 1.357,
       "freshness": 0.877,
       "usage": 0,
@@ -3378,7 +3918,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:6261c6c07e41b02f": {
-      "total": 3.436,
+      "total": 3.435,
       "engagement": 1.735,
       "freshness": 0.85,
       "usage": 0,
@@ -3396,9 +3936,9 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:c69b5858dc0d228a": {
-      "total": 3.435,
+      "total": 3.434,
       "engagement": 1.835,
-      "freshness": 0.8,
+      "freshness": 0.799,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
@@ -3423,7 +3963,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:54fbf7054795be4a": {
-      "total": 1.673,
+      "total": 1.672,
       "engagement": 0.364,
       "freshness": 0.654,
       "usage": 0,
@@ -3450,7 +3990,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:dd4a9c06cd054b3b": {
-      "total": 1.586,
+      "total": 1.585,
       "engagement": 0.514,
       "freshness": 0.536,
       "usage": 0,
@@ -3461,14 +4001,14 @@
     "youmind-nano-banana-pro:af39e8773d2da476": {
       "total": 2.017,
       "engagement": 0.994,
-      "freshness": 0.512,
+      "freshness": 0.511,
       "usage": 0,
       "library": "youmind-nano-banana-pro",
       "model": "Nano Banana",
       "hasCover": true
     },
     "youmind-nano-banana-pro:e2a2a4591427cfe3": {
-      "total": 2.315,
+      "total": 2.314,
       "engagement": 1.367,
       "freshness": 0.474,
       "usage": 0,
@@ -3522,7 +4062,7 @@
       "hasCover": true
     },
     "youmind-nano-banana-pro:d98c7afd2289599a": {
-      "total": 2.63,
+      "total": 2.629,
       "engagement": 1.818,
       "freshness": 0.406,
       "usage": 0,
@@ -6872,7 +7412,7 @@
     "freestylefly-gpt-image-2:84f01dd97c687fb2": {
       "total": 2.72,
       "engagement": 1.593,
-      "freshness": 0.564,
+      "freshness": 0.563,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
       "model": "GPT Image",
@@ -6942,7 +7482,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:68f10bf021d7734e": {
-      "total": 1.826,
+      "total": 1.825,
       "engagement": 0.793,
       "freshness": 0.516,
       "usage": 0,
@@ -6987,9 +7527,9 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:e1bb74a7794720ed": {
-      "total": 2.7,
+      "total": 2.699,
       "engagement": 1.656,
-      "freshness": 0.522,
+      "freshness": 0.521,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
       "model": "GPT Image",
@@ -7005,7 +7545,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:c32ffef1ae0cabc0": {
-      "total": 2.709,
+      "total": 2.708,
       "engagement": 1.714,
       "freshness": 0.497,
       "usage": 0,
@@ -7185,7 +7725,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:e13b778ae833ca8c": {
-      "total": 2.314,
+      "total": 2.313,
       "engagement": 1.999,
       "freshness": 0.157,
       "usage": 0,
@@ -7205,7 +7745,7 @@
     "freestylefly-gpt-image-2:7182dd431b5c8833": {
       "total": 2.146,
       "engagement": 1.831,
-      "freshness": 0.158,
+      "freshness": 0.157,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
       "model": "GPT Image",
@@ -7221,7 +7761,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:1158e7e12c5e7362": {
-      "total": 1.82,
+      "total": 1.819,
       "engagement": 1.504,
       "freshness": 0.158,
       "usage": 0,
@@ -7311,8 +7851,8 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:227445a988500528": {
-      "total": 2.397,
-      "engagement": 2.096,
+      "total": 2.394,
+      "engagement": 2.093,
       "freshness": 0.151,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
@@ -7376,7 +7916,7 @@
     "freestylefly-gpt-image-2:48ce32e8ec774159": {
       "total": 1.765,
       "engagement": 1.488,
-      "freshness": 0.139,
+      "freshness": 0.138,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
       "model": "GPT Image",
@@ -7646,7 +8186,7 @@
     "freestylefly-gpt-image-2:a4ecdd704d258aa8": {
       "total": 1.827,
       "engagement": 1.586,
-      "freshness": 0.121,
+      "freshness": 0.12,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
       "model": "GPT Image",
@@ -7680,7 +8220,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:3538a1ef2e113da6": {
-      "total": 1.763,
+      "total": 1.762,
       "engagement": 1.528,
       "freshness": 0.117,
       "usage": 0,
@@ -8085,7 +8625,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:a3af7b3808c4cf72": {
-      "total": 0.556,
+      "total": 0.555,
       "engagement": 0.364,
       "freshness": 0.096,
       "usage": 0,
@@ -8094,7 +8634,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:04d19fde0a08b17a": {
-      "total": 0.556,
+      "total": 0.555,
       "engagement": 0.364,
       "freshness": 0.096,
       "usage": 0,
@@ -8148,7 +8688,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:ab5e292db6495899": {
-      "total": 0.191,
+      "total": 0.19,
       "engagement": 0,
       "freshness": 0.095,
       "usage": 0,
@@ -8184,7 +8724,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:37b73510175057c6": {
-      "total": 1.733,
+      "total": 1.732,
       "engagement": 1.543,
       "freshness": 0.095,
       "usage": 0,
@@ -8202,7 +8742,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:f65ccfbfec288565": {
-      "total": 1.762,
+      "total": 1.761,
       "engagement": 1.572,
       "freshness": 0.095,
       "usage": 0,
@@ -8238,7 +8778,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:21ef779311a43f0e": {
-      "total": 0.185,
+      "total": 0.184,
       "engagement": 0,
       "freshness": 0.092,
       "usage": 0,
@@ -8850,7 +9390,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:090d3859ff6840b2": {
-      "total": 2.205,
+      "total": 2.204,
       "engagement": 2.058,
       "freshness": 0.073,
       "usage": 0,
@@ -9426,7 +9966,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:6af1f692e9496c6d": {
-      "total": 2.585,
+      "total": 2.584,
       "engagement": 2.439,
       "freshness": 0.073,
       "usage": 0,
@@ -9516,7 +10056,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:a0eaec5a55dc2f5b": {
-      "total": 2.086,
+      "total": 2.085,
       "engagement": 1.936,
       "freshness": 0.075,
       "usage": 0,
@@ -9662,7 +10202,7 @@
     "freestylefly-gpt-image-2:802b906a18591ead": {
       "total": 1.598,
       "engagement": 1.445,
-      "freshness": 0.077,
+      "freshness": 0.076,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
       "model": "GPT Image",
@@ -9878,7 +10418,7 @@
     "freestylefly-gpt-image-2:d6061bbee6cf13bd": {
       "total": 0.767,
       "engagement": 0.612,
-      "freshness": 0.078,
+      "freshness": 0.077,
       "usage": 0,
       "library": "freestylefly-gpt-image-2",
       "model": "GPT Image",
@@ -9894,7 +10434,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:2811745d7b8d8874": {
-      "total": 3.561,
+      "total": 3.56,
       "engagement": 3.406,
       "freshness": 0.077,
       "usage": 0,
@@ -9921,7 +10461,7 @@
       "hasCover": true
     },
     "freestylefly-gpt-image-2:b8aed072d29403ec": {
-      "total": 1.964,
+      "total": 1.963,
       "engagement": 1.808,
       "freshness": 0.078,
       "usage": 0,
@@ -11631,7 +12171,7 @@
       "hasCover": true
     },
     "awesome-gpt-image:2dacd9c973e4f58a": {
-      "total": 3.561,
+      "total": 3.56,
       "engagement": 3.406,
       "freshness": 0.077,
       "usage": 0,
@@ -11759,7 +12299,7 @@
     "awesome-gpt-image:4532aec090ed7b49": {
       "total": 3,
       "engagement": 2.845,
-      "freshness": 0.078,
+      "freshness": 0.077,
       "usage": 0,
       "library": "awesome-gpt-image",
       "model": "GPT Image",
