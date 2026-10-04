@@ -26,6 +26,7 @@ md.push(`- 新增 **${merge.added.length}** 条，下架 **${merge.retired.lengt
 md.push(`- 内置数据版本：\`${fin.previousVersion || "?"}\` → \`${fin.version || "?"}\``);
 md.push(`- 站内使用统计：${usage.status === "ok" ? `可读取（自 ${String(usage.since).slice(0, 10)} 起，本次合并 ${usage.lastRun?.events ?? 0} 次事件）` : `不可用（${usage.reason || usage.status}），得分仅用热度 + 新鲜度`}`);
 if (merge.wouldRetireStale) md.push(`- 「6 个月无使用」规则：使用统计累计 ${merge.usageTrackingDays} 天，不足 28 天，暂不执行（按规则将下架 ${merge.wouldRetireStale} 条）`);
+if (merge.note) md.push(`- 备注：${merge.note}`);
 if (seconds) md.push(`- 运行耗时：${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`);
 md.push("");
 md.push("## 抓取结果", "");
