@@ -1,0 +1,12 @@
+{
+  "registry": "https://raw.githubusercontent.com/yukkcat/image-prompts/main/dist/sources",
+  "registryHome": "https://github.com/yukkcat/image-prompts (MIT)",
+  "sources": [
+    { "id": "youmind-gpt-image-2", "name": "YouMind GPT Image 2", "repo": "YouMind-OpenLab/awesome-gpt-image-2", "license": "CC BY 4.0" },
+    { "id": "youmind-nano-banana-pro", "name": "YouMind Nano Banana Pro", "repo": "YouMind-OpenLab/awesome-nano-banana-pro-prompts", "license": "CC BY 4.0" },
+    { "id": "awesome-gpt4o-image-prompts", "name": "Awesome GPT-4o", "repo": "ImgEdify/Awesome-GPT4o-Image-Prompts", "license": "MIT" },
+    { "id": "banana-prompt-quicker", "name": "Banana Prompt Quicker", "repo": "glidea/banana-prompt-quicker", "license": "MIT" },
+    { "id": "freestylefly-gpt-image-2", "name": "Freestylefly GPT Image 2", "repo": "freestylefly/awesome-gpt-image-2", "license": "MIT" },
+    { "id": "awesome-gpt-image", "name": "Awesome GPT Image", "repo": "ZeroLu/awesome-gpt-image", "license": "MIT" }
+  ]
+}

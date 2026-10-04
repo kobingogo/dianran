@@ -18,6 +18,8 @@ export type RawPrompt = {
     imageModel?: string;
     imageSize?: string;
     imageCount?: number;
+    /** [dianran] 点染精选 copies point back to the original entry id. */
+    pickOf?: string;
 };
 
 type RunOptions = { signal?: AbortSignal };
@@ -78,6 +80,7 @@ function normalizeItems(values: unknown[], source: PromptSource) {
             imageModel: optionalString(record.imageModel),
             imageSize: optionalString(record.imageSize),
             imageCount: optionalNumber(record.imageCount),
+            pickOf: optionalString(record.pickOf),
         });
     });
     return items;

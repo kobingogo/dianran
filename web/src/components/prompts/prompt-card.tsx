@@ -4,6 +4,7 @@ import { Button, Card, Tag } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { formatPromptDate, type Prompt } from "@/services/api/prompts";
+import { trackPromptUsage } from "@/services/usage-stats";
 
 /** Local placeholder (no network) used when a prompt has no bundled cover or the image fails to load. */
 function PromptCoverPlaceholder({ className }: { className: string }) {
@@ -57,10 +58,13 @@ export function PromptCard({
                         <h2 className="line-clamp-1 text-sm font-semibold text-stone-950 dark:text-stone-100">{item.title}</h2>
                         {!compact ? <span className="shrink-0 text-xs text-stone-400 dark:text-stone-500">{formatPromptDate(item.updatedAt, i18n.resolvedLanguage)}</span> : null}
                     </div>
-                    {!compact ? <><p className="mt-2 line-clamp-3 text-xs leading-5 text-stone-600 dark:text-stone-400">{item.description || item.prompt}</p>{item.author && /^https:\/\/(x|twitter)\.com\//.test(item.sourceUrl || "") ? <p className="mt-2 truncate text-[11px] text-stone-400 dark:text-stone-500">{item.author} · X</p> : null}<div className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((tag) => <Tag key={tag} className="m-0 text-[11px]">{tag}</Tag>)}</div></> : null}
+                    {!compact ? <><p className="mt-2 line-clamp-3 text-xs leading-5 text-stone-600 dark:text-stone-400">{item.description || item.prompt}</p>{item.author && /^https:\/\/((x|twitter)\.com|civitai\.com)\//.test(item.sourceUrl || "") ? <p className="mt-2 truncate text-[11px] text-stone-400 dark:text-stone-500">{item.author} · {/civitai\.com/.test(item.sourceUrl || "") ? "Civitai" : "X"}</p> : null}<div className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((tag) => <Tag key={tag} className="m-0 text-[11px]">{tag}</Tag>)}</div></> : null}
                 </div>
             </button>
-            {!compact ? <div className="mt-auto flex items-center gap-2 px-4 pb-4"><Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={onCopy}>{actionLabel || t("common.copy")}</Button>{extraAction}</div> : null}
+            {!compact ? <div className="mt-auto flex items-center gap-2 px-4 pb-4"><Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={() => {
+                trackPromptUsage(item.id, actionLabel ? "use" : "copy");
+                onCopy();
+            }}>{actionLabel || t("common.copy")}</Button>{extraAction}</div> : null}
         </Card>
     );
 }

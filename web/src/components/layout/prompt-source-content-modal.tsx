@@ -9,6 +9,7 @@ import { useAssetStore } from "@/stores/use-asset-store";
 import { fetchSourcePrompts, refreshSource, type Prompt } from "@/services/api/prompts";
 import type { PromptSource } from "@/services/api/prompt-source-presets";
 import { showErrorToast } from "@/features/errors/error-toast";
+import { trackPromptUsage } from "@/services/usage-stats";
 
 export function PromptSourceContentModal({ source, onClose }: { source: PromptSource | null; onClose: () => void }) {
     const { message } = App.useApp();
@@ -107,7 +108,10 @@ export function PromptSourceContentModal({ source, onClose }: { source: PromptSo
                             width: 210,
                             render: (_, item) => (
                                 <Space size={4} wrap>
-                                    <Button size="small" type="text" icon={<Copy className="size-3.5" />} onClick={() => copyText(item.prompt, t("common.promptCopied"))}>
+                                    <Button size="small" type="text" icon={<Copy className="size-3.5" />} onClick={() => {
+                                        trackPromptUsage(item.id, "copy");
+                                        copyText(item.prompt, t("common.promptCopied"));
+                                    }}>
                                         {t("common.copy")}
                                     </Button>
                                     <Button size="small" type="text" onClick={() => setDetail(item)}>

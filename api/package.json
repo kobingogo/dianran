@@ -1,0 +1,7 @@
+{
+    "name": "dianran-api",
+    "private": true,
+    "type": "module",
+    "description": "Vercel serverless functions for Dianran (anonymous prompt usage counter).",
+    "dependencies": { "@vercel/blob": "^2.8.0" }
+}

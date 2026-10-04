@@ -59,7 +59,8 @@ function cacheKey(sourceId: string) {
 }
 
 // [dianran] Bump when the bundled snapshots change so old caches refetch
-// (v2: covers served from /prompt-sources/covers; v3: X/forum covers bundled + x-trending library; v4: cover-less entries removed).
+// (v2: covers served from /prompt-sources/covers; v3: X/forum covers bundled + x-trending library; v4: cover-less entries removed;
+// since v5 the weekly prompt pipeline rewrites this line as "prompts-YYYY-MM-DD", see brand/pipeline/bump-version.mjs).
 const BUILT_IN_SNAPSHOT_VERSION = "covers-v4";
 
 function sourceSignature(source: PromptSource) {
@@ -147,7 +148,10 @@ async function getAllPrompts(): Promise<Prompt[]> {
             }
         }),
     );
-    return settled.flat();
+    // [dianran] 点染精选 entries are copies of library entries (pickOf): show each prompt once in the combined view.
+    const all = settled.flat();
+    const picked = new Set(all.map((item) => item.pickOf).filter(Boolean));
+    return picked.size ? all.filter((item) => item.pickOf || !picked.has(item.id)) : all;
 }
 
 export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page = 1, pageSize = 20 }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number } = {}) {
