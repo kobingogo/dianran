@@ -28,6 +28,8 @@ export function createPromptSource(source?: Partial<PromptSource>): PromptSource
 export const DEFAULT_PROMPT_SOURCES: PromptSource[] = [
     // [dianran] Own curated starter prompts (covers are bundled locally).
     registrySource("dianran-picks", "点染精选", "", true),
+    // Hand-curated trending prompts from public X posts (2026-08-04 to 2026-10-04); each record links back to its post.
+    registrySource("x-trending", "X 热门 · 近两月", "https://x.com", true),
     // All covers are bundled under /prompt-sources/covers (brand/sync-prompt-covers.mjs); no external image hosts at runtime.
     registrySource("youmind-gpt-image-2", "YouMind GPT Image 2", "https://github.com/YouMind-OpenLab/awesome-gpt-image-2", true),
     registrySource("youmind-nano-banana-pro", "YouMind Nano Banana Pro", "https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts", true),

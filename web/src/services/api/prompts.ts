@@ -58,8 +58,9 @@ function cacheKey(sourceId: string) {
     return `prompt-source:${sourceId}`;
 }
 
-// [dianran] Bump when the bundled snapshots change shape (v2: covers served from /prompt-sources/covers) so old caches refetch.
-const BUILT_IN_SNAPSHOT_VERSION = "covers-v2";
+// [dianran] Bump when the bundled snapshots change so old caches refetch
+// (v2: covers served from /prompt-sources/covers; v3: X/forum covers bundled + x-trending library).
+const BUILT_IN_SNAPSHOT_VERSION = "covers-v3";
 
 function sourceSignature(source: PromptSource) {
     const value = `${source.name}\n${source.url}\n${source.homepage}${source.builtIn ? `\n${BUILT_IN_SNAPSHOT_VERSION}` : ""}`;
