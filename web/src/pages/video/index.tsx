@@ -5,6 +5,8 @@ import localforage from "localforage";
 import { nanoid } from "nanoid";
 import { saveAs } from "file-saver";
 import { useTranslation } from "react-i18next";
+import { GenerationStatus } from "@/features/tasks/generation-status";
+import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 
 import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
 import { ModelPicker } from "@/components/model-picker";
@@ -557,9 +559,9 @@ function PendingVideoCard() {
     const { t } = useTranslation();
     return (
         <div className="relative aspect-video overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-stone-500 dark:text-stone-400">
-                <LoaderCircle className="size-6 animate-spin" />
-                <span>{t("workbench.generating")}</span>
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">
+                {/* [dianran] real phase + elapsed */}
+                <GenerationStatus kind="video" variant="card" />
             </div>
         </div>
     );
@@ -571,9 +573,8 @@ function FailedVideoCard({ error, onRetry }: { error: string; onRetry: () => voi
         <div className="overflow-hidden rounded-lg border border-red-200 bg-red-50 dark:border-red-950 dark:bg-red-950/20">
             <div className="flex aspect-video flex-col items-center justify-center gap-3 p-5 text-center">
                 <div className="text-sm font-medium text-red-600 dark:text-red-300">{t("workbench.failed")}</div>
-                <Typography.Paragraph ellipsis={{ rows: 4 }} className="!mb-0 !text-xs !text-red-500 dark:!text-red-300">
-                    {error}
-                </Typography.Paragraph>
+                {/* [dianran] friendly error with next step */}
+                <FriendlyErrorView error={error} />
             </div>
             <div className="flex justify-end border-t border-red-200 p-3 dark:border-red-950">
                 <Button size="small" danger onClick={onRetry}>

@@ -14,6 +14,10 @@ import { CanvasNodeType, type CanvasNodeData, type CanvasNodeImage, type CanvasN
 import type { CanvasNodeContext, CanvasPluginHost } from "@/types/canvas-plugin";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { useTranslation } from "react-i18next";
+// [dianran] Real generation state + friendly errors.
+import { GenerationStatus } from "@/features/tasks/generation-status";
+import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
+import type { TaskKind } from "@/features/tasks/task-store";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 const selectionBlue = "#2f80ff";
@@ -455,7 +459,7 @@ function NodeContent(props: NodeContentRendererProps) {
     if (props.node.type === CanvasNodeType.Config && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot && props.node.type === CanvasNodeType.Image) return <ImageNodeContent {...props} />;
     if (props.node.type === CanvasNodeType.Text && props.node.metadata?.texts?.length && (props.node.metadata.status !== "error" || props.node.metadata.texts.some((text) => text.content))) return <TextContent {...props} />;
-    if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} />;
+    if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} kind={taskKindOf(props.node.type)} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
 
     const Renderer = nodeContentRenderers[props.node.type as CanvasNodeType];
@@ -494,34 +498,25 @@ function GroupNodeContent({ node, theme, groupChildCount }: NodeContentRendererP
     );
 }
 
-function LoadingContent({ theme }: Pick<NodeContentRendererProps, "theme">) {
-    const { t } = useTranslation();
-    return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3" style={{ color: theme.node.activeStroke }}>
-            <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />
-            <span className="text-[10px] tracking-[0.2em]">{t("canvas.node.generating")}</span>
-        </div>
-    );
+function taskKindOf(type: string): TaskKind {
+    return type === "video" || type === "text" || type === "audio" ? type : "image";
+}
+
+function LoadingContent({ theme, kind }: Pick<NodeContentRendererProps, "theme"> & { kind: TaskKind }) {
+    return <GenerationStatus kind={kind} color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} />;
 }
 
 function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "node" | "theme" | "onRetry">) {
     const { t } = useTranslation();
     return (
-        <div className="flex max-w-[260px] flex-col items-center gap-3 px-5 text-center">
-            <div className="text-xs leading-5 text-red-300">{node.metadata?.errorDetails || t("canvas.node.failed")}</div>
-            <button
-                type="button"
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition hover:scale-[1.02]"
-                style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    onRetry?.(node);
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-            >
-                <RefreshCw className="size-3.5" />
-                {t("canvas.node.retry")}
-            </button>
+        <div className="flex max-w-[280px] flex-col items-center gap-3 px-5 text-center">
+            <FriendlyErrorView
+                error={node.metadata?.errorDetails || t("canvas.node.failed")}
+                color={theme.node.text}
+                mutedColor={theme.node.muted}
+                buttonStyle={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
+                onRetry={onRetry ? () => onRetry(node) : undefined}
+            />
         </div>
     );
 }
@@ -662,8 +657,7 @@ function TextSlotStatus({ text }: { text: CanvasNodeText }) {
     const loading = text.status === "loading";
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: theme.node.fill, color: failed ? theme.node.text : theme.node.activeStroke }}>
-            {failed ? <span className="text-xs leading-5">{text.errorDetails || t("canvas.node.failed")}</span> : loading ? <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} /> : <span className="text-xs">{t("apiErrors.noContent")}</span>}
-            {loading ? <span className="text-[10px] tracking-[0.2em]">{t("canvas.node.generating")}</span> : null}
+            {failed ? <FriendlyErrorView error={text.errorDetails || t("canvas.node.failed")} color={theme.node.text} mutedColor={theme.node.muted} compact /> : loading ? <GenerationStatus kind="text" color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} /> : <span className="text-xs">{t("apiErrors.noContent")}</span>}
         </div>
     );
 }
@@ -918,8 +912,7 @@ function ImageSlotStatus({ image }: { image?: CanvasNodeImage }) {
     const failed = image?.status === "error";
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: theme.node.fill, color: failed ? theme.node.text : theme.node.activeStroke }}>
-            {failed ? <span className="text-xs leading-5">{image.errorDetails || t("canvas.node.failed")}</span> : <div className="size-10 animate-spin rounded-full border-2" style={{ borderColor: theme.node.stroke, borderTopColor: theme.node.activeStroke }} />}
-            {!failed ? <span className="text-[10px] tracking-[0.2em]">{t("canvas.node.generating")}</span> : null}
+            {failed ? <FriendlyErrorView error={image.errorDetails || t("canvas.node.failed")} color={theme.node.text} mutedColor={theme.node.muted} compact /> : <GenerationStatus kind="image" color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} />}
         </div>
     );
 }

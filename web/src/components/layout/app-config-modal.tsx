@@ -1,6 +1,6 @@
-import { App, Button, Form, Input, Modal, Progress, Select, Tabs } from "antd";
+import { App, Button, Form, Input, Modal, Progress, Segmented, Select, Tabs } from "antd";
 import type { TFunction } from "i18next";
-import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
+import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wand2, Wifi } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -16,6 +16,10 @@ import { testWebdavConnection, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webd
 import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
 import { createModelChannel, modelOptionsFromChannels, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { DEFAULT_WEBDAV_DIRECTORY } from "@/constant/brand";
+import { useOnboardingStore } from "@/features/onboarding/onboarding-store";
+
+// [dianran] Settings split into 常用 (model services, default models) and 高级 (everything else).
+const COMMON_TABS: ConfigTabKey[] = ["channels", "preferences"];
 
 type ModelGroup = {
     capability: ModelCapability;
@@ -69,6 +73,8 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
     const editingChannel = config.channels.find((channel) => channel.id === editingChannelId) || null;
     const locale = i18n.resolvedLanguage as AppLocale;
     useEffect(() => setActiveTab(initialTab), [initialTab]);
+    const tabGroup = COMMON_TABS.includes(activeTab) ? "common" : "advanced";
+    const showOnboarding = useOnboardingStore((state) => state.show);
 
     const saveConfig = (nextConfig: AiConfig) => {
         (Object.keys(nextConfig) as Array<keyof AiConfig>).forEach((key) => updateConfig(key, nextConfig[key]));
@@ -177,6 +183,15 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                     <input ref={configInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => event.target.files?.[0] && void loadConfigFile(event.target.files[0])} />
                 </div>
             </div>
+            <Segmented
+                className="!mt-3"
+                value={tabGroup}
+                onChange={(value) => setActiveTab(value === "common" ? "channels" : "local-proxy")}
+                options={[
+                    { value: "common", label: t("config.groups.common") },
+                    { value: "advanced", label: t("config.groups.advanced") },
+                ]}
+            />
             <Tabs
                 activeKey={activeTab}
                 onChange={(key) => setActiveTab(key as ConfigTabKey)}
@@ -188,9 +203,20 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                             <div>
                                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                     <div className="text-xs text-stone-500">{t("config.channels.description")}</div>
-                                    <Button type="primary" icon={<Plus className="size-4" />} onClick={addChannel}>
-                                        {t("config.channels.add")}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            icon={<Wand2 className="size-4" />}
+                                            onClick={() => {
+                                                setConfigDialogOpen(false);
+                                                showOnboarding({ reason: "manual" });
+                                            }}
+                                        >
+                                            {t("config.channels.guide")}
+                                        </Button>
+                                        <Button type="primary" icon={<Plus className="size-4" />} onClick={addChannel}>
+                                            {t("config.channels.add")}
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     {config.channels.map((channel) => (
@@ -324,7 +350,10 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                         label: t("config.tabs.localStorage"),
                         children: <ConfigLocalStorage active={activeTab === "local-storage"} />,
                     },
-                ]}
+                ]
+                    .filter((item) => (tabGroup === "common") === COMMON_TABS.includes(item.key as ConfigTabKey))
+                    // [dianran] common group order: model services, then default models
+                    .sort((a, b) => (tabGroup === "common" ? COMMON_TABS.indexOf(a.key as ConfigTabKey) - COMMON_TABS.indexOf(b.key as ConfigTabKey) : 0))}
             />
             {showDoneButton ? (
                 <div className="mt-4 flex justify-end">

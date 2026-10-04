@@ -1,16 +1,18 @@
 {
-  "name": "@basketikun/canvas-proxy",
+  "name": "@kobinflow/canvas-proxy",
   "version": "0.1.0",
-  "description": "Minimal local forwarding proxy that lets the Infinite Canvas web app call AI provider APIs without CORS restrictions.",
+  "description": "Minimal local forwarding proxy that lets the Dianran (点染) web app call AI provider APIs without CORS restrictions.",
   "license": "MIT",
   "type": "module",
   "main": "./index.js",
   "bin": {
-    "canvas-proxy": "index.js"
+    "canvas-proxy": "index.js",
+    "dianran-proxy": "index.js"
   },
   "files": [
     "index.js",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "start": "node index.js"
@@ -20,5 +22,17 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kobingogo/dianran.git",
+    "directory": "canvas-proxy"
+  },
+  "homepage": "https://github.com/kobingogo/dianran/tree/main/canvas-proxy",
+  "keywords": [
+    "dianran",
+    "cors",
+    "proxy",
+    "ai"
+  ]
 }

@@ -10,8 +10,11 @@ import { AppProviders } from "@/components/layout/app-providers";
 import "@/i18n";
 import { initAnalytics } from "@/lib/analytics";
 import { router } from "@/router";
+import { installRequestTracker } from "@/features/tasks/request-tracker";
 
 initAnalytics();
+// [dianran] observe AI requests for real generation status (task center)
+installRequestTracker();
 
 document.body.style.fontFamily = '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
 

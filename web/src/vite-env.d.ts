@@ -17,4 +17,10 @@ interface ImportMetaEnv {
     readonly VITE_VERSION_CHECK_URL?: string;
     readonly VITE_CHANGELOG_URL?: string;
     readonly VITE_PLUGIN_REGISTRY_URL?: string;
+    readonly VITE_LOCAL_PROXY_PACKAGE?: string;
+    readonly VITE_LOCAL_AGENT_PACKAGE?: string;
+    // Optional featured provider shown first in the onboarding guide (base URL only, never a key)
+    readonly VITE_FEATURED_PROVIDER_BASE_URL?: string;
+    readonly VITE_FEATURED_PROVIDER_NAME?: string;
+    readonly VITE_FEATURED_PROVIDER_KEY_URL?: string;
 }

@@ -30,10 +30,10 @@ export const CHANGELOG_URL: string = env.VITE_CHANGELOG_URL || "";
  */
 const registryEnv: string = env.VITE_PLUGIN_REGISTRY_URL || "";
 export const PLUGIN_REGISTRY_URL: string = registryEnv === "none" ? "" : registryEnv || `${env.BASE_URL || "/"}plugin-market/official-plugins.json`;
-/** npm package users run locally to bypass CORS (upstream package until we publish our own). */
-export const LOCAL_PROXY_PACKAGE = "@basketikun/canvas-proxy";
-/** npm package for the optional local Codex / Claude Code Agent (upstream package until we publish our own). */
-export const LOCAL_AGENT_PACKAGE = "@basketikun/canvas-agent";
+/** npm package users run locally to bypass CORS (published from canvas-proxy/ under the @kobinflow scope). */
+export const LOCAL_PROXY_PACKAGE: string = env.VITE_LOCAL_PROXY_PACKAGE || "@kobinflow/canvas-proxy";
+/** npm package for the optional local Codex / Claude Code Agent (published from canvas-proxy/ under the @kobinflow scope). */
+export const LOCAL_AGENT_PACKAGE: string = env.VITE_LOCAL_AGENT_PACKAGE || "@kobinflow/canvas-agent";
 
 // ---- Storage / ABI names: DO NOT CHANGE without a migration (existing user data lives under these). ----
 /** IndexedDB database name and localStorage key prefix inherited from upstream. */
@@ -52,3 +52,93 @@ export type AppFileId = (typeof ACCEPTED_APP_IDS)[number];
 export const isAcceptedAppId = (value: unknown): value is AppFileId => typeof value === "string" && (ACCEPTED_APP_IDS as readonly string[]).includes(value);
 /** Default WebDAV directory for new users (saved values are kept). */
 export const DEFAULT_WEBDAV_DIRECTORY = BRAND.id;
+
+// ---- [dianran] Phase 2: preset model providers for the first-run guide ----
+// Base URLs only. Never put API keys here (this file ships to every browser).
+export type PresetProviderRegion = "cn" | "global" | "any";
+export type PresetProvider = {
+    id: string;
+    name: { "zh-CN": string; "en-US": string };
+    /** Empty = user must type the base URL (OpenAI-compatible relays such as new-api / one-api). */
+    baseUrl: string;
+    apiFormat: "openai" | "gemini";
+    region: PresetProviderRegion;
+    /** Where the user gets an API key. */
+    keyUrl?: string;
+    /** Short capability / compatibility note shown on the card. */
+    note: { "zh-CN": string; "en-US": string };
+    /** Preferred defaults, tried in order against the fetched model list. */
+    recommended?: Partial<Record<"image" | "video" | "text" | "audio", string[]>>;
+    /** Allow the user to switch protocol in the guide (custom/relay only). */
+    customizable?: boolean;
+};
+
+/** Optional "official" provider injected at build time (e.g. your own new-api relay), shown first in the guide. */
+const featuredBaseUrl: string = env.VITE_FEATURED_PROVIDER_BASE_URL || "";
+const featuredProvider: PresetProvider[] = featuredBaseUrl
+    ? [
+          {
+              id: "featured",
+              name: { "zh-CN": env.VITE_FEATURED_PROVIDER_NAME || `${BRAND.nameZh}官方服务`, "en-US": env.VITE_FEATURED_PROVIDER_NAME || `${BRAND.nameEn} official` },
+              baseUrl: featuredBaseUrl,
+              apiFormat: "openai",
+              region: "any",
+              keyUrl: env.VITE_FEATURED_PROVIDER_KEY_URL || undefined,
+              note: { "zh-CN": "推荐 · 生图、视频、文本一站式", "en-US": "Recommended · images, video and text in one place" },
+          },
+      ]
+    : [];
+
+export const PRESET_PROVIDERS: PresetProvider[] = [
+    ...featuredProvider,
+    {
+        id: "relay",
+        name: { "zh-CN": "OpenAI 兼容中转", "en-US": "OpenAI-compatible relay" },
+        baseUrl: "",
+        apiFormat: "openai",
+        region: "any",
+        note: { "zh-CN": "new-api / one-api 等中转站，填它给你的接口地址", "en-US": "new-api / one-api style relays: paste the base URL they gave you" },
+        recommended: { image: ["gpt-image-2", "gpt-image-1", "nano-banana-pro", "gemini-3-pro-image-preview", "seedream-4.0"], video: ["sora-2", "veo-3.1", "kling-v2"], text: ["gpt-5.5", "gpt-5", "gpt-4.1", "gpt-4o"], audio: ["gpt-4o-mini-tts", "tts-1"] },
+        customizable: true,
+    },
+    {
+        id: "openai",
+        name: { "zh-CN": "OpenAI 官方", "en-US": "OpenAI" },
+        baseUrl: "https://api.openai.com",
+        apiFormat: "openai",
+        region: "global",
+        keyUrl: "https://platform.openai.com/api-keys",
+        note: { "zh-CN": "生图、视频、文本、语音全能力 · 需海外网络", "en-US": "Images, video, text and speech" },
+        recommended: { image: ["gpt-image-2", "gpt-image-1"], video: ["sora-2"], text: ["gpt-5.5", "gpt-5", "gpt-4.1"], audio: ["gpt-4o-mini-tts", "tts-1"] },
+    },
+    {
+        id: "gemini",
+        name: { "zh-CN": "Google Gemini", "en-US": "Google Gemini" },
+        baseUrl: "https://generativelanguage.googleapis.com",
+        apiFormat: "gemini",
+        region: "global",
+        keyUrl: "https://aistudio.google.com/apikey",
+        note: { "zh-CN": "Nano Banana 生图 + Gemini 文本 · 需海外网络", "en-US": "Nano Banana images + Gemini text" },
+        recommended: { image: ["gemini-3-pro-image-preview", "gemini-2.5-flash-image"], text: ["gemini-2.5-flash", "gemini-2.5-pro"] },
+    },
+    {
+        id: "siliconflow",
+        name: { "zh-CN": "硅基流动 SiliconFlow", "en-US": "SiliconFlow" },
+        baseUrl: "https://api.siliconflow.cn/v1",
+        apiFormat: "openai",
+        region: "cn",
+        keyUrl: "https://cloud.siliconflow.cn/account/ak",
+        note: { "zh-CN": "国内直连 · 以生图模型为主（Kolors、Qwen-Image 等）", "en-US": "China mainland · mostly image models" },
+        recommended: { image: ["Kwai-Kolors/Kolors", "Qwen/Qwen-Image"] },
+    },
+    {
+        id: "openrouter",
+        name: { "zh-CN": "OpenRouter", "en-US": "OpenRouter" },
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiFormat: "openai",
+        region: "global",
+        keyUrl: "https://openrouter.ai/keys",
+        note: { "zh-CN": "海量文本模型，适合画布助手 · 需海外网络", "en-US": "Hundreds of text models for the canvas assistant" },
+        recommended: { text: ["openai/gpt-5", "anthropic/claude-sonnet-4.5", "google/gemini-2.5-flash"] },
+    },
+];

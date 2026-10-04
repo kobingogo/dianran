@@ -313,7 +313,7 @@ function readAxiosError(error: unknown, fallback: string) {
     if (axios.isCancel(error)) return apiText("requestCanceled");
     if (axios.isAxiosError(error)) {
         if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") return apiText("imageTimeout");
-        if (!error.response && error.code === "ERR_NETWORK") return apiText("requestFailed");
+        if (!error.response && error.code === "ERR_NETWORK") return apiText("networkOrCors"); // [dianran] CORS / network hint
         const responseData = error.response?.data;
         // Prefer the API error from the response body.
         const apiMsg = readApiErrorMessage(responseData);
