@@ -7,7 +7,8 @@ type Overrides = { [key: string]: string | Overrides };
 export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
     "zh-CN": {
         // Naming: navigation label == page title, one word per concept (素材 instead of 资产, 设置 instead of 配置).
-        navigation: { canvas: "画布", image: "生图", video: "视频", prompts: "提示词", assets: "素材", config: "设置" },
+        navigation: { home: "首页", canvas: "画布", image: "生图", video: "视频", prompts: "提示词", assets: "素材", config: "设置", mine: "我的", tasks: "任务" },
+        rail: { seal: "点染，回到首页", theme: "主题" },
         canvas: { title: "画布", shortcuts: "快捷键（?）", deleteSelected: "删除选中（Delete）", shortcut: { help: "打开快捷键面板" } },
         imageWorkbench: { title: "生图" },
         videoWorkbench: { title: "视频" },
@@ -47,6 +48,9 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             running: "{{count}} 个任务进行中",
             failedCount: "{{count}} 个任务失败",
             recent: "最近任务",
+            empty: "暂无进行中的任务",
+            badge: "任务 · {{count}}",
+            close: "关闭任务中心",
             elapsed: "已用时 {{time}}",
             slow: "比平时慢一些，可以先去做别的，完成后会自动出现在画布上。",
             kind: { image: "生图", video: "视频", text: "文本", audio: "音频" },
@@ -85,7 +89,8 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
         },
     },
     "en-US": {
-        navigation: { canvas: "Canvas", image: "Image", video: "Video", prompts: "Prompts", assets: "Assets", config: "Settings" },
+        navigation: { home: "Home", canvas: "Canvas", image: "Image", video: "Video", prompts: "Prompts", assets: "Assets", config: "Settings", mine: "Me", tasks: "Tasks" },
+        rail: { seal: "Dianran, go home", theme: "Theme" },
         canvas: { title: "Canvases", shortcuts: "Shortcuts (?)", deleteSelected: "Delete selected (Delete)", shortcut: { help: "Open this shortcut panel" } },
         imageWorkbench: { title: "Image" },
         videoWorkbench: { title: "Video" },
@@ -124,6 +129,9 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             running: "{{count}} running",
             failedCount: "{{count}} failed",
             recent: "Recent tasks",
+            empty: "No tasks yet",
+            badge: "Tasks · {{count}}",
+            close: "Close task center",
             elapsed: "{{time}} elapsed",
             slow: "Slower than usual. Feel free to keep working; the result appears automatically.",
             kind: { image: "Image", video: "Video", text: "Text", audio: "Audio" },

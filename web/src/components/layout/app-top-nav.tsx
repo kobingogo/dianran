@@ -1,30 +1,39 @@
-import { Bot, Menu } from "lucide-react";
-import { Button, Tooltip } from "antd";
+import { ListChecks } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useEffect, useRef } from "react";
 
-import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
-import { LazyAppConfigModal as AppConfigModal } from "@/components/layout/lazy-shell"; // [dianran] lazy settings dialog
-import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
-import { UserStatusActions } from "@/components/layout/user-status-actions";
+import { BRAND } from "@/constant/brand";
+import { isCanvasEditorPath } from "@/components/layout/app-rail";
+import { LazyAppConfigModal as AppConfigModal } from "@/components/layout/lazy-shell";
+import { useActiveTaskCount, useTaskStore } from "@/features/tasks/task-store";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
 import { useAgentStore } from "@/stores/use-agent-store";
+
+const SERIF = '"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif';
+
+function mobileTitleKey(pathname: string) {
+    if (pathname === "/") return "navigation.home";
+    if (pathname.startsWith("/canvas")) return "navigation.canvas";
+    if (pathname.startsWith("/image")) return "navigation.image";
+    if (pathname.startsWith("/video")) return "navigation.video";
+    if (pathname.startsWith("/prompts")) return "navigation.prompts";
+    if (pathname.startsWith("/assets")) return "navigation.assets";
+    if (pathname.startsWith("/config")) return "navigation.config";
+    return "meta.title";
+}
 
 export function AppTopNav() {
     const { t } = useTranslation();
     const { pathname } = useLocation();
-    const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const autoConnectRef = useRef(false);
     const agentToken = useAgentStore((state) => state.token);
     const agentEnabled = useAgentStore((state) => state.enabled);
     const agentConnected = useAgentStore((state) => state.connected);
     const connectAgent = useAgentStore((state) => state.connectAgent);
-    const togglePanel = useAgentStore((state) => state.togglePanel);
-    const panelOpen = useAgentStore((state) => state.panelOpen);
-    const hideHeader = /^\/canvas\/[^/]+/.test(pathname);
-    const slug = pathname.split("/").filter(Boolean)[0];
-    const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
+    const activeCount = useActiveTaskCount();
+    const setCenterOpen = useTaskStore((state) => state.setCenterOpen);
+    const onCanvasEditor = isCanvasEditorPath(pathname);
 
     useEffect(() => {
         if (autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
@@ -34,66 +43,33 @@ export function AppTopNav() {
 
     return (
         <>
-            {!hideHeader ? (
-                <header className="sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-background/90 backdrop-blur-xl dark:border-stone-800">
-                    <div className="mx-auto flex h-full max-w-7xl items-stretch justify-between gap-3 px-3 sm:gap-5 sm:px-6">
-                        <div className="flex min-w-0 items-center">
-                            <Link to="/" className="flex h-full shrink-0 items-center gap-2 text-sm font-semibold leading-none tracking-tight text-stone-950 transition hover:text-stone-600 dark:text-stone-100 dark:hover:text-stone-300">
-                                <span
-                                    className="size-5 shrink-0 bg-current"
-                                    style={{
-                                        mask: "url(/logo.svg) center / contain no-repeat",
-                                        WebkitMask: "url(/logo.svg) center / contain no-repeat",
-                                    }}
-                                />
-                                <span className="text-base font-medium">{t("meta.title")}</span>
-                            </Link>
-
-                            <button
-                                type="button"
-                                className="ml-2 inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-stone-600 transition hover:text-stone-950 md:hidden dark:text-stone-300 dark:hover:text-white"
-                                onClick={() => setMobileNavOpen(true)}
-                                aria-label={t("topNav.openMenu")}
-                                title={t("topNav.menu")}
-                            >
-                                <Menu className="size-5" />
-                            </button>
-
-                            <nav className="hide-scrollbar ml-8 hidden h-14 min-w-0 items-center gap-7 overflow-x-auto md:flex">
-                                {navigationTools.map((tool) => {
-                                    const Icon = tool.icon;
-                                    const active = tool.slug === activeToolSlug;
-                                    return (
-                                        <Link
-                                            key={tool.slug}
-                                            to={`/${tool.slug}`}
-                                            className={cn(
-                                                "relative flex h-14 shrink-0 items-center gap-2 text-sm leading-6 transition after:absolute after:inset-x-0 after:bottom-0 after:h-px",
-                                                active
-                                                    ? "font-medium text-stone-950 after:bg-stone-950 dark:text-stone-100 dark:after:bg-stone-100"
-                                                    : "text-stone-500 after:bg-transparent hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100",
-                                            )}
-                                        >
-                                            <Icon className="size-4" />
-                                            <span className="truncate">{t(`navigation.${tool.slug}`)}</span>
-                                        </Link>
-                                    );
-                                })}
-                            </nav>
-                        </div>
-
-                        <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
-                            {/* [dianran] Phones: Agent / Settings / theme move into the navigation drawer (collapsed header). */}
-                            <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
-                                <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8 max-md:!hidden" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
-                            </Tooltip>
-                            <UserStatusActions />
-                        </div>
+            {onCanvasEditor ? null : (
+                <header className="flex h-14 shrink-0 items-center gap-2.5 border-b border-[#E3DACA] bg-[rgba(251,248,242,0.92)] px-4 dark:border-[#332E28] dark:bg-[rgba(23,21,18,0.92)] md:hidden">
+                    <Link
+                        to="/"
+                        aria-label={t("rail.seal")}
+                        className="grid size-[30px] shrink-0 place-items-center rounded-md bg-[#C8402A] text-[10.5px] font-bold leading-none text-[#FFF6EE] dark:bg-[#D9573D]"
+                        style={{ writingMode: "vertical-rl", letterSpacing: "1px", fontFamily: SERIF }}
+                    >
+                        {BRAND.nameZh}
+                    </Link>
+                    <div className="min-w-0 flex-1 truncate text-lg font-semibold text-[#1B1916] dark:text-[#F1EBE0]" style={{ fontFamily: SERIF }}>
+                        {t(mobileTitleKey(pathname))}
                     </div>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-xs",
+                            activeCount > 0 ? "border-[#C8402A] bg-[#F6E3DC] font-medium text-[#B8321E] dark:border-[#D9573D] dark:bg-[#3A221C] dark:text-[#EE7A60]" : "border-[#E3DACA] text-[#3A362F] dark:border-[#332E28] dark:text-[#D9D1C3]",
+                        )}
+                        aria-label={activeCount > 0 ? t("tasks.running", { count: activeCount }) : t("tasks.title")}
+                        onClick={() => setCenterOpen(true)}
+                    >
+                        <ListChecks className="size-3.5" strokeWidth={1.7} />
+                        {activeCount > 0 ? t("tasks.badge", { count: activeCount }) : t("navigation.tasks")}
+                    </button>
                 </header>
-            ) : null}
-
-            <MobileNavDrawer open={mobileNavOpen} activeToolSlug={activeToolSlug} onClose={() => setMobileNavOpen(false)} />
+            )}
             <AppConfigModal />
         </>
     );

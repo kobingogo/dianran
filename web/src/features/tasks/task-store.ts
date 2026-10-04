@@ -34,14 +34,27 @@ type TaskStore = {
     add: (task: GenerationTask) => void;
     update: (id: string, patch: Partial<GenerationTask>) => void;
     clearFinished: () => void;
+    /** In-memory UI flag only. Not persisted, so existing task data is untouched. */
+    centerOpen: boolean;
+    setCenterOpen: (open: boolean) => void;
 };
 
 export const useTaskStore = create<TaskStore>()((set) => ({
     tasks: [],
+    centerOpen: false,
     add: (task) => set((state) => ({ tasks: [task, ...state.tasks].slice(0, MAX_TASKS) })),
     update: (id, patch) => set((state) => ({ tasks: state.tasks.map((task) => (task.id === id ? { ...task, ...patch, updatedAt: Date.now() } : task)) })),
     clearFinished: () => set((state) => ({ tasks: state.tasks.filter(isActiveTask) })),
+    setCenterOpen: (centerOpen) => set({ centerOpen }),
 }));
+
+export function useActiveTaskCount() {
+    return useTaskStore((state) => {
+        let count = 0;
+        for (const task of state.tasks) if (isActiveTask(task)) count += 1;
+        return count;
+    });
+}
 
 /** Most recent active task of a kind (used by in-node status labels). */
 export function useLatestActiveTask(kind: TaskKind | TaskKind[]) {
