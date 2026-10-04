@@ -78,3 +78,23 @@
 
     --paper-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.94  0 0 0 0 0.9  0 0 0 0 0.82  0 0 0 .05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
+
+/* InkLoader 晕染：墨点由中心扩散。reduced-motion 时只做淡入淡出。 */
+.ink-loader-dot {
+    background: radial-gradient(circle, color-mix(in srgb, var(--ink-900) 55%, transparent) 0, color-mix(in srgb, var(--ink-900) 25%, transparent) 35%, color-mix(in srgb, var(--ink-900) 6%, transparent) 62%, transparent 72%);
+    filter: blur(2px);
+    animation: ink-spread 1800ms var(--ease-ink) infinite;
+}
+.ink-loader-dot-late {
+    animation-delay: 900ms;
+}
+@keyframes ink-spread {
+    0% { transform: scale(0.25); opacity: 0; filter: blur(0); }
+    35% { opacity: 1; }
+    100% { transform: scale(1.15); opacity: 0; filter: blur(6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ink-loader-dot { animation: ink-fade 1600ms ease-in-out infinite; transform: none; }
+    .ink-loader-dot-late { display: none; }
+    @keyframes ink-fade { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.8; } }
+}

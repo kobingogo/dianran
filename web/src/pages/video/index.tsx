@@ -1,18 +1,22 @@
-import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, LoaderCircle, Plus, SlidersHorizontal, Sparkles, Trash2, Upload, VideoIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckSquare, ClipboardPaste, Download, FolderPlus, Plus, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent } from "react";
 import { App, Button, Checkbox, Drawer, Input, Modal, Tag, Typography } from "antd";
 import localforage from "localforage";
 import { nanoid } from "nanoid";
 import { saveAs } from "file-saver";
 import { useTranslation } from "react-i18next";
-import { GenerateHint, isGenerateShortcut, revealResults, WorkbenchControls, WorkbenchEmpty, WorkbenchResults, WorkbenchSection, WorkbenchShell, type WorkbenchTab } from "@/components/workbench/workbench-layout";
+import { useNavigate } from "react-router-dom";
+import { failureKind, FailureTile, isGenerateShortcut, MobileComposer, relativeTime, ResultSessionHeader, revealResults, SectionLink, SettingsSheet, WorkbenchControls, WorkbenchEmpty, WorkbenchResults, WorkbenchSection, WorkbenchShell, type WorkbenchTab } from "@/components/workbench/workbench-layout";
+import { InkButton } from "@/components/ui/ink-button";
+import { GenerateBar } from "@/components/ui/generate-bar";
+import { ModelCard } from "@/components/ui/model-card";
+import { planVideoRequest, videoSecondsOptions } from "@/lib/model-capabilities";
 import { GenerationStatus } from "@/features/tasks/generation-status";
 import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 
 import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/asset-picker-modal";
-import { ModelPicker } from "@/components/model-picker";
 import { PromptSelectDialog } from "@/components/prompts/prompt-select-dialog";
-import { VideoModelUnsetHint, VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoModeLabel, videoSizeLabel } from "@/components/video-settings-panel";
+import { VideoSettingsPanel, normalizeVideoResolutionValue, normalizeVideoSizeValue, videoModeLabel } from "@/components/video-settings-panel";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { clampVideoSeconds } from "@/lib/media-size";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
@@ -21,7 +25,7 @@ import { resolveImageUrl, ensureImagePreview, getImagePreviewRevision, previewUr
 import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo, type VideoGenerationTask } from "@/services/api/video";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
-import { boolConfig, modelOptionLabel, resolveVideoSize, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { boolConfig, modelOptionName, resolveModelRequestConfig, resolveVideoSize, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
@@ -75,6 +79,7 @@ const logStore = localforage.createInstance({ name: STORAGE_NS, storeName: "vide
 export default function VideoPage() {
     const { message } = App.useApp();
     const { t } = useTranslation();
+    const navigate = useNavigate();
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dragDepthRef = useRef(0);
@@ -378,114 +383,148 @@ export default function VideoPage() {
         setResults(log.status === "pending" ? [{ id: log.id, status: "pending" }] : log.video ? [{ id: log.video.id, status: "success", video: log.video }] : [{ id: log.id, status: "failed", error: log.error || t("workbench.generationFailed") }]);
     };
 
+    const plan = videoPlanFor(effectiveConfig, model);
+    const modeText = videoModeLabel(effectiveConfig.videoMode);
+    const summary = model ? `${plan.ratio === "auto" ? "自动" : plan.ratio} · ${plan.seconds} 秒 · ${plan.resolution}` : "未设置视频模型";
+    const estimate = model ? `预计 ${plan.resolution === "1080p" ? "2–6" : "1–4"} 分钟 · 1 次调用` : undefined;
+    const sessionPrompt = (previewLog?.prompt || prompt).trim();
+
+    const promptSection = (
+        <WorkbenchSection
+            title="描述镜头"
+            actions={
+                <>
+                    <SectionLink icon={<BookOpen className="size-3.5" strokeWidth={1.7} />} onClick={() => setPromptDialogOpen(true)}>
+                        提示词库
+                    </SectionLink>
+                    <SectionLink icon={<FolderPlus className="size-3.5" strokeWidth={1.7} />} onClick={() => setAssetPickerOpen(true)}>
+                        我的素材
+                    </SectionLink>
+                </>
+            }
+        >
+            <Input.TextArea
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                onKeyDown={(event) => {
+                    if (!isGenerateShortcut(event)) return;
+                    event.preventDefault();
+                    if (canGenerate && !running) void generate();
+                }}
+                autoSize={{ minRows: 4, maxRows: 10 }}
+                placeholder={t("videoWorkbench.promptPlaceholder")}
+            />
+        </WorkbenchSection>
+    );
+
+    const referenceSection = (
+        <WorkbenchSection
+            title={effectiveConfig.videoMode === "reference" ? "参考图" : "首帧 / 尾帧"}
+            actions={
+                <>
+                    <SectionLink icon={<ClipboardPaste className="size-3.5" strokeWidth={1.7} />} onClick={() => void addReferencesFromClipboard()}>
+                        粘贴
+                    </SectionLink>
+                    <SectionLink icon={<Upload className="size-3.5" strokeWidth={1.7} />} onClick={() => fileInputRef.current?.click()}>
+                        上传
+                    </SectionLink>
+                </>
+            }
+        >
+            <div
+                className={`hover-scrollbar flex w-full min-w-0 max-w-full gap-2 overflow-x-auto overflow-y-hidden rounded-[var(--r-md)] p-0.5 pb-1.5 transition-colors ${referenceDragTarget ? "bg-[var(--paper-2)] outline-1 outline-dashed outline-[var(--zhu-500)]" : ""}`}
+                onDragEnter={handleReferenceDragEnter}
+                onDragOver={(event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "copy";
+                }}
+                onDragLeave={handleReferenceDragLeave}
+                onDrop={handleReferenceDrop}
+            >
+                {references.map((item, index) => (
+                    <div key={item.id} className="group relative size-[54px] shrink-0 overflow-hidden rounded-[9px] border border-[var(--line)]">
+                        <img src={previewUrlFor(item.storageKey) || item.dataUrl} alt={item.name} className="size-full object-cover" />
+                        <span className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[9px] font-medium text-white">{effectiveConfig.videoMode === "reference" ? index + 1 : index === 0 ? "首" : index === 1 ? "尾" : index + 1}</span>
+                        <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => setReferences((value) => moveListItem(value, index, offset))} />
+                        <button type="button" className="absolute right-0.5 top-0.5 hidden size-5 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => setReferences((value) => value.filter((ref) => ref.id !== item.id))} aria-label={t("videoWorkbench.removeImage")}>
+                            <Trash2 className="size-3" />
+                        </button>
+                    </div>
+                ))}
+                <button type="button" aria-label="添加参考图" onClick={() => fileInputRef.current?.click()} className="grid size-[54px] shrink-0 cursor-pointer place-items-center rounded-[9px] border border-dashed border-[var(--line-strong)] bg-[var(--paper-0)] text-[color:var(--ink-400)] hover:text-[color:var(--ink-900)]">
+                    <Plus className="size-5" strokeWidth={1.7} />
+                </button>
+                {!references.length ? <span className="self-center text-xs text-[color:var(--ink-400)]">{referenceDragTarget ? t("videoWorkbench.dropReferences") : effectiveConfig.videoMode === "reference" ? "可选 · 最多 7 张参考" : "可选 · 第 1 张首帧、第 2 张尾帧"}</span> : null}
+            </div>
+        </WorkbenchSection>
+    );
+
+    const settingsSection = <GenerationSettings config={effectiveConfig} model={model} updateConfig={updateConfig} openConfigDialog={openConfigDialog} />;
+
     return (
-        <div className="flex h-full flex-col overflow-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-            {/* [dianran] phase4: two-column workbench — controls left, results / history right */}
+        <div className="flex h-full flex-col overflow-hidden bg-[var(--paper-1)] text-[color:var(--ink-900)]">
+            {/* [dianran] phase5: PLAN 6.4 — 描述镜头 → 模型 → 参考方式 → 比例 → 时长 → 清晰度 → 高级 → GenerateBar */}
             <WorkbenchShell
                 controls={
                     <WorkbenchControls
-                        icon={<VideoIcon className="size-5" />}
                         title={t("videoWorkbench.title")}
-                        subtitle={t("workbenchUi.videoSubtitle")}
+                        subtitle="按模型能力给出比例 / 时长 / 清晰度"
                         footer={
-                            <>
-                                <Button type="primary" size="large" block icon={<Sparkles className="size-4" />} loading={running} disabled={!canGenerate || running} onClick={() => void generate()}>
-                                    {t("workbench.generate")}
-                                </Button>
-                                <GenerateHint />
-                            </>
+                            <GenerateBar
+                                summary={summary}
+                                estimate={estimate}
+                                busy={running}
+                                busyLabel="晕染中…"
+                                disabled={!canGenerate}
+                                label={model ? "落笔生成" : "未设置视频模型 · 去配置"}
+                                onGenerate={() => (model ? void generate() : navigate("/config"))}
+                            />
                         }
                     >
-                        <WorkbenchSection
-                            title={t("workbench.prompt")}
-                            actions={
-                                <>
-                                    <Button size="small" icon={<BookOpen className="size-3.5" />} onClick={() => setPromptDialogOpen(true)}>
-                                            {t("workbench.viewPrompts")}
-                                        </Button>
-<Button size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => setAssetPickerOpen(true)}>
-                                            {t("workbench.viewAssets")}
-                                        </Button>
-                                </>
-                            }
-                        >
-                            <Input.TextArea
-                                value={prompt}
-                                onChange={(event) => setPrompt(event.target.value)}
-                                onKeyDown={(event) => {
-                                    if (!isGenerateShortcut(event)) return;
-                                    event.preventDefault();
-                                    if (canGenerate && !running) void generate();
-                                }}
-                                autoSize={{ minRows: 5, maxRows: 12 }}
-                                placeholder={t("videoWorkbench.promptPlaceholder")}
-                            />
-                        </WorkbenchSection>
-
-                        <WorkbenchSection
-                            title={t("videoWorkbench.references")}
-                            actions={
-                                <>
-                                    <Button size="small" icon={<ClipboardPaste className="size-3.5" />} onClick={() => void addReferencesFromClipboard()}>
-                                            {t("workbench.clipboard")}
-                                        </Button>
-<Button size="small" icon={<Upload className="size-3.5" />} onClick={() => fileInputRef.current?.click()}>
-                                            {t("workbench.upload")}
-                                        </Button>
-                                </>
-                            }
-                        >
-                            <div
-                                    className={`hover-scrollbar hover-scrollbar-hint flex min-h-28 w-full min-w-0 max-w-full gap-2 overflow-x-scroll overflow-y-hidden rounded-xl border border-dashed p-2 pb-3 overscroll-x-contain transition-colors ${referenceDragTarget ? "border-stone-900 bg-stone-100/80 dark:border-stone-100 dark:bg-stone-900/80" : "border-stone-300 dark:border-stone-700"}`}
-                                    onDragEnter={handleReferenceDragEnter}
-                                    onDragOver={(event) => {
-                                        event.preventDefault();
-                                        event.dataTransfer.dropEffect = "copy";
-                                    }}
-                                    onDragLeave={handleReferenceDragLeave}
-                                    onDrop={handleReferenceDrop}
-                                >
-                                    {references.map((item, index) => (
-                                        <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800">
-                                            <img src={previewUrlFor(item.storageKey) || item.dataUrl} alt={item.name} className="size-full object-cover" />
-                                            <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{index + 1}</span>
-                                            <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => setReferences((value) => moveListItem(value, index, offset))} />
-                                            <button type="button" className="absolute right-1 top-1 hidden size-6 items-center justify-center rounded bg-black/60 text-white group-hover:flex" onClick={() => setReferences((value) => value.filter((ref) => ref.id !== item.id))} aria-label={t("videoWorkbench.removeImage")}>
-                                                <Trash2 className="size-3.5" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {!references.length ? <div className="flex min-w-full items-center justify-center text-sm text-stone-500">{referenceDragTarget ? t("videoWorkbench.dropReferences") : t("videoWorkbench.noImages")}</div> : null}
-                                </div>
-                        </WorkbenchSection>
-
-                        <div className="hidden gap-4 sm:grid sm:grid-cols-2">
-                            <GenerationSettings config={effectiveConfig} model={model} updateConfig={updateConfig} openConfigDialog={openConfigDialog} />
-                        </div>
-
-                        <div className="flex items-center justify-between rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-stone-800 dark:bg-stone-900 sm:hidden">
-                                <span className="truncate text-stone-500 dark:text-stone-400">
-                                    {model ? modelOptionLabel(effectiveConfig, model) : t("settingsPanels.video.unset")} · {normalizeResolution(effectiveConfig.vquality)}p · {videoSizeLabel(resolveVideoSize(effectiveConfig))} · {normalizeVideoSeconds(effectiveConfig.videoSeconds)}s · {videoModeLabel(effectiveConfig.videoMode)}
-                                </span>
-                                <Button size="small" type="text" icon={<SlidersHorizontal className="size-4" />} onClick={() => setSettingsOpen(true)}>
-                                    {t("workbench.adjust")}
-                                </Button>
-                            </div>
-
+                        {promptSection}
+                        {settingsSection}
+                        {referenceSection}
                     </WorkbenchControls>
                 }
                 results={
-                    <WorkbenchResults tab={panelTab} onTabChange={setPanelTab} logCount={logs.length} status={running ? <Tag className="m-0 px-2 py-1">{t("workbench.waiting", { time: formatDuration(elapsedMs) })}</Tag> : null}>
+                    <WorkbenchResults tab={panelTab} onTabChange={setPanelTab} logCount={logs.length} status={running ? <span className="text-xs tabular-nums text-[color:var(--ink-500)]">{t("workbench.waiting", { time: formatDuration(elapsedMs) })}</span> : null}>
                         {panelTab === "logs" ? (
                             <LogPanel logs={logs} selectedLogIds={selectedLogIds} activeLogId={previewLog?.id} onSelectedLogIdsChange={setSelectedLogIds} onCreateSession={createSession} onDeleteSelected={() => setDeleteConfirmOpen(true)} onPreviewLog={previewGenerationLog} />
                         ) : results.length ? (
-                            <div className="grid gap-4 2xl:grid-cols-2">
-                                {results.map((result) => (result.status === "success" && result.video ? <ResultVideoCard key={result.id} video={result.video} onDownload={downloadVideo} onSaveAsset={saveResultToAssets} /> : result.status === "failed" ? <FailedVideoCard key={result.id} error={result.error || t("workbench.generationFailed")} onRetry={retryResult} /> : <PendingVideoCard key={result.id} />))}
-                            </div> ) : (
-                            <WorkbenchEmpty icon={<VideoIcon className="size-7" />} title={t("workbenchUi.videoEmptyTitle")} hint={t("workbenchUi.videoEmptyHint")} examples={t("workbenchUi.videoExamples").split("|").filter(Boolean)} onPick={setPrompt} />
+                            <>
+                                <ResultSessionHeader time={previewLog ? relativeTime(previewLog.createdAt) : "刚刚"} prompt={sessionPrompt.slice(0, 24) + (sessionPrompt.length > 24 ? "…" : "")} meta={`${modelOptionName(previewLog?.model || model)} · ${summary} · ${modeText}`} />
+                                <div className="grid gap-4 2xl:grid-cols-2">
+                                    {results.map((result) =>
+                                        result.status === "success" && result.video ? (
+                                            <ResultVideoCard key={result.id} video={result.video} onDownload={downloadVideo} onSaveAsset={saveResultToAssets} />
+                                        ) : result.status === "failed" ? (
+                                            <FailureTile
+                                                key={result.id}
+                                                aspect="aspect-video"
+                                                error={result.error || t("workbench.generationFailed")}
+                                                onRetry={retryResult}
+                                                fixes={
+                                                    failureKind(result.error || "") === "key" ? (
+                                                        <InkButton size={32} variant="ink" onClick={() => openConfigDialog(false)}>
+                                                            检查设置
+                                                        </InkButton>
+                                                    ) : null
+                                                }
+                                            >
+                                                <FriendlyErrorView error={result.error || t("workbench.generationFailed")} />
+                                            </FailureTile>
+                                        ) : (
+                                            <PendingVideoCard key={result.id} />
+                                        ),
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <WorkbenchEmpty title="写一句镜头描述就能开始" hint="视频通常需要几分钟；生成中可以离开页面，完成后在任务中心查看。" examples={t("workbenchUi.videoExamples").split("|").filter(Boolean)} onPick={setPrompt} />
                         )}
                     </WorkbenchResults>
                 }
+                composer={<MobileComposer prompt={prompt} onPromptChange={setPrompt} placeholder="描述镜头…" chips={model ? [plan.ratio === "auto" ? "自动" : plan.ratio, `${plan.seconds} 秒`, plan.resolution, modeText] : ["未设置视频模型"]} onOpenSettings={() => setSettingsOpen(true)} onGenerate={() => (model ? void generate() : navigate("/config"))} busy={running} disabled={!canGenerate && Boolean(model)} label={model ? "生成" : "去配置"} />}
             />
             <input
                 ref={fileInputRef}
@@ -498,11 +537,12 @@ export default function VideoPage() {
                     event.target.value = "";
                 }}
             />
-            <Drawer title={t("workbench.settings")} placement="bottom" height="82vh" open={settingsOpen} onClose={() => setSettingsOpen(false)}>
-                <div className="grid grid-cols-2 gap-3 pb-4">
-                    <GenerationSettings config={effectiveConfig} model={model} updateConfig={updateConfig} openConfigDialog={openConfigDialog} />
+            <SettingsSheet title="视频参数" open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+                <div className="space-y-[18px] pt-2">
+                    {settingsSection}
+                    {referenceSection}
                 </div>
-            </Drawer>
+            </SettingsSheet>
             <PromptSelectDialog open={promptDialogOpen} onOpenChange={setPromptDialogOpen} onSelect={setPrompt} />
             <AssetPickerModal open={assetPickerOpen} defaultTab="my-assets" onInsert={(payload) => void insertPickedAsset(payload)} onClose={() => setAssetPickerOpen(false)} />
             <Modal title={t("workbench.deleteLogs")} open={deleteConfirmOpen} onCancel={() => setDeleteConfirmOpen(false)} onOk={deleteSelectedLogs} okText={t("common.delete")} okButtonProps={{ danger: true }} cancelText={t("common.cancel")}>
@@ -512,19 +552,23 @@ export default function VideoPage() {
     );
 }
 
+function videoPlanFor(config: AiConfig, model: string) {
+    const request = model ? resolveModelRequestConfig(config, model) : config;
+    return planVideoRequest({ model: modelOptionName(model || ""), apiFormat: request.apiFormat === "gemini" ? "gemini" : "openai", videoSize: resolveVideoSize(config), vquality: config.vquality, seconds: config.videoSeconds });
+}
+
 function GenerationSettings({ config, model, updateConfig, openConfigDialog }: { config: AiConfig; model: string; updateConfig: UpdateAiConfig; openConfigDialog: (shouldPromptContinue?: boolean) => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const { t } = useTranslation();
+    const plan = videoPlanFor(config, model);
+    const caps = plan.caps;
+    const capsText = caps.known ? `${caps.ratios.join("/")} · ${videoSecondsOptions(caps).join("/")} 秒 · ${caps.resolutions.join("/")}` : "能力未知，参数可能被忽略";
 
     return (
         <>
-            <label className="col-span-2 block min-w-0 sm:col-span-1">
-                <span className="mb-2 block text-sm font-semibold text-stone-800 dark:text-stone-200">{t("workbench.model")}</span>
-                {model ? <ModelPicker config={config} value={model} onChange={(value) => updateConfig("videoModel", value)} capability="video" fullWidth onMissingConfig={() => openConfigDialog(false)} /> : <VideoModelUnsetHint className="inline-flex h-8 items-center text-sm text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-100" />}
-            </label>
-            <div className="col-span-2">
-                <VideoSettingsPanel config={config} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-4" modelUnset={!model} />
-            </div>
+            <WorkbenchSection title="模型">
+                <ModelCard config={config} value={model} onChange={(value) => updateConfig("videoModel", value)} capability="video" summary={model ? capsText : undefined} onMissingConfig={() => openConfigDialog(false)} />
+            </WorkbenchSection>
+            <VideoSettingsPanel config={config} model={model} onConfigChange={(key, value) => updateConfig(key, value)} theme={theme} showTitle={false} className="space-y-[18px]" modelUnset={!model} />
         </>
     );
 }
@@ -532,10 +576,10 @@ function GenerationSettings({ config, model, updateConfig, openConfigDialog }: {
 function ResultVideoCard({ video, onDownload, onSaveAsset }: { video: GeneratedVideo; onDownload: (video: GeneratedVideo) => void; onSaveAsset: (video: GeneratedVideo) => void }) {
     const { t } = useTranslation();
     return (
-        <div className="overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
+        <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--paper-0)]">
             <video src={video.url} controls className="aspect-video w-full bg-black object-contain" />
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-stone-200 px-3 py-2.5 dark:border-stone-800">
-                <div className="flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--line)] px-3 py-2.5">
+                <div className="flex min-w-0 flex-wrap gap-x-2 gap-y-1 text-xs text-[color:var(--ink-500)]">
                     <span>
                         {video.width}x{video.height}
                     </span>
@@ -556,31 +600,10 @@ function ResultVideoCard({ video, onDownload, onSaveAsset }: { video: GeneratedV
 }
 
 function PendingVideoCard() {
-    const { t } = useTranslation();
     return (
-        <div className="relative aspect-video overflow-hidden rounded-lg border border-dashed border-stone-300 bg-stone-50 dark:border-stone-700 dark:bg-stone-900">
-            <div className="absolute inset-0 flex items-center justify-center text-sm text-stone-500 dark:text-stone-400">
-                {/* [dianran] real phase + elapsed */}
-                <GenerationStatus kind="video" variant="card" />
-            </div>
-        </div>
-    );
-}
-
-function FailedVideoCard({ error, onRetry }: { error: string; onRetry: () => void }) {
-    const { t } = useTranslation();
-    return (
-        <div className="overflow-hidden rounded-lg border border-red-200 bg-red-50 dark:border-red-950 dark:bg-red-950/20">
-            <div className="flex aspect-video flex-col items-center justify-center gap-3 p-5 text-center">
-                <div className="text-sm font-medium text-red-600 dark:text-red-300">{t("workbench.failed")}</div>
-                {/* [dianran] friendly error with next step */}
-                <FriendlyErrorView error={error} />
-            </div>
-            <div className="flex justify-end border-t border-red-200 p-3 dark:border-red-950">
-                <Button size="small" danger onClick={onRetry}>
-                    {t("workbench.retry")}
-                </Button>
-            </div>
+        <div className="relative grid aspect-video place-items-center overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--paper-2)] text-[color:var(--ink-500)]">
+            {/* [dianran] 晕染占位：真实阶段 + 已等待时长，可离开页面 */}
+            <GenerationStatus kind="video" variant="card" />
         </div>
     );
 }
@@ -627,7 +650,7 @@ function LogPanel({
                 {logs.map((log) => (
                     <LogCard key={log.id} log={log} selected={selectedLogIds.includes(log.id)} active={activeLogId === log.id} onSelectedChange={(checked) => onSelectedLogIdsChange(checked ? [...selectedLogIds, log.id] : selectedLogIds.filter((id) => id !== log.id))} onClick={() => onPreviewLog(log)} />
                 ))}
-                {!logs.length ? <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-stone-300 text-center text-sm text-stone-500 dark:border-stone-700">{t("workbench.noLogs")}</div> : null}
+                {!logs.length ? <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-[var(--line-strong)] text-center text-sm text-[color:var(--ink-500)]">{t("workbench.noLogs")}</div> : null}
             </div>
         </>
     );
@@ -636,7 +659,7 @@ function LogPanel({
 function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: GenerationLog; selected: boolean; active: boolean; onSelectedChange: (checked: boolean) => void; onClick: () => void }) {
     const { t } = useTranslation();
     return (
-        <button type="button" className={`block w-full rounded-lg border p-2 text-left transition ${active ? "border-stone-900 bg-blue-50 dark:border-stone-100 dark:bg-blue-950/20" : "border-stone-200 bg-background hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-900"}`} onClick={onClick}>
+        <button type="button" className={`block w-full rounded-lg border p-2 text-left transition ${active ? "border-[var(--ink-900)] bg-[var(--paper-2)]" : "border-[var(--line)] bg-[var(--paper-0)] hover:bg-[var(--paper-2)]"}`} onClick={onClick}>
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2">
                 <Checkbox className="mt-0.5" checked={selected} onClick={(event) => event.stopPropagation()} onChange={(event) => onSelectedChange(event.target.checked)} />
                 <div className="min-w-0">

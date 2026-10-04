@@ -1,3 +1,5 @@
+import { imageSizePresets, parseAspectRatio, parsePixelSize } from "@/lib/media-size";
+
 /**
  * Model capability table (PLAN §8).
  *
@@ -429,4 +431,315 @@ export function deriveVideoSize(videoSize: string | undefined, legacySize: strin
     const legacy = legacySize?.trim() || "";
     if (isAdoptableLegacyVideoSize(legacy)) return legacy;
     return DEFAULT_VIDEO_SIZE;
+}
+
+export function imageChannelFormatOf(input: { apiFormat?: string | null; imageApi?: string | null }): ImageChannelFormat {
+    if (input.apiFormat === "gemini") return "gemini";
+    if (input.imageApi === "siliconflow" || input.imageApi === "chat") return input.imageApi;
+    return "openai";
+}
+
+/** True when 高清 is a distinct request (high / hd / imageSize 2K), not a second label for the same payload. */
+export function imageQualitySupportsHd(caps: ImageCaps) {
+    const spec = caps.quality;
+    if (!spec) return false;
+    if (spec.param === "imageSize") return true;
+    const values = new Set(spec.values.map((item) => item.toLowerCase()));
+    return values.has("hd") || values.has("high");
+}
+
+const PRIMARY_IMAGE_RATIOS = ["1:1", "3:4", "4:3", "9:16", "16:9"];
+
+export function primaryImageRatios(caps: ImageCaps) {
+    // 合法比例不多（gpt-image-1：1:1 / 3:2 / 2:3；dall-e-3：1:1 / 16:9 / 9:16）时全部直接展示。
+    if (caps.ratios.length <= 5) return caps.ratios;
+    return PRIMARY_IMAGE_RATIOS.filter((ratio) => caps.ratios.includes(ratio));
+}
+
+export function extraImageRatios(caps: ImageCaps) {
+    if (caps.ratios.length <= 5) return [];
+    return caps.ratios.filter((ratio) => !PRIMARY_IMAGE_RATIOS.includes(ratio));
+}
+
+export type ImageSendField = "size" | "image_size" | "aspectRatio" | "none";
+
+export type ImageSendPlan = {
+    /** Ratio the picker should show. "auto" when size is auto or the model lists no ratios. */
+    ratio: string;
+    sizeField: ImageSendField;
+    sizeValue?: string;
+    quality?: { param: "quality" | "imageSize"; value: string };
+    background?: "transparent";
+    /** Set when stored pixels are exactly a tier preset the model can send. */
+    tier?: "1k" | "2k" | "4k";
+    /** Pixel value is one of caps.sizes, so generic edge/pixel checks do not apply (dall-e-2 256). */
+    fixedSize: boolean;
+    /** Stored size is not auto, a ratio, or WxH, and this channel would have to send a size. */
+    invalid: boolean;
+};
+
+export type ImageAdjustment =
+    | { kind: "ratio"; from: string; to: string; write: { key: "size"; value: string } }
+    | { kind: "pixels"; from: string; to: string; write: { key: "size"; value: string } }
+    | { kind: "count"; from: number; to: number; write: { key: "count"; value: string } }
+    | { kind: "quality"; write: { key: "quality"; value: "standard" } }
+    | { kind: "transparent" };
+
+function isGptImageFamily(model: string) {
+    return /gpt-image/.test(bareModel(model));
+}
+
+function pixelCount(value: string) {
+    const pixels = parsePixelSize(value);
+    return pixels ? pixels.width * pixels.height : 0;
+}
+
+function closestFixedSize(value: string, sizes: readonly string[]) {
+    const target = ratioNumber(value) ?? 1;
+    let best = sizes[0] || value;
+    let bestScore = Number.POSITIVE_INFINITY;
+    let bestPixels = -1;
+    for (const size of sizes) {
+        const score = Math.abs((ratioNumber(size) ?? 1) - target);
+        const pixels = pixelCount(size);
+        if (score < bestScore - 1e-6 || (Math.abs(score - bestScore) < 1e-6 && pixels > bestPixels)) {
+            best = size;
+            bestScore = score;
+            bestPixels = pixels;
+        }
+    }
+    return best;
+}
+
+/** 1K/2K/4K pixels for a ratio. Does not read quality. */
+export function imageTierSize(ratio: string, tier: "1k" | "2k" | "4k" = "1k") {
+    const token = ratio === "auto" || !ratio ? "1:1" : ratio;
+    const preset = imageSizePresets[tier]?.[token];
+    if (preset) return preset;
+    const parsed = parseAspectRatio(token);
+    if (!parsed) return imageSizePresets["1k"]["1:1"];
+    const shortSide = tier === "4k" ? 2880 : tier === "2k" ? 2048 : 1024;
+    const landscape = parsed.width >= parsed.height;
+    const longRatio = landscape ? parsed.width / parsed.height : parsed.height / parsed.width;
+    let longSide = Math.round((shortSide * longRatio) / 16) * 16;
+    let short = Math.round(shortSide / 16) * 16;
+    if (longSide > 3840) {
+        longSide = 3840;
+        short = Math.max(16, Math.round(longSide / longRatio / 16) * 16);
+    }
+    const width = landscape ? longSide : short;
+    const height = landscape ? short : longSide;
+    return `${width}x${height}`;
+}
+
+function matchedTier(size: string, caps: ImageCaps): "1k" | "2k" | "4k" | undefined {
+    if (!caps.tiers?.length) return undefined;
+    const pixels = parsePixelSize(size);
+    if (!pixels) return undefined;
+    const key = `${pixels.width}x${pixels.height}`;
+    return caps.tiers.find((tier) => Object.values(imageSizePresets[tier] || {}).includes(key));
+}
+
+function displayRatio(size: string, caps: ImageCaps) {
+    const raw = size.trim();
+    if (!raw || raw.toLowerCase() === "auto" || !caps.ratios.length) return "auto";
+    const exact = caps.ratios.find((ratio) => ratio.toLowerCase() === raw.toLowerCase());
+    if (exact) return exact;
+    const pixels = parsePixelSize(raw);
+    const source = pixels ? `${pixels.width}:${pixels.height}` : raw;
+    if (!parseAspectRatio(source) && !pixels) return snapToClosest("ratio", "1:1", caps.ratios).value;
+    return snapToClosest("ratio", source, caps.ratios).value;
+}
+
+function classifyStoredSize(size: string) {
+    const raw = size.trim();
+    if (!raw || raw.toLowerCase() === "auto") return { kind: "auto" } as const;
+    const pixels = parsePixelSize(raw);
+    if (pixels) return { kind: "pixels", ...pixels } as const;
+    if (parseAspectRatio(raw)) return { kind: "ratio", value: raw } as const;
+    return { kind: "other", value: raw } as const;
+}
+
+/**
+ * What an image request should actually send. Quality never changes the pixel tier:
+ * a ratio becomes the 1K preset, and 高清 only changes the quality / imageSize field.
+ */
+export function planImageRequest(input: { model: string; size: string; quality: string; background?: string; channel?: ImageChannelFormat }): ImageSendPlan {
+    const channel = input.channel || "openai";
+    const caps = getImageCaps(input.model, channel);
+    const stored = classifyStoredSize(input.size || "");
+    const ratio = displayRatio(input.size || "", caps);
+    const tier = matchedTier(input.size || "", caps);
+    const mapped = mapImageQualityParam(input.quality, caps);
+    let quality = mapped.send ? { param: mapped.param, value: mapped.value } : undefined;
+    if (tier && caps.quality?.param === "imageSize" && caps.tiers?.includes(tier)) {
+        quality = { param: "imageSize", value: tier.toUpperCase() };
+    }
+    const background = caps.transparent && input.background?.trim().toLowerCase() === "transparent" ? "transparent" : undefined;
+    const base = { ratio, quality, background, tier, fixedSize: false, invalid: false } satisfies Partial<ImageSendPlan>;
+
+    if (channel === "chat" || (Array.isArray(caps.sizes) && caps.sizes.length === 0)) {
+        return { ...base, sizeField: "none" };
+    }
+
+    if (channel === "gemini") {
+        if (stored.kind === "auto") return { ...base, sizeField: "none" };
+        if (stored.kind === "other") return { ...base, sizeField: "none", invalid: true };
+        return { ...base, sizeField: "aspectRatio", sizeValue: ratio === "auto" ? caps.ratios[0] : ratio };
+    }
+
+    if (stored.kind === "auto") {
+        if (channel === "openai" && isGptImageFamily(input.model)) return { ...base, sizeField: "size", sizeValue: "auto" };
+        return { ...base, sizeField: "none" };
+    }
+
+    if (stored.kind === "other") {
+        return { ...base, sizeField: "none", invalid: true };
+    }
+
+    if (Array.isArray(caps.sizes)) {
+        const exact = stored.kind === "pixels" ? caps.sizes.find((item) => item.toLowerCase() === `${stored.width}x${stored.height}`) : undefined;
+        const sizeValue = exact || closestFixedSize(stored.kind === "pixels" ? `${stored.width}x${stored.height}` : ratio, caps.sizes);
+        return { ...base, sizeField: "size", sizeValue, fixedSize: true };
+    }
+
+    const pixels = stored.kind === "pixels" ? `${stored.width}x${stored.height}` : imageTierSize(ratio, "1k");
+    if (channel === "siliconflow") return { ...base, sizeField: "image_size", sizeValue: pixels };
+    return { ...base, sizeField: "size", sizeValue: pixels };
+}
+
+/** Changes to persist when the selected model cannot honor the current settings. Does not rewrite legacy quality that still maps. */
+export function collectImageAdjustments(input: { model: string; size: string; quality: string; count: string; background?: string; channel?: ImageChannelFormat; maxCount?: number }): ImageAdjustment[] {
+    const channel = input.channel || "openai";
+    const caps = getImageCaps(input.model, channel);
+    const adjustments: ImageAdjustment[] = [];
+    const stored = classifyStoredSize(input.size || "");
+    const limit = Math.max(1, Math.min(caps.maxCount, input.maxCount ?? caps.maxCount));
+
+    if (!caps.ratios.length) {
+        if (stored.kind !== "auto") {
+            const from = stored.kind === "pixels" ? `${stored.width}x${stored.height}` : stored.kind === "ratio" ? stored.value : stored.value;
+            adjustments.push({ kind: "ratio", from, to: "auto", write: { key: "size", value: "auto" } });
+        }
+    } else if (stored.kind === "ratio") {
+        const exact = caps.ratios.find((ratio) => ratio.toLowerCase() === stored.value.toLowerCase());
+        if (!exact) {
+            const snapped = snapToClosest("ratio", stored.value, caps.ratios).value;
+            adjustments.push({ kind: "ratio", from: stored.value, to: snapped, write: { key: "size", value: snapped } });
+        }
+    } else if (stored.kind === "pixels" && Array.isArray(caps.sizes)) {
+        const current = `${stored.width}x${stored.height}`;
+        const exact = caps.sizes.find((item) => item.toLowerCase() === current.toLowerCase());
+        if (!exact) {
+            const legal = closestFixedSize(current, caps.sizes);
+            adjustments.push({ kind: "pixels", from: current, to: legal, write: { key: "size", value: legal } });
+        }
+    } else if (stored.kind === "other") {
+        const snapped = snapToClosest("ratio", "1:1", caps.ratios).value;
+        adjustments.push({ kind: "ratio", from: stored.value, to: snapped, write: { key: "size", value: snapped } });
+    }
+
+    const count = Math.max(1, Math.floor(Math.abs(Number(input.count)) || 1));
+    if (count > limit) adjustments.push({ kind: "count", from: count, to: limit, write: { key: "count", value: String(limit) } });
+
+    if (caps.quality && !imageQualitySupportsHd(caps) && normalizeImageQuality(input.quality) === "hd") {
+        adjustments.push({ kind: "quality", write: { key: "quality", value: "standard" } });
+    }
+
+    if (input.background?.trim().toLowerCase() === "transparent" && !caps.transparent) adjustments.push({ kind: "transparent" });
+    return adjustments;
+}
+
+// ---- Video request plan (P0-5): one parameter form per paramStyle ----
+
+export type VideoSendPlan = {
+    caps: VideoCaps;
+    /** "auto" only for relay models; Veo / Sora always resolve to a listed ratio. */
+    ratio: string;
+    resolution: VideoResolution;
+    seconds: number;
+    /** WxH the UI shows as「将发送 …」. Undefined when no size is sent. */
+    size?: string;
+    /** Custom pixels from 高级 · 自定义尺寸 (relay models only). */
+    customSize?: string;
+    fields: Record<string, string | number>;
+};
+
+function videoRatioOf(value: string) {
+    const raw = (value || "").trim();
+    if (!raw || raw.toLowerCase() === "auto") return "auto";
+    const ratio = parseAspectRatio(raw);
+    if (ratio) return raw;
+    const pixels = parsePixelSize(raw);
+    if (!pixels) return "auto";
+    return snapToClosest("ratio", `${pixels.width}:${pixels.height}`, RELAY_VIDEO_RATIOS).value;
+}
+
+function evenPixels(value: number) {
+    return Math.max(2, Math.round(value / 2) * 2);
+}
+
+/** Short side = resolution; e.g. 16:9@720p → 1280x720. */
+export function videoPresetSize(ratio: string, resolution: string, caps?: VideoCaps) {
+    const mapped = caps?.sizeMap?.[`${ratio}@${resolution}`];
+    if (mapped) return mapped;
+    const parsed = parseAspectRatio(ratio);
+    if (!parsed) return undefined;
+    const short = Number(resolution.replace(/p$/, "")) || 720;
+    const landscape = parsed.width >= parsed.height;
+    const width = evenPixels(landscape ? (short * parsed.width) / parsed.height : short);
+    const height = evenPixels(landscape ? short : (short * parsed.height) / parsed.width);
+    return `${width}x${height}`;
+}
+
+export function videoSecondsOptions(caps: VideoCaps) {
+    if (Array.isArray(caps.seconds)) return caps.seconds;
+    const list: number[] = [];
+    for (let value = caps.seconds.min; value <= caps.seconds.max; value += 1) list.push(value);
+    return list;
+}
+
+/**
+ * What a video request should send. Reads the stored `videoSize` (ratio, or legacy WxH),
+ * `vquality` and `videoSeconds`, snaps them to the model, and returns the single field set:
+ * - openai-sora → size (+ seconds)
+ * - veo → aspectRatio + resolution (+ durationSeconds)
+ * - relay-extended → size, or resolution_name when the ratio is 自动
+ */
+export function planVideoRequest(input: { model: string; apiFormat?: VideoChannelFormat; videoSize: string; vquality: string; seconds: string }): VideoSendPlan {
+    const caps = getVideoCaps(input.model, input.apiFormat);
+    const storedRatio = videoRatioOf(input.videoSize);
+    const ratio = storedRatio === "auto" ? (caps.paramStyle === "relay-extended" ? "auto" : caps.ratios[0]) : caps.ratios.includes(storedRatio) ? storedRatio : snapToClosest("ratio", storedRatio, caps.ratios).value;
+    const resolution = snapToClosest("resolution", /^\d+$/.test(input.vquality?.trim() || "") ? `${input.vquality.trim()}p` : input.vquality || "720p", caps.resolutions).value as VideoResolution;
+    const seconds = snapToClosest("seconds", input.seconds || "6", videoSecondsOptions(caps)).value;
+    const storedPixels = parsePixelSize(input.videoSize || "");
+    const preset = ratio === "auto" ? undefined : videoPresetSize(ratio, resolution, caps);
+    // Legacy WxH that equals a ratio@480/720/1080 preset is a preset, not a custom size.
+    const storedKey = storedPixels ? `${storedPixels.width}x${storedPixels.height}` : "";
+    const isLegacyPreset = Boolean(storedPixels && storedRatio !== "auto" && (["480p", "720p", "1080p"] as const).some((item) => videoPresetSize(storedRatio, item) === storedKey || videoPresetSize(storedRatio, item, caps) === storedKey));
+    const isCustom = Boolean(caps.customSize && storedPixels && storedKey !== preset && !isLegacyPreset && ratio !== "auto");
+    const customSize = isCustom && storedPixels ? `${storedPixels.width}x${storedPixels.height}` : undefined;
+    if (caps.paramStyle === "veo") {
+        return { caps, ratio, resolution, seconds, size: preset, fields: { aspectRatio: ratio, resolution, durationSeconds: seconds } };
+    }
+    if (caps.paramStyle === "openai-sora") {
+        return { caps, ratio, resolution, seconds, size: preset, fields: { size: preset || DEFAULT_VIDEO_SIZE, seconds } };
+    }
+    const size = customSize || preset;
+    return { caps, ratio, resolution, seconds, size, customSize, fields: size ? { size, seconds } : { resolution_name: resolution, seconds } };
+}
+
+export type VideoAdjustment = { key: "videoSize" | "vquality" | "videoSeconds"; value: string; note: string };
+
+/** Values to write back when the selected video model cannot honor the stored ones. */
+export function collectVideoAdjustments(input: { model: string; apiFormat?: VideoChannelFormat; videoSize: string; vquality: string; seconds: string }): VideoAdjustment[] {
+    const plan = planVideoRequest(input);
+    const list: VideoAdjustment[] = [];
+    const storedRatio = videoRatioOf(input.videoSize);
+    if (storedRatio !== plan.ratio && !(storedRatio === "auto" && plan.caps.paramStyle === "relay-extended")) list.push({ key: "videoSize", value: plan.ratio, note: `比例 ${storedRatio === "auto" ? "自动" : storedRatio} → ${plan.ratio}` });
+    const storedResolution = /^\d+$/.test(input.vquality?.trim() || "") ? `${input.vquality.trim()}p` : input.vquality;
+    const legacyAlias = ["", "auto", "high", "medium", "low"].includes((input.vquality || "").trim().toLowerCase());
+    if (storedResolution !== plan.resolution && !(legacyAlias && plan.caps.resolutions.includes(plan.resolution) && snapToClosest("resolution", input.vquality || "auto", plan.caps.resolutions).value === plan.resolution)) list.push({ key: "vquality", value: plan.resolution.replace(/p$/, ""), note: `清晰度 → ${plan.resolution}` });
+    if (input.seconds && String(Math.round(Number(input.seconds) || 0)) !== String(plan.seconds)) list.push({ key: "videoSeconds", value: String(plan.seconds), note: `时长 ${input.seconds || "-"} 秒 → ${plan.seconds} 秒` });
+    return list;
 }

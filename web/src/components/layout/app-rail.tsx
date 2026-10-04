@@ -90,6 +90,9 @@ export function AppRail() {
                     collapsed ? "mb-2.5 size-9 rounded-md text-[11px]" : "mb-[18px] size-11 rounded-[7px] text-[15px]",
                 )}
                 style={{
+                    // Inline: antd's global `a { background: transparent }` is unlayered and beats Tailwind utilities.
+                    background: "var(--zhu-500)",
+                    color: "#FFF6EE",
                     writingMode: "vertical-rl",
                     letterSpacing: collapsed ? "1px" : "2px",
                     fontFamily: SERIF,

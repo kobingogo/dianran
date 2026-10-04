@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* antd reset in the base layer so Tailwind utilities (color / font-size on buttons) are not overridden. */
+@import "antd/dist/reset.css" layer(base);
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./tokens.css";

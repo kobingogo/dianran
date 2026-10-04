@@ -49,7 +49,7 @@ export function AppTopNav() {
                         to="/"
                         aria-label={t("rail.seal")}
                         className="grid size-[30px] shrink-0 place-items-center rounded-md bg-[#C8402A] text-[10.5px] font-bold leading-none text-[#FFF6EE] dark:bg-[#D9573D]"
-                        style={{ writingMode: "vertical-rl", letterSpacing: "1px", fontFamily: SERIF }}
+                        style={{ background: "var(--zhu-500)", color: "#FFF6EE", writingMode: "vertical-rl", letterSpacing: "1px", fontFamily: SERIF }}
                     >
                         {BRAND.nameZh}
                     </Link>
