@@ -66,6 +66,7 @@ import { AgentHistoryView } from "./agent-history-view";
 import { AgentLogView } from "./agent-log-view";
 import { AgentPanelTabs } from "./agent-panel-tabs";
 import { AgentSkillsView } from "./agent-skills-view";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 const MAX_ATTACHMENTS = 6;
 const MAX_ATTACHMENT_PAYLOAD_BYTES = 28 * 1024 * 1024;
@@ -884,7 +885,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
             setAgentState({ pendingApprovals, activity: approvalActivity(pendingApprovals, latest.waiting, latest.activity) });
             if (resolved) return;
             addEventLog(rt("approvalFailed"), error);
-            message.error(error instanceof Error ? error.message : rt("approvalFailed"));
+            showErrorToast(message, error, rt("approvalFailed"));
         }
     };
 
@@ -1032,7 +1033,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
             const state = agentErrorState(error);
             if (state) applyConversationState(state);
             addEventLog(rt("newConversationFailed"), error);
-            message.error(error instanceof Error ? error.message : rt("newConversationFailed"));
+            showErrorToast(message, error, rt("newConversationFailed"));
             await loadThreads();
         } finally {
             finishThreadOperation(operation);
@@ -1052,7 +1053,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
             const state = agentErrorState(error);
             if (state) applyConversationState(state);
             addEventLog(rt("resumeConversationFailed"), error);
-            message.error(error instanceof Error ? error.message : rt("resumeConversationFailed"));
+            showErrorToast(message, error, rt("resumeConversationFailed"));
             await loadThreads();
         } finally {
             finishThreadOperation(operation);
@@ -1074,7 +1075,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
         } catch (error) {
             await loadThreads();
             addEventLog(rt("deleteConversationFailed"), error);
-            message.error(error instanceof Error ? error.message : rt("deleteConversationFailed"));
+            showErrorToast(message, error, rt("deleteConversationFailed"));
         } finally {
             finishThreadOperation(operation);
         }

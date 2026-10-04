@@ -58,18 +58,26 @@ function cacheKey(sourceId: string) {
     return `prompt-source:${sourceId}`;
 }
 
+// [dianran] Bump when the bundled snapshots change shape (v2: covers served from /prompt-sources/covers) so old caches refetch.
+const BUILT_IN_SNAPSHOT_VERSION = "covers-v2";
+
 function sourceSignature(source: PromptSource) {
-    const value = `${source.name}\n${source.url}\n${source.homepage}`;
+    const value = `${source.name}\n${source.url}\n${source.homepage}${source.builtIn ? `\n${BUILT_IN_SNAPSHOT_VERSION}` : ""}`;
     let hash = 0;
     for (let i = 0; i < value.length; i += 1) hash = (hash * 31 + value.charCodeAt(i)) | 0;
     return `${value.length}:${hash}`;
 }
 
+// [dianran] Built-in sources only ever show images served from our own domain (never external hosts, even from an old cache).
+const isExternalUrl = (url: string) => /^https?:\/\//i.test(url);
+
 function withSourceMeta(source: PromptSource, items: RawPrompt[]): Prompt[] {
+    const keep = (url: string) => !source.builtIn || !isExternalUrl(url);
     return items.map((item) => ({
         ...item,
+        coverUrl: item.coverUrl && keep(item.coverUrl) ? item.coverUrl : "",
         description: item.description || "",
-        referenceImageUrls: Array.isArray(item.referenceImageUrls) ? item.referenceImageUrls : [],
+        referenceImageUrls: Array.isArray(item.referenceImageUrls) ? item.referenceImageUrls.filter(keep) : [],
         sourceId: source.id,
         category: source.name,
         githubUrl: item.sourceUrl || source.homepage,
@@ -116,7 +124,11 @@ async function getSourcePrompts(source: PromptSource): Promise<Prompt[]> {
     const cached = await readSourceCache(source.id);
     if (cached) {
         const stale = cached.signature !== sourceSignature(source) || Date.now() - cached.fetchedAt >= cacheTtlMs;
-        if (stale) void getOrStartRefresh(source).catch(() => undefined);
+        // A changed signature means the cached items are from an older snapshot: wait for the fresh copy (fall back to cache on failure).
+        if (cached.signature !== sourceSignature(source)) {
+            const result = await getOrStartRefresh(source);
+            if (result.success) return withSourceMeta(source, (await readSourceCache(source.id))?.items || []);
+        } else if (stale) void getOrStartRefresh(source).catch(() => undefined);
         return withSourceMeta(source, cached.items);
     }
     const result = await getOrStartRefresh(source);

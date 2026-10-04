@@ -10,6 +10,7 @@ import { useCopyText } from "@/hooks/use-copy-text";
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { ALL_PROMPTS_OPTION, type Prompt } from "@/services/api/prompts";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 export default function PromptsPage() {
     const { message } = App.useApp();
@@ -23,7 +24,7 @@ export default function PromptsPage() {
     const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, total: totalPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory });
 
     useEffect(() => {
-        if (query.isError) message.error(query.error instanceof Error ? query.error.message : t("prompts.loadFailed"));
+        if (query.isError) showErrorToast(message, query.error, t("prompts.loadFailed"));
     }, [message, query.error, query.isError, t]);
 
     const toggleTag = (tag: string) => {

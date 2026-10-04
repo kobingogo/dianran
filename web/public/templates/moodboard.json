@@ -1,0 +1,90 @@
+{
+  "id": "moodboard",
+  "title": "情绪板",
+  "titleEn": "Moodboard",
+  "description": "定一个主题，从色彩、材质、光线、场景四个方向发散，快速拼出一块视觉情绪板。",
+  "descriptionEn": "Pick a theme and explore color, material, light and setting to build a quick visual moodboard.",
+  "tags": [
+    "灵感",
+    "品牌"
+  ],
+  "accent": "#3E8E7E",
+  "nodes": [
+    {
+      "key": "theme",
+      "type": "text",
+      "title": "主题关键词（先改这里）",
+      "x": 0,
+      "y": 435,
+      "w": 340,
+      "h": 240,
+      "content": "主题：海边的慢生活咖啡馆\n关键词：盐、风、阳光晒过的木头、亚麻、浅蓝与沙色\n输出要求：每张都是方形、无文字，彼此风格统一，可以拼在一起作为情绪板。"
+    },
+    {
+      "key": "color",
+      "type": "config",
+      "title": "色彩",
+      "x": 440,
+      "y": 0,
+      "w": 340,
+      "h": 240,
+      "size": "1:1",
+      "count": 1,
+      "prompt": "{{theme}}\n抽象色彩构成：用主题中的配色做几块柔和渐变的色块，带细微纸张颗粒。"
+    },
+    {
+      "key": "material",
+      "type": "config",
+      "title": "材质",
+      "x": 440,
+      "y": 290,
+      "w": 340,
+      "h": 240,
+      "size": "1:1",
+      "count": 1,
+      "prompt": "{{theme}}\n材质特写拼贴：粗麻布、风化的木板、白色陶土、贝壳表面，柔光平铺拍摄。"
+    },
+    {
+      "key": "light",
+      "type": "config",
+      "title": "光线",
+      "x": 440,
+      "y": 580,
+      "w": 340,
+      "h": 240,
+      "size": "1:1",
+      "count": 1,
+      "prompt": "{{theme}}\n光影氛围：午后阳光透过百叶窗洒在白墙和桌面上，形成柔和的条纹阴影。"
+    },
+    {
+      "key": "place",
+      "type": "config",
+      "title": "场景",
+      "x": 440,
+      "y": 870,
+      "w": 340,
+      "h": 240,
+      "size": "1:1",
+      "count": 1,
+      "prompt": "{{theme}}\n空间场景：面朝大海的小咖啡馆一角，木桌、藤椅、窗外是海平线，胶片质感。"
+    }
+  ],
+  "connections": [
+    [
+      "theme",
+      "color"
+    ],
+    [
+      "theme",
+      "material"
+    ],
+    [
+      "theme",
+      "light"
+    ],
+    [
+      "theme",
+      "place"
+    ]
+  ]
+}

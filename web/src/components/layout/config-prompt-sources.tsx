@@ -9,6 +9,7 @@ import { PromptSourceContentModal } from "./prompt-source-content-modal";
 import { fetchPromptSourceStatuses, refreshAllSources, refreshSource } from "@/services/api/prompts";
 import { PROMPT_SOURCE_INTERVALS, usePromptSourceStore } from "@/stores/use-prompt-source-store";
 import type { PromptSource } from "@/services/api/prompt-source-presets";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 const STATUS_QUERY_KEY = ["prompt-source-statuses"];
 
@@ -67,7 +68,7 @@ export function ConfigPromptSources() {
             message.success(t("config.promptSources.refreshed", { name: source.name, count: result.count }));
         } catch (error) {
             await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
-            message.error(error instanceof Error ? error.message : t("config.promptSources.refreshFailedCached"));
+            showErrorToast(message, error, t("config.promptSources.refreshFailedCached"));
         } finally {
             setRefreshingId("");
         }
@@ -82,7 +83,7 @@ export function ConfigPromptSources() {
             if (result.failureCount) message.warning(t("config.promptSources.refreshPartial", { success: result.successCount, failed: result.failureCount }));
             else message.success(t("config.promptSources.refreshAllSuccess", { sources: result.successCount, total: result.total }));
         } catch (error) {
-            message.error(error instanceof Error ? error.message : t("config.promptSources.refreshFailed"));
+            showErrorToast(message, error, t("config.promptSources.refreshFailed"));
         } finally {
             setRefreshingAll(false);
         }

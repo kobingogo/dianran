@@ -203,6 +203,49 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         return () => container.removeEventListener("wheel", preventWheelScroll);
     }, [containerRef]);
 
+    // [dianran] Two-finger pinch zoom on touch screens (one finger pans with the hand tool via pointer events).
+    const viewportRef = useRef(viewport);
+    viewportRef.current = viewport;
+    const viewportChangeRef = useRef(onViewportChange);
+    viewportChangeRef.current = onViewportChange;
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+        let pinch: { distance: number; k: number; worldX: number; worldY: number } | null = null;
+        const metrics = (touches: TouchList) => {
+            const rect = container.getBoundingClientRect();
+            const [a, b] = [touches[0], touches[1]];
+            return { distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), x: (a.clientX + b.clientX) / 2 - rect.left, y: (a.clientY + b.clientY) / 2 - rect.top };
+        };
+        const onStart = (event: TouchEvent) => {
+            if (event.touches.length !== 2) return;
+            panState.current.isPanning = false;
+            const m = metrics(event.touches);
+            const current = viewportRef.current;
+            pinch = { distance: m.distance || 1, k: current.k, worldX: (m.x - current.x) / current.k, worldY: (m.y - current.y) / current.k };
+        };
+        const onMove = (event: TouchEvent) => {
+            if (!pinch || event.touches.length !== 2) return;
+            event.preventDefault();
+            const m = metrics(event.touches);
+            const k = Math.min(Math.max((pinch.k * m.distance) / pinch.distance, 0.05), 5);
+            viewportChangeRef.current({ k, x: m.x - pinch.worldX * k, y: m.y - pinch.worldY * k });
+        };
+        const onEnd = (event: TouchEvent) => {
+            if (event.touches.length < 2) pinch = null;
+        };
+        container.addEventListener("touchstart", onStart, { passive: true });
+        container.addEventListener("touchmove", onMove, { passive: false });
+        container.addEventListener("touchend", onEnd);
+        container.addEventListener("touchcancel", onEnd);
+        return () => {
+            container.removeEventListener("touchstart", onStart);
+            container.removeEventListener("touchmove", onMove);
+            container.removeEventListener("touchend", onEnd);
+            container.removeEventListener("touchcancel", onEnd);
+        };
+    }, [containerRef]);
+
     const temporaryTool = isControlPressed || isSpacePressed;
     const activeTool = temporaryTool ? (tool === "select" ? "pan" : "select") : tool;
     const cursor = isPanning ? "grabbing" : activeTool === "pan" ? "grab" : undefined;
@@ -211,7 +254,7 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         <div
             ref={containerRef}
             className="relative h-full w-full select-none overflow-hidden"
-            style={{ background: theme.canvas.background, cursor }}
+            style={{ background: theme.canvas.background, cursor, touchAction: "none" }}
             onPointerDown={handlePointerDown}
             onDoubleClick={handleDoubleClick}
             onWheel={handleWheel}

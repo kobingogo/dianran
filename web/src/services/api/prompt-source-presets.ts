@@ -28,11 +28,11 @@ export function createPromptSource(source?: Partial<PromptSource>): PromptSource
 export const DEFAULT_PROMPT_SOURCES: PromptSource[] = [
     // [dianran] Own curated starter prompts (covers are bundled locally).
     registrySource("dianran-picks", "点染精选", "", true),
-    // Covers hosted outside GitHub -> enabled by default.
+    // All covers are bundled under /prompt-sources/covers (brand/sync-prompt-covers.mjs); no external image hosts at runtime.
     registrySource("youmind-gpt-image-2", "YouMind GPT Image 2", "https://github.com/YouMind-OpenLab/awesome-gpt-image-2", true),
     registrySource("youmind-nano-banana-pro", "YouMind Nano Banana Pro", "https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts", true),
     registrySource("awesome-gpt4o-image-prompts", "Awesome GPT-4o", "https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts", true),
-    // Covers mostly hosted on GitHub / X -> off by default (unreliable in mainland China); users can enable them.
+    // Large / partly cover-less sources stay off by default to keep the list focused; users can enable them.
     registrySource("banana-prompt-quicker", "Banana Prompt Quicker", "https://glidea.github.io/banana-prompt-quicker/", false),
     registrySource("freestylefly-gpt-image-2", "Freestylefly GPT Image 2", "https://github.com/freestylefly/awesome-gpt-image-2", false),
     registrySource("awesome-gpt-image", "Awesome GPT Image", "https://github.com/ZeroLu/awesome-gpt-image", false),

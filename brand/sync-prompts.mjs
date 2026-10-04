@@ -36,10 +36,12 @@ writeFileSync(resolve(outDir, "manifest.json"), JSON.stringify(manifest, null, 2
 const lines = [
     "# Bundled prompt sources / 内置提示词来源",
     "",
-    "These files are unmodified snapshots of the normalized JSON published by",
+    "These files are snapshots of the normalized JSON published by",
     "[yukkcat/image-prompts](https://github.com/yukkcat/image-prompts) (MIT), served from this site so the app",
     "works without reaching GitHub. Prompt text belongs to the original authors under the licenses below.",
-    "Cover images are not bundled; they are loaded from the original hosts only when you browse the prompt library.",
+    "Cover images from the upstream repositories are bundled as small WebP thumbnails in covers/ (brand/sync-prompt-covers.mjs rewrites",
+    "coverUrl / referenceImageUrls to them). Images hosted on third-party sites (X/Twitter, forums) are not bundled; those records show a",
+    "local placeholder. The app never loads prompt images from external hosts.",
     "",
     "| Source | Upstream | License |",
     "| --- | --- | --- |",
@@ -52,3 +54,5 @@ const lines = [
 ];
 writeFileSync(resolve(outDir, "LICENSES.md"), lines.join("\n"));
 console.log("done ->", outDir);
+// Localize cover images (download + thumbnail + rewrite URLs).
+await import("./sync-prompt-covers.mjs");

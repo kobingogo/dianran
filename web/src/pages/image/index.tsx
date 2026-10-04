@@ -24,6 +24,7 @@ import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
 import { STORAGE_NS, storageKey } from "@/constant/brand";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 type GeneratedImage = {
     id: string;
@@ -204,7 +205,7 @@ export default function ImagePage() {
                     images: successImages,
                 }),
             );
-            successCount ? message.success(t("imageWorkbench.generated")) : message.error(failed?.reason instanceof Error ? failed.reason.message : t("workbench.generationFailed"));
+            successCount ? message.success(t("imageWorkbench.generated")) : showErrorToast(message, failed?.reason, t("workbench.generationFailed"));
         } finally {
             setRunning(false);
         }

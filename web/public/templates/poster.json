@@ -1,0 +1,74 @@
+{
+  "id": "poster",
+  "title": "活动海报",
+  "titleEn": "Event poster",
+  "description": "一份文案 + 风格说明，一键出竖版主视觉、方形社媒图和横幅三种尺寸。",
+  "descriptionEn": "One brief, three poster formats: portrait key visual, square social post and banner.",
+  "tags": [
+    "海报",
+    "营销"
+  ],
+  "accent": "#E8572A",
+  "nodes": [
+    {
+      "key": "brief",
+      "type": "text",
+      "title": "海报文案与风格（先改这里）",
+      "x": 0,
+      "y": 250,
+      "w": 340,
+      "h": 320,
+      "content": "活动名称：秋日市集 · 点染手作周\n时间地点：10 月 18–19 日 · 城市公园南草坪\n主标题：把秋天带回家\n副标题：50+ 手作摊位 · 现场工作坊 · 免费入场\n\n风格：温暖的秋季配色（橙、焦糖、米白），扁平插画 + 纸张纹理，留白充足，中文大标题醒目，版式整洁。\n避免：杂乱的背景、过多小字、真实品牌 Logo。"
+    },
+    {
+      "key": "portrait",
+      "type": "config",
+      "title": "主视觉 · 竖版 9:16",
+      "x": 440,
+      "y": 0,
+      "w": 340,
+      "h": 240,
+      "size": "9:16",
+      "count": 2,
+      "prompt": "根据 {{brief}} 设计一张竖版活动海报主视觉：主标题放在上三分之一，中心是一幅手作市集的插画场景，底部放时间地点信息。"
+    },
+    {
+      "key": "square",
+      "type": "config",
+      "title": "社媒方图 · 1:1",
+      "x": 440,
+      "y": 290,
+      "w": 340,
+      "h": 240,
+      "size": "1:1",
+      "count": 1,
+      "prompt": "根据 {{brief}} 设计一张适合朋友圈 / 小红书的方形海报，突出主标题和「免费入场」，插画元素与竖版保持一致。"
+    },
+    {
+      "key": "banner",
+      "type": "config",
+      "title": "横幅 · 16:9",
+      "x": 440,
+      "y": 580,
+      "w": 340,
+      "h": 240,
+      "size": "16:9",
+      "count": 1,
+      "prompt": "根据 {{brief}} 设计一张横版活动横幅，左侧大标题与副标题，右侧插画，适合公众号头图和网站 Banner。"
+    }
+  ],
+  "connections": [
+    [
+      "brief",
+      "portrait"
+    ],
+    [
+      "brief",
+      "square"
+    ],
+    [
+      "brief",
+      "banner"
+    ]
+  ]
+}

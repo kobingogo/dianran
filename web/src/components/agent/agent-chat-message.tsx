@@ -11,6 +11,7 @@ import { useAgentStore, type AgentCanvasReference, type AgentPendingApproval, ty
 import { resolveAgentMessageAssetUrl, revealAgentLocalFile } from "@/services/api/canvas-agent";
 import { AgentCanvasReferencePreview, canvasReferenceIcon, canvasReferenceKindLabel } from "./agent-canvas-reference-preview";
 import { agentInlineTokenClass, agentInlineTokenIconClass, agentInlineTokenMediaClass, agentReferenceMarker, parseAgentInlineTokens } from "./agent-chat-inline-tokens";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 const streamdownProps = () => ({
     className: "agent-streamdown",
@@ -38,7 +39,7 @@ function AgentLinkModal({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProp
             message.success(t("agent.message.revealed"));
             onClose();
         } catch (error) {
-            message.error(error instanceof Error ? error.message : t("agent.message.openLocalFailed"));
+            showErrorToast(message, error, t("agent.message.openLocalFailed"));
         } finally {
             setOpening(false);
         }

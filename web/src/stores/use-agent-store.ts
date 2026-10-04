@@ -94,10 +94,13 @@ type AgentStore = {
 };
 
 export const CANVAS_AGENT_PANEL_MOTION_MS = 500;
+// [dianran] The Agent panel stays closed by default; only the user's own toggle/close is remembered.
+const PANEL_OPEN_KEY = "canvas-agent-panel-open";
+const rememberPanelOpen = (open: boolean) => typeof window !== "undefined" && localStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
     width: typeof window === "undefined" ? 440 : Number(localStorage.getItem("canvas-agent-panel-width")) || 440,
-    panelOpen: false,
+    panelOpen: typeof window !== "undefined" && localStorage.getItem(PANEL_OPEN_KEY) === "1",
     panelMounted: true,
     panelClosing: false,
     canvasContext: null,
@@ -137,12 +140,17 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     openPanel: () => set({ panelOpen: true, panelMounted: true, panelClosing: false }),
     closePanel: () => {
         if (!get().panelMounted || get().panelClosing) return;
+        rememberPanelOpen(false);
         set({ panelOpen: false, panelClosing: true });
         setTimeout(() => {
             if (get().panelClosing) set({ panelClosing: false });
         }, CANVAS_AGENT_PANEL_MOTION_MS);
     },
-    togglePanel: () => (get().panelOpen ? get().closePanel() : get().openPanel()),
+    togglePanel: () => {
+        if (get().panelOpen) return get().closePanel();
+        rememberPanelOpen(true);
+        get().openPanel();
+    },
     setCanvasContext: (canvasContext) => set({ canvasContext }),
     connectAgent: (options) => {
         const silent = options?.silent ?? false;

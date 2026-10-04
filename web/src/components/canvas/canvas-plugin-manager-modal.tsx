@@ -8,6 +8,7 @@ import { installPluginFromUrl, setPluginEnabled, uninstallPlugin, updatePlugin }
 import { fetchOfficialPlugins, hasUpgrade, type OfficialPluginEntry } from "@/lib/canvas/plugin-registry";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { usePluginStore, type InstalledPlugin } from "@/stores/canvas/use-plugin-store";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     const { t } = useTranslation();
@@ -52,7 +53,7 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
             message.success(t("canvas.plugins.installedPlugin", { name: plugin.name }));
             setUrl("");
         } catch (error) {
-            message.error(t("canvas.plugins.installFailed", { error: error instanceof Error ? error.message : String(error) }));
+            showErrorToast(message, error, t("canvas.plugins.installFailedTitle"));
         } finally {
             setInstalling(false);
         }
@@ -64,7 +65,7 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
             const plugin = await installPluginFromUrl(entry.url, { official: true });
             message.success(t("canvas.plugins.installed", { name: plugin.name }));
         } catch (error) {
-            message.error(t("canvas.plugins.installFailed", { error: error instanceof Error ? error.message : String(error) }));
+            showErrorToast(message, error, t("canvas.plugins.installFailedTitle"));
         } finally {
             setBusyId(null);
         }
@@ -76,7 +77,7 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
             await action();
             message.success(successText);
         } catch (error) {
-            message.error(`${error instanceof Error ? error.message : String(error)}`);
+            showErrorToast(message, error, t("canvas.plugins.actionFailed"));
         } finally {
             setBusyId(null);
         }

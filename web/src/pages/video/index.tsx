@@ -25,6 +25,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
 import { STORAGE_NS, storageKey } from "@/constant/brand";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 type GeneratedVideo = {
     id: string;
@@ -196,7 +197,7 @@ export default function VideoPage() {
             setResults([{ id: nanoid(), status: "failed", error: errorMessage }]);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", successCount: 0, failCount: 1, error: errorMessage });
             await saveLog(buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, durationMs: performance.now() - batchStartedAt, status: "failed", error: errorMessage }));
-            message.error(errorMessage);
+            showErrorToast(message, error, t("workbench.generationFailed"));
             setRunning(false);
         }
     };
@@ -347,7 +348,7 @@ export default function VideoPage() {
             setResults([{ id: log.id, status: "failed", error: errorMessage }]);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", successCount: 0, failCount: 1, error: errorMessage });
             await saveLog({ ...log, status: "failed", durationMs: Date.now() - log.createdAt, error: errorMessage });
-            message.error(errorMessage);
+            showErrorToast(message, error, t("workbench.generationFailed"));
         } finally {
             activeLogIdsRef.current.delete(log.id);
             if (!activeLogIdsRef.current.size) {
