@@ -9,7 +9,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
     CANDIDATE_DIR, DATA_DIR, ageDays, config, contentReject, libPath, libraries, log, modelLabel, nowIso, readJson, scoreEntry, snowflakeDate, toIso,
-    tweetIdFromUrl, writeJson,
+    tweetIdFromUrl, writeJson, promptKey,
 } from "./lib/common.mjs";
 import { coverFileOf, createLocalizer, pool } from "./lib/covers.mjs";
 
@@ -23,7 +23,6 @@ const retiredArchive = readJson(resolve(DATA_DIR, "retired.json"), {});
 const coverFailures = readJson(resolve(DATA_DIR, "cover-failures.json"), {});
 const manifest = readJson(libPath("manifest"), { sources: [] });
 const { localize, stats: coverStats, failedUrls } = createLocalizer();
-const promptKey = (p) => String(p || "").toLowerCase().replace(/[\W_]+/gu, "").slice(0, 160);
 
 const report = { runAt, added: [], retired: [], updated: 0, wouldRetireStale: 0, usageStatus: usage.status, usageTrackingDays: 0, perLibrary: {}, coverStats, xChecks: { checked: 0, gone: 0, refreshed: 0, errors: 0 } };
 

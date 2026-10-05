@@ -1038,7 +1038,7 @@ function InfiniteCanvasPage() {
                           ...sanitizeClonedNode(node),
                           id: `${node.type}-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
                           position: { x: node.position.x + 36, y: node.position.y + 36 },
-                          metadata: { ...node.metadata, groupId: id },
+                          metadata: { ...sanitizeClonedNode(node).metadata, groupId: id },
                       }))
                 : [];
 
@@ -1097,7 +1097,7 @@ function InfiniteCanvasPage() {
                     x: node.position.x + dx,
                     y: node.position.y + dy,
                 },
-                metadata: node.metadata ? { ...node.metadata } : undefined,
+                metadata: node.metadata ? { ...sanitizeClonedNode(node).metadata } : undefined,
             };
         });
 
