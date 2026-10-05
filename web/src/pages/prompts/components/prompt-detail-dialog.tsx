@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { PromptCover } from "@/components/prompts/prompt-card";
 import { formatPromptDate, type Prompt } from "@/services/api/prompts";
+import { trackPromptUsage } from "@/services/usage-stats";
 
 export function PromptDetailDialog({ prompt, onClose, onCopy, onSaveAsset }: { prompt: Prompt | null; onClose: () => void; onCopy: (prompt: string) => void; onSaveAsset?: (prompt: Prompt) => void }) {
     const { i18n, t } = useTranslation();
@@ -32,11 +33,17 @@ export function PromptDetailDialog({ prompt, onClose, onCopy, onSaveAsset }: { p
                     </div>
                     <div className="shrink-0 pt-4">
                         <Space wrap>
-                            <Button type="primary" icon={<Copy className="size-4" />} onClick={() => onCopy(prompt.prompt)}>
+                            <Button type="primary" icon={<Copy className="size-4" />} onClick={() => {
+                                trackPromptUsage(prompt.id, "copy");
+                                onCopy(prompt.prompt);
+                            }}>
                                 {t("common.copyPrompt")}
                             </Button>
                             {onSaveAsset ? (
-                                <Button icon={<FolderPlus className="size-4" />} onClick={() => onSaveAsset(prompt)}>
+                                <Button icon={<FolderPlus className="size-4" />} onClick={() => {
+                                    trackPromptUsage(prompt.id, "use");
+                                    onSaveAsset(prompt);
+                                }}>
                                     {t("common.addToAssets")}
                                 </Button>
                             ) : null}
@@ -52,7 +59,7 @@ export function PromptDetailDialog({ prompt, onClose, onCopy, onSaveAsset }: { p
 function PromptAttribution({ prompt }: { prompt: Prompt }) {
     const { i18n, t } = useTranslation();
     const author = prompt.author?.trim();
-    const link = prompt.sourceUrl && /^https:\/\/(x|twitter)\.com\//.test(prompt.sourceUrl) ? prompt.sourceUrl : "";
+    const link = prompt.sourceUrl && /^https:\/\/((x|twitter)\.com|civitai\.com)\//.test(prompt.sourceUrl) ? prompt.sourceUrl : "";
     if (!author && !link) return null;
     return (
         <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:bg-stone-900 dark:text-stone-400">

@@ -1,0 +1,226 @@
+{
+  "dianran-picks:neon-city": {
+    "id": "dianran-picks:neon-city",
+    "title": "霓虹夜城",
+    "prompt": "赛博朋克城市夜景，高楼轮廓描着品红与青色霓虹，窗户星星点点，地面泛起紫色辉光，电影感广角",
+    "description": "",
+    "coverUrl": "/showcase/neon-city.webp",
+    "referenceImageUrls": [
+      "/showcase/neon-city.webp"
+    ],
+    "tags": [
+      "赛博朋克",
+      "夜景"
+    ],
+    "author": "点染",
+    "createdAt": "2026-10-04",
+    "imageMode": "generate",
+    "source": "dianran",
+    "sourceUrl": "",
+    "postedAt": "2026-10-04T00:00:00.000Z",
+    "fetchedAt": "2026-10-04T12:27:20.773Z",
+    "engagement": {
+      "likes": null,
+      "bookmarks": null,
+      "reposts": null
+    },
+    "authorFollowers": null,
+    "model": "通用",
+    "status": "active",
+    "sourceId": "dianran-picks",
+    "archivedAt": "2026-10-04T12:33:46.436Z",
+    "archivedReason": "排名跌出前 45（当前第 169 名）"
+  },
+  "dianran-picks:product-poster": {
+    "id": "dianran-picks:product-poster",
+    "title": "电商主图",
+    "prompt": "一瓶朱红色精华液立在奶油色圆形展台上，柔和蜜桃色渐变背景，漂浮的柔光圆点，干净的商业产品摄影",
+    "description": "",
+    "coverUrl": "/showcase/product-poster.webp",
+    "referenceImageUrls": [
+      "/showcase/product-poster.webp"
+    ],
+    "tags": [
+      "电商",
+      "产品"
+    ],
+    "author": "点染",
+    "createdAt": "2026-10-04",
+    "imageMode": "generate",
+    "source": "dianran",
+    "sourceUrl": "",
+    "postedAt": "2026-10-04T00:00:00.000Z",
+    "fetchedAt": "2026-10-04T12:27:20.773Z",
+    "engagement": {
+      "likes": null,
+      "bookmarks": null,
+      "reposts": null
+    },
+    "authorFollowers": null,
+    "model": "通用",
+    "status": "active",
+    "sourceId": "dianran-picks",
+    "archivedAt": "2026-10-04T12:33:46.436Z",
+    "archivedReason": "排名跌出前 45（当前第 170 名）"
+  },
+  "dianran-picks:bauhaus": {
+    "id": "dianran-picks:bauhaus",
+    "title": "包豪斯几何",
+    "prompt": "包豪斯风格海报，靛蓝方块、朱红圆形、明黄半圆与黑色矩形组合，一条斜线贯穿画面，米白纸张底色",
+    "description": "",
+    "coverUrl": "/showcase/bauhaus.webp",
+    "referenceImageUrls": [
+      "/showcase/bauhaus.webp"
+    ],
+    "tags": [
+      "海报",
+      "几何"
+    ],
+    "author": "点染",
+    "createdAt": "2026-10-04",
+    "imageMode": "generate",
+    "source": "dianran",
+    "sourceUrl": "",
+    "postedAt": "2026-10-04T00:00:00.000Z",
+    "fetchedAt": "2026-10-04T12:27:20.773Z",
+    "engagement": {
+      "likes": null,
+      "bookmarks": null,
+      "reposts": null
+    },
+    "authorFollowers": null,
+    "model": "通用",
+    "status": "active",
+    "sourceId": "dianran-picks",
+    "archivedAt": "2026-10-04T12:33:46.436Z",
+    "archivedReason": "排名跌出前 45（当前第 171 名）"
+  },
+  "dianran-picks:lotus-moon": {
+    "id": "dianran-picks:lotus-moon",
+    "title": "荷塘月色",
+    "prompt": "深蓝色夜晚的荷塘，一朵粉色荷花在墨绿荷叶间绽放，月亮散发柔和光晕，扁平插画风格",
+    "description": "",
+    "coverUrl": "/showcase/lotus-moon.webp",
+    "referenceImageUrls": [
+      "/showcase/lotus-moon.webp"
+    ],
+    "tags": [
+      "插画",
+      "夜晚"
+    ],
+    "author": "点染",
+    "createdAt": "2026-10-04",
+    "imageMode": "generate",
+    "source": "dianran",
+    "sourceUrl": "",
+    "postedAt": "2026-10-04T00:00:00.000Z",
+    "fetchedAt": "2026-10-04T12:27:20.773Z",
+    "engagement": {
+      "likes": null,
+      "bookmarks": null,
+      "reposts": null
+    },
+    "authorFollowers": null,
+    "model": "通用",
+    "status": "active",
+    "sourceId": "dianran-picks",
+    "archivedAt": "2026-10-04T12:33:46.436Z",
+    "archivedReason": "排名跌出前 45（当前第 172 名）"
+  },
+  "dianran-picks:nebula": {
+    "id": "dianran-picks:nebula",
+    "title": "星云",
+    "prompt": "深空星云，朱红与钴蓝两团气体交织，中心一颗明亮恒星，细密星点，梦幻柔焦",
+    "description": "",
+    "coverUrl": "/showcase/nebula.webp",
+    "referenceImageUrls": [
+      "/showcase/nebula.webp"
+    ],
+    "tags": [
+      "宇宙",
+      "抽象"
+    ],
+    "author": "点染",
+    "createdAt": "2026-10-04",
+    "imageMode": "generate",
+    "source": "dianran",
+    "sourceUrl": "",
+    "postedAt": "2026-10-04T00:00:00.000Z",
+    "fetchedAt": "2026-10-04T12:27:20.773Z",
+    "engagement": {
+      "likes": null,
+      "bookmarks": null,
+      "reposts": null
+    },
+    "authorFollowers": null,
+    "model": "通用",
+    "status": "active",
+    "sourceId": "dianran-picks",
+    "archivedAt": "2026-10-04T12:33:46.436Z",
+    "archivedReason": "排名跌出前 45（当前第 173 名）"
+  },
+  "dianran-picks:silk-ribbons": {
+    "id": "dianran-picks:silk-ribbons",
+    "title": "飞天绸带",
+    "prompt": "敦煌壁画配色的抽象飘带，朱红、赭黄、石绿、胭脂与象牙白的绸带在深褐背景上流动",
+    "description": "",
+    "coverUrl": "/showcase/silk-ribbons.webp",
+    "referenceImageUrls": [
+      "/showcase/silk-ribbons.webp"
+    ],
+    "tags": [
+      "敦煌",
+      "色彩"
+    ],
+    "author": "点染",
+    "createdAt": "2026-10-04",
+    "imageMode": "generate",
+    "source": "dianran",
+    "sourceUrl": "",
+    "postedAt": "2026-10-04T00:00:00.000Z",
+    "fetchedAt": "2026-10-04T12:27:20.773Z",
+    "engagement": {
+      "likes": null,
+      "bookmarks": null,
+      "reposts": null
+    },
+    "authorFollowers": null,
+    "model": "通用",
+    "status": "active",
+    "sourceId": "dianran-picks",
+    "archivedAt": "2026-10-04T12:33:46.436Z",
+    "archivedReason": "排名跌出前 45（当前第 174 名）"
+  },
+  "dianran-picks:snow-lake": {
+    "id": "dianran-picks:snow-lake",
+    "title": "雪山湖泊",
+    "prompt": "极简风格的雪山与平静湖面倒影，冷色调蓝灰渐变，低饱和，留白，适合做壁纸",
+    "description": "",
+    "coverUrl": "/showcase/snow-lake.webp",
+    "referenceImageUrls": [
+      "/showcase/snow-lake.webp"
+    ],
+    "tags": [
+      "风景",
+      "极简"
+    ],
+    "author": "点染",
+    "createdAt": "2026-10-04",
+    "imageMode": "generate",
+    "source": "dianran",
+    "sourceUrl": "",
+    "postedAt": "2026-10-04T00:00:00.000Z",
+    "fetchedAt": "2026-10-04T12:27:20.773Z",
+    "engagement": {
+      "likes": null,
+      "bookmarks": null,
+      "reposts": null
+    },
+    "authorFollowers": null,
+    "model": "通用",
+    "status": "active",
+    "sourceId": "dianran-picks",
+    "archivedAt": "2026-10-04T12:33:46.436Z",
+    "archivedReason": "排名跌出前 45（当前第 175 名）"
+  }
+}

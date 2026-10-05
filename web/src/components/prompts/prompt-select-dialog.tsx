@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { PromptCard } from "./prompt-card";
 import { usePromptList } from "./use-prompt-list";
 import { showErrorToast } from "@/features/errors/error-toast";
+import { trackPromptUsage } from "@/services/usage-stats";
 
 export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect: (prompt: string) => void }) {
     const { message } = App.useApp();
@@ -68,7 +69,10 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
                         ) : null}
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                             {items.map((item) => (
-                                <PromptCard key={item.id} item={item} onOpen={() => selectPrompt(item.prompt)} onCopy={() => selectPrompt(item.prompt)} compact />
+                                <PromptCard key={item.id} item={item} onOpen={() => {
+                                    trackPromptUsage(item.id, "use");
+                                    selectPrompt(item.prompt);
+                                }} onCopy={() => selectPrompt(item.prompt)} compact />
                             ))}
                         </div>
                         {!query.isLoading && items.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("prompts.empty")} className="py-8" /> : null}

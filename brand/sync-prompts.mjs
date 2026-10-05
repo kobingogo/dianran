@@ -2,23 +2,17 @@
 // [dianran] Snapshot redistributable prompt sources into web/public/prompt-sources so the app
 // serves them from its own domain (no runtime requests to raw.githubusercontent.com).
 // Usage: node brand/sync-prompts.mjs   (run occasionally, commit the result)
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const outDir = resolve(root, "web/public/prompt-sources");
-const REGISTRY = "https://raw.githubusercontent.com/yukkcat/image-prompts/main/dist/sources";
-
+// Source list lives in brand/pipeline/config/github-sources.json (shared with the weekly pipeline).
 // Only sources whose license allows redistribution. davidwu-gpt-image2-prompts has no license file -> not bundled.
-export const SOURCES = [
-    { id: "youmind-gpt-image-2", name: "YouMind GPT Image 2", repo: "YouMind-OpenLab/awesome-gpt-image-2", license: "CC BY 4.0" },
-    { id: "youmind-nano-banana-pro", name: "YouMind Nano Banana Pro", repo: "YouMind-OpenLab/awesome-nano-banana-pro-prompts", license: "CC BY 4.0" },
-    { id: "awesome-gpt4o-image-prompts", name: "Awesome GPT-4o", repo: "ImgEdify/Awesome-GPT4o-Image-Prompts", license: "MIT" },
-    { id: "banana-prompt-quicker", name: "Banana Prompt Quicker", repo: "glidea/banana-prompt-quicker", license: "MIT" },
-    { id: "freestylefly-gpt-image-2", name: "Freestylefly GPT Image 2", repo: "freestylefly/awesome-gpt-image-2", license: "MIT" },
-    { id: "awesome-gpt-image", name: "Awesome GPT Image", repo: "ZeroLu/awesome-gpt-image", license: "MIT" },
-];
+const ghConfig = JSON.parse(readFileSync(resolve(root, "brand/pipeline/config/github-sources.json"), "utf8"));
+const REGISTRY = ghConfig.registry;
+export const SOURCES = ghConfig.sources;
 
 mkdirSync(outDir, { recursive: true });
 const manifest = { generatedAt: new Date().toISOString(), registry: "https://github.com/yukkcat/image-prompts (MIT)", sources: [] };
@@ -47,6 +41,7 @@ const lines = [
     "| --- | --- | --- |",
     "| 点染精选 (dianran-picks) | this project | MIT |",
     "| X 热门 (x-trending) | public posts on X, see each record's sourceUrl | © each post's author; quoted with attribution |",
+    "| Civitai 热门 (civitai-trending) | public Civitai images API (SFW only), see each record's sourceUrl | © each image's creator; shown with attribution per Civitai's Terms |",
     ...SOURCES.map((s) => `| ${s.name} | https://github.com/${s.repo} | ${s.license} |`),
     "",
     "CC BY 4.0 material: © YouMind OpenLab, https://creativecommons.org/licenses/by/4.0/ — records were normalized",
@@ -55,6 +50,11 @@ const lines = [
     "x-trending.json is curated by hand from public X posts (2026-08-04 to 2026-10-04, ranked by likes). Every record keeps the",
     "author handle, the original post URL and the post date, and the app shows that attribution on the prompt detail. Prompt text is",
     "quoted verbatim; rights stay with the authors. Ask us to remove a record at any time.",
+    "",
+    "Since 2026-10 x-trending and civitai-trending are refreshed weekly by brand/pipeline/run-weekly.sh (X via twscrape keyword +",
+    "watchlist searches; Civitai via its public REST API, most reactions of the week, nsfw=None, prompt shared by the creator). Every",
+    "record keeps author, post/image URL, post date and engagement numbers; the app links back to the original. Real-person likeness,",
+    "NSFW and face-swap prompts are filtered out. 点染精选 (dianran-picks) is rebuilt from the top-scored records of all libraries.",
     "",
 ];
 writeFileSync(resolve(outDir, "LICENSES.md"), lines.join("\n"));

@@ -11,10 +11,13 @@ import "@/i18n";
 import { initAnalytics } from "@/lib/analytics";
 import { router } from "@/router";
 import { installRequestTracker } from "@/features/tasks/request-tracker";
+import { installPromptUsageFlush } from "@/services/usage-stats";
 
 initAnalytics();
 // [dianran] observe AI requests for real generation status (task center)
 installRequestTracker();
+// [dianran] anonymous prompt copy/use counts (see services/usage-stats.ts)
+installPromptUsageFlush();
 
 document.body.style.fontFamily = '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
 

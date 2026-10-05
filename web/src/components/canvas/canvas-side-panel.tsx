@@ -21,6 +21,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 
 import type { InsertAssetPayload } from "./asset-picker-modal";
+import { trackPromptUsage } from "@/services/usage-stats";
 
 const PANEL_MOTION_SECONDS = CANVAS_SIDE_PANEL_MOTION_MS / 1000;
 const PANEL_EASE = [0.22, 1, 0.36, 1] as const;
@@ -549,7 +550,10 @@ function PromptSourceGroup({
         return items.filter((item) => [item.title, item.prompt, ...item.tags].join(" ").toLowerCase().includes(q));
     }, [query.data, keyword]);
 
-    const insertPrompt = (item: Prompt) => onInsert({ kind: "text", content: item.prompt, title: item.title });
+    const insertPrompt = (item: Prompt) => {
+        trackPromptUsage(item.id, "use");
+        onInsert({ kind: "text", content: item.prompt, title: item.title });
+    };
 
     return (
         <div>

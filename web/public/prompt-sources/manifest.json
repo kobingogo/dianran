@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T09:20:18.739Z",
+  "generatedAt": "2026-10-04T12:49:03.405Z",
   "registry": "https://github.com/yukkcat/image-prompts (MIT)",
   "sources": [
     {
@@ -7,7 +7,7 @@
       "name": "YouMind GPT Image 2",
       "repo": "YouMind-OpenLab/awesome-gpt-image-2",
       "license": "CC BY 4.0",
-      "count": 126,
+      "count": 124,
       "path": "youmind-gpt-image-2.json"
     },
     {
@@ -15,7 +15,7 @@
       "name": "YouMind Nano Banana Pro",
       "repo": "YouMind-OpenLab/awesome-nano-banana-pro-prompts",
       "license": "CC BY 4.0",
-      "count": 129,
+      "count": 125,
       "path": "youmind-nano-banana-pro.json"
     },
     {
@@ -23,7 +23,7 @@
       "name": "Awesome GPT-4o",
       "repo": "ImgEdify/Awesome-GPT4o-Image-Prompts",
       "license": "MIT",
-      "count": 76,
+      "count": 73,
       "path": "awesome-gpt4o-image-prompts.json"
     },
     {
@@ -31,7 +31,7 @@
       "name": "Banana Prompt Quicker",
       "repo": "glidea/banana-prompt-quicker",
       "license": "MIT",
-      "count": 285,
+      "count": 287,
       "path": "banana-prompt-quicker.json"
     },
     {
@@ -39,7 +39,7 @@
       "name": "Freestylefly GPT Image 2",
       "repo": "freestylefly/awesome-gpt-image-2",
       "license": "MIT",
-      "count": 541,
+      "count": 521,
       "path": "freestylefly-gpt-image-2.json"
     },
     {
@@ -47,7 +47,7 @@
       "name": "Awesome GPT Image",
       "repo": "ZeroLu/awesome-gpt-image",
       "license": "MIT",
-      "count": 53,
+      "count": 52,
       "path": "awesome-gpt-image.json"
     }
   ]

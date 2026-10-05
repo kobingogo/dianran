@@ -1,0 +1,60 @@
+{
+  "_comment": "Scoring / cleanup / picks knobs for the weekly prompt pipeline. See brand/pipeline/README.md.",
+  "score": {
+    "engagementWeights": {
+      "likes": 1,
+      "bookmarks": 2,
+      "reposts": 3
+    },
+    "imputeFromLikes": {
+      "bookmarks": 0.8,
+      "reposts": 0.12
+    },
+    "absWeight": 0.6,
+    "rateWeight": 0.8,
+    "followerFloor": 1000,
+    "assumedFollowers": 20000,
+    "sourceMultiplier": {
+      "x": 1.0,
+      "civitai": 0.8
+    },
+    "unknownEngagementPrior": {
+      "youmind-gpt-image-2": 2.2,
+      "youmind-nano-banana-pro": 2.2,
+      "awesome-gpt-image": 2.0,
+      "awesome-gpt4o-image-prompts": 1.8,
+      "freestylefly-gpt-image-2": 1.6,
+      "banana-prompt-quicker": 1.4,
+      "dianran-picks": 1.6,
+      "default": 1.4
+    },
+    "freshnessWeight": 2.0,
+    "freshnessHalfLifeDays": 45,
+    "unknownDateFreshness": 0.15,
+    "usageWeight": 1.5,
+    "usageUseWeight": 2,
+    "usageWindowDays": 30
+  },
+  "cleanup": {
+    "maxAgeDays": 183,
+    "minUsageTrackingDays": 28,
+    "checkXPosts": true,
+    "caps": {
+      "x-trending": 150,
+      "civitai-trending": 120
+    }
+  },
+  "civitai": {
+    "pages": 4,
+    "pageSize": 100,
+    "minPromptLength": 40,
+    "maxNewPerRun": 60,
+    "minReactions": 150
+  },
+  "picks": {
+    "cap": 30,
+    "perModel": 8,
+    "keepWithinRank": 45,
+    "pinned": []
+  }
+}

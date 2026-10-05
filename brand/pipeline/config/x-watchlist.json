@@ -1,0 +1,23 @@
+{
+  "_comment": "X fetcher config (brand/pipeline/fetch-x.mjs). Keyword queries run with since:<now - windowDays>; authors are batched into (from:a OR from:b …) searches. Edit freely; handles are case-insensitive, no @.",
+  "windowDays": 8,
+  "limitPerQuery": 40,
+  "authorBatchSize": 12,
+  "authorMinFaves": 40,
+  "maxThreadLookups": 12,
+  "queries": [
+    { "tag": "gpt-image", "query": "prompt (\"gpt image\" OR \"gpt-image\" OR \"gpt-image-2\" OR \"chatgpt image\") min_faves:150 -filter:replies" },
+    { "tag": "nano-banana", "query": "prompt (\"nano banana\" OR nanobanana OR gemini) (image OR photo OR 🍌) min_faves:150 -filter:replies" },
+    { "tag": "seedream", "query": "(prompt OR 提示词) (seedream OR 即梦 OR dreamina) min_faves:40 -filter:replies" },
+    { "tag": "midjourney", "query": "prompt (midjourney OR \"--sref\" OR niji) min_faves:80 -filter:replies" },
+    { "tag": "video", "query": "prompt (seedance OR kling OR 可灵 OR veo OR hailuo OR sora) min_faves:120 -filter:replies" },
+    { "tag": "flux", "query": "prompt (\"flux 2\" OR \"flux.2\" OR \"flux kontext\" OR bfl_ai) min_faves:30 -filter:replies" },
+    { "tag": "zh", "query": "提示词 (\"nano banana\" OR gemini OR gpt OR 即梦 OR seedream OR 可灵 OR midjourney OR 生图) min_faves:40 -filter:replies" }
+  ],
+  "authors": [
+    "Naiknelofar788", "ElsaSofia__AI", "aimikoda", "itsSaira_1", "Sairah_0", "MahnoorAi12", "Strength04_X", "Taaruk_",
+    "Arina_hoqe", "MissDelulu9", "Mayz1169", "Zarnab_with_Ai", "AiwithLariab", "churvikv", "Fujimoto_hina", "Alina_with_Ai",
+    "azed_ai", "Arzoo12sh", "saniaspeaks_", "Just_sharon7", "hanifproduktif", "KrishnaBio1", "AIwithkhan", "areej_design"
+  ],
+  "excludeAuthors": ["glenajenner", "alicekpop_ai", "kath_arison", "keorunreal", "missai_show", "hxhxhx0916", "msjiaozhu", "sdjn_wgc", "vybyrn", "plane_frontier"]
+}
