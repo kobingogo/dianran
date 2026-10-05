@@ -4,8 +4,11 @@ import os from "node:os";
 import path from "node:path";
 
 export const DEFAULT_PORT = 17371;
-export const CONFIG_DIR = path.join(os.homedir(), ".infinite-canvas");
+export const CONFIG_DIR = path.join(os.homedir(), ".dianran");
 export const CONFIG_FILE = path.join(CONFIG_DIR, "canvas-agent.json");
+/** 0.6.x 及更早版本（与上游 Infinite Canvas 共用）的配置位置；首次启动时迁移其中的 token / 地址 / 已授权来源。 */
+export const LEGACY_CONFIG_FILE = path.join(os.homedir(), ".infinite-canvas", "canvas-agent.json");
+export { LEGACY_MCP_SERVER_NAME, MCP_SERVER_NAME } from "./names.js";
 export const VERSION = readPackageVersion();
 export const AGENT_PROMPT = fs.readFileSync(new URL("../agent-instructions.md", import.meta.url), "utf8");
 const initializedWorkspaces = new Set<string>();
@@ -18,9 +21,24 @@ export function loadConfig(create = false): CanvasAgentConfig {
     try {
         return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")) as CanvasAgentConfig;
     } catch {
+        const legacy = readLegacyConfig();
+        if (legacy) {
+            if (create) saveConfig(legacy);
+            return legacy;
+        }
         const config = { url: `http://127.0.0.1:${Number(process.env.PORT) || DEFAULT_PORT}`, token: crypto.randomBytes(18).toString("hex") };
         if (create) saveConfig(config);
         return config;
+    }
+}
+
+/** 读取旧版 ~/.infinite-canvas 配置（只取连接相关字段，工作空间沿用其绝对路径）。 */
+function readLegacyConfig(): CanvasAgentConfig | null {
+    try {
+        const legacy = JSON.parse(fs.readFileSync(LEGACY_CONFIG_FILE, "utf8")) as CanvasAgentConfig;
+        return legacy?.url && legacy?.token ? legacy : null;
+    } catch {
+        return null;
     }
 }
 
@@ -69,7 +87,7 @@ function initializeWorkspace(workspacePath: string) {
     fs.mkdirSync(workspacePath, { recursive: true });
     const instructionsFile = path.join(workspacePath, "AGENTS.md");
     const current = fs.existsSync(instructionsFile) ? fs.readFileSync(instructionsFile, "utf8") : "";
-    if (!current || current.startsWith("# Infinite Canvas Agent")) fs.writeFileSync(instructionsFile, AGENT_PROMPT);
+    if (!current || current.startsWith("# Infinite Canvas Agent") || current.startsWith("# Dianran Canvas Agent")) fs.writeFileSync(instructionsFile, AGENT_PROMPT);
     initializedWorkspaces.add(workspacePath);
 }
 

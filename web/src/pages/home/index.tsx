@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Copy, ExternalLink } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { App, Button, Image, Tag } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -6,11 +6,10 @@ import { Trans, useTranslation } from "react-i18next";
 
 import copy from "copy-to-clipboard";
 
-import { showcaseItems } from "@/pages/home/showcase";
+import { heroStripItems, showcaseItems, type ShowcaseItem } from "@/pages/home/showcase";
 import { TemplateGallery } from "@/pages/home/template-gallery";
 import { BRAND } from "@/constant/brand";
 import { navigationTools } from "@/constant/navigation-tools";
-import { cn } from "@/lib/utils";
 
 function Highlighter({ action, color, children }: { action: "highlight" | "underline"; color: string; children?: ReactNode }) {
     return (
@@ -22,6 +21,30 @@ function Highlighter({ action, color, children }: { action: "highlight" | "under
             )}
             <span className="relative font-medium text-stone-800 dark:text-stone-200">{children}</span>
         </span>
+    );
+}
+
+// [dianran] phase4: scrolling strip of library covers under the hero (pauses on hover, static with reduced motion).
+function HeroStrip({ items, locale }: { items: ShowcaseItem[]; locale: "zh-CN" | "en-US" }) {
+    const loop = [...items, ...items];
+    return (
+        <div className="relative -mx-6 mt-14 self-stretch overflow-hidden py-4 [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]" aria-hidden="true">
+            <div className="dr-marquee flex w-max gap-4 px-2">
+                {loop.map((item, index) => (
+                    <figure
+                        key={`${item.id}-${index}`}
+                        className="relative h-52 w-36 shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-lg shadow-stone-900/10 dark:border-stone-800 dark:bg-stone-900 sm:h-64 sm:w-44"
+                        style={{ transform: `rotate(${((index % 5) - 2) * 1.5}deg) translateY(${(index % 3) * 6}px)` }}
+                    >
+                        <img src={item.cover} alt="" loading="lazy" className="size-full object-cover" />
+                        <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2.5 pb-2 pt-6 text-left">
+                            <div className="truncate text-[11px] font-medium text-white">{item.title[locale]}</div>
+                            <div className="truncate text-[10px] text-white/65">{item.author}</div>
+                        </figcaption>
+                    </figure>
+                ))}
+            </div>
+        </div>
     );
 }
 
@@ -46,7 +69,7 @@ export default function IndexPage() {
                 <div className="pointer-events-none absolute left-[15%] top-24 size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
                 <div className="pointer-events-none absolute right-[23%] top-[48%] size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
 
-                <div className="relative flex min-h-[620px] flex-col items-center justify-center pt-10 text-center">
+                <div className="relative flex min-h-[620px] flex-col items-center justify-center pt-12 text-center">
                     <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#E8572A]/30 bg-[#E8572A]/5 px-3 py-1 text-xs font-medium tracking-wide text-[#C4421B] dark:text-[#FF9A75]">
                         <img src={`${import.meta.env.BASE_URL}logo-color.svg`} alt="" className="size-4" />
                         {t("home.eyebrow")}
@@ -64,6 +87,7 @@ export default function IndexPage() {
                             {t("home.openCanvas")}
                         </Button>
                     </div>
+                    <HeroStrip items={heroStripItems} locale={locale} />
                 </div>
 
                 <TemplateGallery />
@@ -79,24 +103,21 @@ export default function IndexPage() {
                             {t("home.viewPrompts")}
                         </Button>
                     </div>
-                    <div className="grid auto-rows-[210px] gap-4 md:grid-cols-4">
+                    <div className="columns-2 gap-3 sm:gap-4 md:columns-3 lg:columns-4">
                         {promptShowcase.map((item, index) => (
-                            <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => {
-                                    setPreviewIndex(index);
-                                    setPreviewOpen(true);
-                                }}
-                                className={cn(
-                                    "group relative cursor-pointer overflow-hidden border border-stone-200 bg-stone-100 text-left dark:border-stone-800 dark:bg-stone-900",
-                                    index === 0 && "md:col-span-2 md:row-span-2",
-                                    index === 3 && "md:col-span-2",
-                                )}
-                            >
-                                <img src={item.coverUrl} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent p-4 text-white">
-                                    <div className="mb-2 flex flex-wrap gap-1.5">
+                            <figure key={item.id} className="group relative mb-3 break-inside-avoid overflow-hidden rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900 sm:mb-4">
+                                <button
+                                    type="button"
+                                    className="block w-full cursor-zoom-in"
+                                    onClick={() => {
+                                        setPreviewIndex(index);
+                                        setPreviewOpen(true);
+                                    }}
+                                >
+                                    <img src={item.coverUrl} alt={item.title} loading="lazy" className="block w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                                </button>
+                                <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 pt-10 text-left text-white sm:p-4 sm:pt-12">
+                                    <div className="mb-1.5 flex flex-wrap gap-1.5">
                                         {item.tags.slice(0, 2).map((tag) => (
                                             <Tag key={tag} variant="filled" className="m-0 bg-white/15 text-[11px] text-white backdrop-blur">
                                                 {tag}
@@ -104,26 +125,30 @@ export default function IndexPage() {
                                         ))}
                                     </div>
                                     <h3 className="text-sm font-medium">{item.title}</h3>
-                                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/75">{item.prompt}</p>
-                                </div>
-                                <div
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        copyPrompt(item.prompt);
-                                    }}
-                                    onKeyDown={(event) => {
-                                        if (event.key !== "Enter" && event.key !== " ") return;
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        copyPrompt(item.prompt);
-                                    }}
-                                    className="absolute right-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] text-white opacity-0 backdrop-blur transition group-hover:opacity-100 focus:opacity-100"
+                                    <p className="mt-1 hidden text-xs leading-5 text-white/75 line-clamp-2 sm:[display:-webkit-box]">{item.prompt}</p>
+                                    {/* attribution: original author + library, links to the source post */}
+                                    <a
+                                        href={item.sourceUrl}
+                                        target="_blank"
+                                        rel="noreferrer noopener"
+                                        className="pointer-events-auto mt-1.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-white/70 hover:text-white"
+                                    >
+                                        <span className="truncate">
+                                            {item.author} · {item.source}
+                                        </span>
+                                        <ExternalLink className="size-3 shrink-0" />
+                                    </a>
+                                </figcaption>
+                                <button
+                                    type="button"
+                                    onClick={() => copyPrompt(item.prompt)}
+                                    aria-label={t("home.copyPrompt")}
+                                    className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-[11px] text-white backdrop-blur transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                                 >
-                                    {t("home.copyPrompt")}
-                                </div>
-                            </button>
+                                    <Copy className="size-3" />
+                                    <span className="hidden sm:inline">{t("home.copyPrompt")}</span>
+                                </button>
+                            </figure>
                         ))}
                     </div>
                 </section>

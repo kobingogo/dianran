@@ -88,22 +88,22 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest("[data-canvas-no-zoom],.ant-modal,.ant-popover,.ant-dropdown,.ant-select-dropdown,.ant-picker-dropdown")) return;
 
+        // [dianran] phase4: read the latest viewport from a ref — fast trackpad/wheel bursts fire several events before React
+        // re-renders, and computing from the stale prop made zoom stutter and drift away from the cursor.
+        const current = viewportRef.current;
         const delta = -event.deltaY;
         const factor = Math.pow(1.1, delta / 100);
-        const newScale = Math.min(Math.max(viewport.k * factor, 0.05), 5);
+        const newScale = Math.min(Math.max(current.k * factor, 0.05), 5);
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
-        const worldX = (mouseX - viewport.x) / viewport.k;
-        const worldY = (mouseY - viewport.y) / viewport.k;
-
-        onViewportChange({
-            x: mouseX - worldX * newScale,
-            y: mouseY - worldY * newScale,
-            k: newScale,
-        });
+        const worldX = (mouseX - current.x) / current.k;
+        const worldY = (mouseY - current.y) / current.k;
+        const next = { x: mouseX - worldX * newScale, y: mouseY - worldY * newScale, k: newScale };
+        viewportRef.current = next;
+        onViewportChange(next);
     };
 
     const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {

@@ -66,6 +66,7 @@ import {
     isAudioFile,
     isGenerationCanceled,
     resetInterruptedGeneration,
+    sanitizeClonedNode,
     resolveMetadataReferences,
     sourceNodeReferenceImages,
 } from "@/lib/canvas/canvas-generation-helpers";
@@ -828,7 +829,19 @@ function InfiniteCanvasPage() {
                           count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
                       }
                     : undefined;
-            const newNode = createCanvasNode(type, targetPosition, configMetadata);
+            const created = createCanvasNode(type, targetPosition, configMetadata);
+            // [dianran] phase4: toolbar adds (no explicit position) used to stack every new node exactly on top of the previous
+            // one at the viewport centre; cascade by 40px until the spot is free.
+            let newNode = created;
+            if (!position) {
+                const occupied = (x: number, y: number) => nodesRef.current.some((node) => Math.abs(node.position.x - x) < 8 && Math.abs(node.position.y - y) < 8);
+                let { x, y } = created.position;
+                for (let step = 0; step < 24 && occupied(x, y); step += 1) {
+                    x += 40;
+                    y += 40;
+                }
+                newNode = { ...created, position: { x, y } };
+            }
 
             setNodes((prev) => [...prev, newNode]);
             setSelectedNodeIds(new Set([newNode.id]));
@@ -984,21 +997,34 @@ function InfiniteCanvasPage() {
 
         const id = `${source.type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const next: CanvasNodeData = {
-            ...source,
+            ...sanitizeClonedNode(source),
             id,
             title: `${source.title} Copy`,
             position: { x: source.position.x + 36, y: source.position.y + 36 },
         };
+        // [dianran] phase4: duplicating a group duplicates its members too, re-parented to the new group.
+        const children =
+            source.type === CanvasNodeType.Group
+                ? nodesRef.current
+                      .filter((node) => node.metadata?.groupId === source.id)
+                      .map((node, index) => ({
+                          ...sanitizeClonedNode(node),
+                          id: `${node.type}-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+                          position: { x: node.position.x + 36, y: node.position.y + 36 },
+                          metadata: { ...node.metadata, groupId: id },
+                      }))
+                : [];
 
-        setNodes((prev) => [...prev, next]);
+        setNodes((prev) => [...prev, next, ...children]);
         setSelectedNodeIds(new Set([id]));
         setSelectedConnectionId(null);
         if (next.type !== CanvasNodeType.Group) setDialogNodeId(id);
     }, []);
 
     const copySelectedNodes = useCallback(() => {
-        const selectedIds = selectedNodeIdsRef.current;
-        if (!selectedIds.size) return;
+        if (!selectedNodeIdsRef.current.size) return;
+        // [dianran] phase4: copying a group also copies its members (previously the pasted group came out empty).
+        const selectedIds = withGroupMembers(selectedNodeIdsRef.current, nodesRef.current);
 
         const copiedNodes = nodesRef.current
             .filter((node) => selectedIds.has(node.id))
@@ -1037,7 +1063,7 @@ function InfiniteCanvasPage() {
             const id = `${node.type}-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`;
             idMap.set(node.id, id);
             return {
-                ...node,
+                ...sanitizeClonedNode(node),
                 id,
                 title: node.title.endsWith(" Copy") ? node.title : `${node.title} Copy`,
                 position: {
@@ -1148,21 +1174,37 @@ function InfiniteCanvasPage() {
         });
     }, []);
 
+    // [dianran] phase4: an edit made <180ms before Ctrl+Z was still waiting in the debounce timer, so undo skipped it and
+    // jumped two steps back. Commit any pending entry first.
+    const flushPendingHistory = useCallback(() => {
+        if (!historyCommitTimerRef.current) return;
+        clearTimeout(historyCommitTimerRef.current);
+        historyCommitTimerRef.current = null;
+        const last = lastHistoryRef.current;
+        const current = createHistoryEntry();
+        if (!last || (last.nodes === current.nodes && last.connections === current.connections && last.chatSessions === current.chatSessions && last.activeChatId === current.activeChatId && last.backgroundMode === current.backgroundMode && last.showImageInfo === current.showImageInfo)) return;
+        historyRef.current.past = [...historyRef.current.past.slice(-49), last];
+        historyRef.current.future = [];
+        lastHistoryRef.current = current;
+    }, [createHistoryEntry]);
+
     const undoCanvas = useCallback(() => {
+        flushPendingHistory();
         const previous = historyRef.current.past.pop();
         const current = lastHistoryRef.current;
         if (!previous || !current) return;
         historyRef.current.future.push(current);
         applyHistory(previous);
-    }, [applyHistory]);
+    }, [applyHistory, flushPendingHistory]);
 
     const redoCanvas = useCallback(() => {
+        flushPendingHistory();
         const next = historyRef.current.future.pop();
         const current = lastHistoryRef.current;
         if (!next || !current) return;
         historyRef.current.past.push(current);
         applyHistory(next);
-    }, [applyHistory]);
+    }, [applyHistory, flushPendingHistory]);
 
     const createAndOpenProject = useCallback(() => {
         const id = createProject(t("canvas.defaultTitle", { count: useCanvasStore.getState().projects.length + 1 }));
@@ -1557,7 +1599,7 @@ function InfiniteCanvasPage() {
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             const target = event.target instanceof Element ? event.target : null;
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || target?.closest("[contenteditable='true'],[data-canvas-no-zoom],[data-canvas-shortcuts-ignore]")) return;
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || target?.closest("[contenteditable='true'],[data-canvas-no-zoom],[data-canvas-shortcuts-ignore],.ant-modal-wrap,.ant-drawer,.ant-image-preview,.ant-popover,.ant-dropdown")) return;
 
             const key = event.key.toLowerCase();
             const isModifierShortcut = event.metaKey || event.ctrlKey;
@@ -3235,10 +3277,11 @@ function InfiniteCanvasPage() {
                             <rect width="100%" height="100%" fill={theme.canvas.selectionFill} stroke={theme.canvas.selectionStroke} strokeOpacity={0.55} strokeWidth={1 / viewport.k} strokeDasharray={`${6 / viewport.k} ${4 / viewport.k}`} />
                         </svg>
                     ) : null}
-                    {pendingConnectionCreate ? <ConnectionCreateMenu pending={pendingConnectionCreate} onCreate={(type) => createConnectedNode(type, pendingConnectionCreate)} onClose={cancelPendingConnectionCreate} /> : null}
+                    {pendingConnectionCreate ? <ConnectionCreateMenu pending={pendingConnectionCreate} scale={viewport.k} onCreate={(type) => createConnectedNode(type, pendingConnectionCreate)} onClose={cancelPendingConnectionCreate} /> : null}
                     {nodeCreatePosition ? (
                         <NodeCreateMenu
                             position={nodeCreatePosition}
+                            scale={viewport.k}
                             onCreate={(type) => {
                                 createNode(type, nodeCreatePosition);
                                 setNodeCreatePosition(null);
@@ -3401,4 +3444,14 @@ function InfiniteCanvasPage() {
             </section>
         </main>
     );
+}
+
+/** [dianran] phase4: selection + every member of any selected group (used by copy so groups paste with their contents). */
+function withGroupMembers(selectedIds: Set<string>, nodes: CanvasNodeData[]) {
+    const ids = new Set(selectedIds);
+    nodes.forEach((node) => {
+        const groupId = node.metadata?.groupId;
+        if (groupId && selectedIds.has(groupId)) ids.add(node.id);
+    });
+    return ids;
 }
