@@ -1,0 +1,34 @@
+name: Reproducible checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - run: bun install --frozen-lockfile
+        working-directory: web
+      - run: bun run typecheck && bun test && bun run build
+        working-directory: web
+      - run: npm ci && npm test
+        working-directory: canvas-agent
+      - run: node --test brand/pipeline/prompt-key.test.mjs && node brand/pipeline/validate.mjs
+      - run: bash scripts/check-browser.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            .playwright-cli/*.result.json
+            .playwright-cli/vite.log
+            output/playwright/evidence

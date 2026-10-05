@@ -1,13 +1,16 @@
 async (page) => {
+  page.on("dialog", (dialog) => { if (dialog.type() === "beforeunload") void dialog.accept().catch(() => {}); });
   await page.goto('http://127.0.0.1:4317/');
   await page.getByRole('textbox', {name:'提示词',exact:true}).waitFor();
   const id = await page.evaluate(async () => {
-    const { useCanvasStore } = await import('/src/stores/canvas/use-canvas-store.ts');
+    const { useCanvasStore, flushCanvasSave } = await import('/src/stores/canvas/use-canvas-store.ts');
+    if (!useCanvasStore.getState().hydrated) await useCanvasStore.persist.rehydrate();
     const id = useCanvasStore.getState().createProject('复制状态回归');
     useCanvasStore.getState().updateProject(id, { nodes: [
       {id:'group-test',type:'group',title:'测试组',position:{x:50,y:50},width:600,height:350},
       {id:'video-test',type:'video',title:'生成中视频',position:{x:100,y:100},width:300,height:200,metadata:{groupId:'group-test',status:'loading',videoTaskId:'test-task',videoTaskProvider:'openai'}}
     ] });
+    await flushCanvasSave();
     return id;
   });
   await page.waitForTimeout(600);

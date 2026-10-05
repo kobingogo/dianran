@@ -1,3 +1,5 @@
+import { useWorkflowStore } from "@/stores/canvas/use-workflow-store";
+import { CanvasSaveStatus } from "./canvas-save-status";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Bot, Download, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
@@ -154,7 +156,7 @@ export function CanvasTopBar({
     return (
         <>
             <header
-                className="absolute inset-x-0 top-0 z-50 flex h-[60px] items-center gap-2 px-2 md:px-4"
+                className="absolute inset-x-0 top-0 z-[80] flex h-[60px] items-center gap-2 px-2 md:px-4"
                 style={{ background: theme.toolbar.panel, borderBottom: `1px solid ${theme.toolbar.border}`, backdropFilter: "blur(8px)" }}
             >
                 <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
@@ -248,10 +250,8 @@ export function CanvasTopBar({
                                 <Pencil className="size-3.5" />
                             </button>
                         )}
-                        <span className="hidden shrink-0 items-center gap-1.5 text-xs md:inline-flex" style={{ color: theme.node.faint }}>
-                            <span className="size-1.5 rounded-full" style={{ background: "currentColor" }} />
-                            {t("canvas.autoSaved")}
-                        </span>
+                        <CanvasSaveStatus />
+                        <button type="button" className="shrink-0 rounded px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.muted }} onClick={() => useWorkflowStore.setState({ panelOpen: true })}>工作流</button>
                     </div>
                 </div>
 

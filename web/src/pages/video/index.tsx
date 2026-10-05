@@ -77,6 +77,8 @@ const logStore = localforage.createInstance({ name: STORAGE_NS, storeName: "vide
 export default function VideoPage() {
     const { message } = App.useApp();
     const submissionRef = useRef<ComposerSubmission | undefined>(undefined);
+    const lastSubmissionRef = useRef<ComposerSubmission | undefined>(undefined);
+    const lastTaskLogRef = useRef<GenerationLog | undefined>(undefined);
     const [session, setSession] = useState<CreationSnapshot | undefined>(undefined);
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -129,6 +131,8 @@ export default function VideoPage() {
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: t("videoWorkbench.invalidParams") });
             return;
         }
+        lastSubmissionRef.current = snapshot.submission;
+        lastTaskLogRef.current = undefined;
         setElapsedMs(0);
         setRunning(true);
         setPanelTab("results");
@@ -140,10 +144,12 @@ export default function VideoPage() {
         setStartedAt(batchStartedAt);
         try {
             snapshot = { ...snapshot, submission: await prepareCanvasSubmission(snapshot.submission) };
+            lastSubmissionRef.current = snapshot.submission;
             setSession(creationSnapshot(snapshot.submission));
             const model = snapshot.config.model;
             const task = await createVideoGenerationTask(snapshot.config, snapshot.text, snapshot.references);
             const log = buildLog({ prompt: snapshot.text, model, config: snapshot.config, references: snapshot.references, durationMs: 0, status: "pending", task });
+            lastTaskLogRef.current = log;
             log.creation = creationSnapshot(snapshot.submission);
             log.canvasProjectId = snapshot.submission.canvasProjectId;
             await saveLog(log, false);
@@ -202,7 +208,9 @@ export default function VideoPage() {
     };
 
     const retryResult = () => {
-        void generate();
+        if (lastTaskLogRef.current?.task) { void pollGenerationLog(lastTaskLogRef.current); return; }
+        if (!lastSubmissionRef.current) { message.error("原始提交快照不存在，请重新生成"); return; }
+        void generate(lastSubmissionRef.current);
     };
 
     const downloadVideo = (video: GeneratedVideo) => {
@@ -266,6 +274,7 @@ export default function VideoPage() {
 
     const pollGenerationLog = async (log: GenerationLog, configOverride?: AiConfig, agentTaskId?: string) => {
         if (!log.task || activeLogIdsRef.current.has(log.id)) return;
+        lastTaskLogRef.current = log;
         activeLogIdsRef.current.add(log.id);
         setRunning(true);
         setPanelTab("results");
@@ -303,7 +312,7 @@ export default function VideoPage() {
                     }
                     return;
                 }
-                if (state.status === "failed") throw new Error(state.error);
+                if (state.status === "failed") { lastTaskLogRef.current = { ...log, task: undefined }; throw new Error(state.error); }
                 if (attempt === 119) throw new Error(t("videoWorkbench.timeout"));
                 await delay(2500);
             }
@@ -311,7 +320,7 @@ export default function VideoPage() {
             const errorMessage = error instanceof Error ? error.message : t("workbench.generationFailed");
             setResults([{ id: log.id, status: "failed", error: errorMessage }]);
             if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", successCount: 0, failCount: 1, error: errorMessage });
-            await saveLog({ ...log, status: "failed", durationMs: Date.now() - log.createdAt, error: errorMessage });
+            await saveLog({ ...log, task: lastTaskLogRef.current?.id === log.id ? lastTaskLogRef.current.task : log.task, status: "failed", durationMs: Date.now() - log.createdAt, error: errorMessage });
             showErrorToast(message, error, t("workbench.generationFailed"));
         } finally {
             activeLogIdsRef.current.delete(log.id);
@@ -323,6 +332,8 @@ export default function VideoPage() {
     };
 
     const previewGenerationLog = (log: GenerationLog) => {
+        lastTaskLogRef.current = log;
+        lastSubmissionRef.current = log.creation ? { ...log.creation, references: log.references || [], canvas: Boolean(log.canvasProjectId), canvasProjectId: log.canvasProjectId } : undefined;
         setPreviewLog(log);
         setSession(undefined);
         setPanelTab("results");

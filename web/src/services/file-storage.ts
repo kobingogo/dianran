@@ -2,7 +2,8 @@ import localforage from "localforage";
 import { nanoid } from "nanoid";
 
 import { withLocalProxy } from "@/stores/use-config-store";
-import { STORAGE_NS } from "@/constant/brand";
+import { STORAGE_NS, storageKey } from "@/constant/brand";
+import { canvasIndexedStorage } from "@/lib/localforage-storage";
 
 export type UploadedFile = { url: string; storageKey: string; bytes: number; mimeType: string; width?: number; height?: number; durationMs?: number };
 
@@ -54,6 +55,9 @@ export async function deleteStoredMedia(keys: Iterable<string>) {
 
 export async function cleanupUnusedMedia(usedData: unknown) {
     const usedKeys = collectMediaStorageKeys(usedData);
+    const templates = await canvasIndexedStorage.getItem(storageKey("workflow_templates"));
+    if (templates && !Array.isArray(templates)) throw new Error("模板数据无法读取，已停止清理素材");
+    collectMediaStorageKeys(templates, usedKeys);
     const unused: string[] = [];
     await store.iterate((_value, key) => {
         if (!usedKeys.has(key)) unused.push(key);

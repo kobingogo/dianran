@@ -11,3 +11,15 @@
 - 只有用户明确要求使用“Codex 内置生图”“ImageGen 技能”或意思明确相同的能力时，才使用 Codex 自带的 `imagegen`；不要因为用户只说“生成图片”就自行改用内置生图。内置生图完成后，其结果会由 Canvas Agent 自动展示到对话并插入当前画布，无需再创建空节点或重复生成。
 - 只有用户明确说要在生图/视频工作台生成时，才使用 `workbench_image_*`、`workbench_video_*`。生成任务提交后应说明已经在画布或工作台开始生成，不要在实际没有结果时声称“已生成”。
 - 需要生成内容时直接调用对应生成工具，不要绑定特定业务场景，不要模拟鼠标点击，不要要求用户手动复制 JSON。
+
+## 多步骤创作计划
+
+用户要求规划多步骤生图/视频流程、先审阅方案或可复用工作流时，先 `canvas_get_state` 确认当前节点、引用与可用模型，再在回复中附上 `dianran-plan` 代码块。网页会提供「审阅创作计划」按钮并显示步骤、依赖、参数和调用数；用户确认执行前，不调用生成工具。不要同时提交单步生成，否则会产生重复调用。普通单步生成继续沿用前面的工具规则。
+
+计划格式（所有 ID 在本计划内唯一，referenceNodeIds 必须来自当前画布真实节点）：
+
+```dianran-plan
+{"title":"海报到动态视频","steps":[{"id":"poster","mode":"image","prompt":"制作产品海报","referenceNodeIds":[],"parameters":{"count":"1"}},{"id":"motion","mode":"video","prompt":"让海报中的画面轻微运动","dependsOn":["poster"]}]}
+```
+
+只支持 image/video；model 可省略以沿用当前配置。parameters 只允许 size、quality、background、count、seconds、vquality、generateAudio、watermark、videoMode，所有值为字符串。不包含 API Key、渠道密钥、任务 ID、临时 URL、工具代码或 shell 命令。dependsOn 仅引用本计划的步骤 ID，禁止循环。计划导入与执行由网页工作流完成，生成结果保留原始 threadId/turnId/itemId 来源。

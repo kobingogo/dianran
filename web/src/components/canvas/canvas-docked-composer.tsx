@@ -81,7 +81,7 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
         const input = target?.metadata?.inputSnapshot;
         if (!creation || !input || !target) return;
         const submission = createComposerSubmission(creation.mode, creation.prompt, input.referenceImages, { ...useConfigStore.getState().config, ...creation.parameters }, false, 15);
-        void submit({ ...submission, input: { ...input, prompt: submission.prompt }, composerContent: nodes.find((node) => node.id === target.metadata?.sourceConfigId)?.metadata?.composerContent || creation.prompt, inputNodeIds: target.metadata?.inputNodeIds || [], materials: [] }, "regenerate");
+        void submit({ ...submission, input: { ...input, prompt: submission.prompt }, composerContent: target.metadata?.composerContent || creation.composerContent || creation.prompt, inputNodeIds: target.metadata?.inputNodeIds || [], materials: [] }, "regenerate");
     };
     const candidates = nodes.filter((node) => node.id !== target?.id && isCanvasReferenceNode(node, nodes) && (node.title + " " + node.type).toLowerCase().includes(search.toLowerCase()));
     const header = <div data-testid="canvas-composer-target" className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--ink-500)]">

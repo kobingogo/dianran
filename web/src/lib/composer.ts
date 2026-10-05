@@ -13,6 +13,8 @@ export type CreationSnapshot = {
     parameters: ComposerParameters;
     actual: Record<string, string | number>;
     referenceIds: string[];
+    references?: ReferenceImage[];
+    composerContent?: string;
 };
 export type ComposerSubmission = CreationSnapshot & { references: ReferenceImage[]; canvas: boolean; canvasProjectId?: string };
 
@@ -110,12 +112,12 @@ export function createComposerSubmission(mode: ComposerMode, prompt: string, ref
                   ...(plans.image.background ? { background: plans.image.background } : {}),
                   ...(plans.channel === "openai" ? { n: 1, output_format: "png" } : plans.channel === "siliconflow" ? { batch_size: 1 } : {}),
               };
-    return { id: nanoid(), mode, prompt: text, parameters, actual, references: refs.map((ref) => ({ ...ref })), referenceIds: refs.map((ref) => ref.id), canvas };
+    return { id: nanoid(), mode, prompt: text, parameters, actual, composerContent: prompt, references: refs.map((ref) => ({ ...ref })), referenceIds: refs.map((ref) => ref.id), canvas };
 }
 
 export function creationSnapshot(submission: ComposerSubmission): CreationSnapshot {
-    const { id, mode, prompt, parameters, actual, referenceIds } = submission;
-    return { id, mode, prompt, parameters: { ...parameters }, actual: { ...actual }, referenceIds: [...referenceIds] };
+    const { id, mode, prompt, parameters, actual, referenceIds, composerContent, references } = submission;
+    return { id, mode, prompt, parameters: { ...parameters }, actual: { ...actual }, referenceIds: [...referenceIds], composerContent, references: references.map((ref) => ({ ...ref, dataUrl: ref.storageKey ? "" : ref.dataUrl, url: ref.storageKey ? undefined : ref.url })) };
 }
 
 /** Ctrl/⌘ + Enter in the prompt box triggers generation. */

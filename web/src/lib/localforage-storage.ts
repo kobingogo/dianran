@@ -33,3 +33,6 @@ export const localForageStorage: StateStorage = {
         }
     },
 };
+
+// Canvas business data must never silently fall back to localStorage.
+export const canvasIndexedStorage = localforage.createInstance({ name: STORAGE_NS, storeName: "app_state", driver: localforage.INDEXEDDB });
