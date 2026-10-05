@@ -45,6 +45,8 @@ export type CanvasNodeText = {
 };
 
 export type CanvasNodeMetadata = {
+    creation?: import("@/lib/composer").CreationSnapshot;
+    sourceResultId?: string;
     content?: string;
     composerContent?: string;
     prompt?: string;

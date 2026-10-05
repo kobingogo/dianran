@@ -75,8 +75,8 @@ export function describeImagePlan(plan: ImageSendPlan) {
 }
 
 export function imageQualityHint(caps: ImageCaps, level: "standard" | "hd") {
-    if (caps.quality?.param === "imageSize") return level === "hd" ? "2K · 较慢 · 约 2×" : "1K · 快 · 约 1×";
-    return level === "hd" ? "较慢 · 约 2–4×" : "快 · 约 1×";
+    if (caps.quality?.param === "imageSize") return level === "hd" ? "2K" : "1K";
+    return "费用由渠道计费";
 }
 
 export function capsSummary(caps: ImageCaps) {

@@ -1,6 +1,4 @@
-// [dianran] Shared workbench layout for /image and /video (PLAN 6.3 / 6.4 / 6.10).
-// Desktop (lg+): 380px paper panel on the left (scrolling body + sticky GenerateBar), results on the right.
-// Phone: results on top, a floating composer card at the bottom (above the tab bar); parameters open in a bottom sheet.
+// Shared results workspace with a docked Composer on desktop and phone.
 import { Drawer } from "antd";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,16 +9,13 @@ import { cn } from "@/lib/utils";
 
 export type WorkbenchTab = "results" | "logs";
 
-export function WorkbenchShell({ controls, results, composer }: { controls: ReactNode; results: ReactNode; composer?: ReactNode }) {
+export function WorkbenchShell({ results, composer }: { results: ReactNode; composer: ReactNode }) {
     return (
         <>
-            <main className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
-                <div className="grid w-full grid-cols-1 lg:h-full lg:grid-cols-[380px_minmax(0,1fr)]">
-                    {controls}
-                    {results}
-                </div>
-            </main>
-            {composer ? <div className="shrink-0 lg:hidden">{composer}</div> : null}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{results}</main>
+            <div className="max-h-[60dvh] shrink-0 overflow-y-auto border-t border-[var(--line)] bg-[var(--paper-1)] px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:px-8">
+                <div className="mx-auto w-full max-w-4xl">{composer}</div>
+            </div>
         </>
     );
 }
@@ -56,7 +51,11 @@ export function WorkbenchSection({ title, actions, children }: { title: string; 
 /** Small text action used in section headers (「提示词库 · 我的素材」). */
 export function SectionLink({ icon, children, onClick }: { icon?: ReactNode; children: ReactNode; onClick: () => void }) {
     return (
-        <button type="button" onClick={onClick} className="inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-xs text-[color:var(--ink-500)] transition-colors hover:bg-[var(--paper-2)] hover:text-[color:var(--ink-900)]">
+        <button
+            type="button"
+            onClick={onClick}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-xs text-[color:var(--ink-500)] transition-colors hover:bg-[var(--paper-2)] hover:text-[color:var(--ink-900)]"
+        >
             {icon}
             {children}
         </button>
@@ -66,7 +65,7 @@ export function SectionLink({ icon, children, onClick }: { icon?: ReactNode; chi
 export function WorkbenchResults({ tab, onTabChange, logCount, status, actions, children }: { tab: WorkbenchTab; onTabChange: (tab: WorkbenchTab) => void; logCount: number; status?: ReactNode; actions?: ReactNode; children: ReactNode }) {
     const { t } = useTranslation();
     return (
-        <section id="workbench-results" className="flex min-h-[calc(100dvh-180px)] min-w-0 scroll-mt-3 flex-col lg:min-h-0 lg:overflow-hidden">
+        <section id="workbench-results" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <header className="flex min-h-[60px] flex-wrap items-center gap-2.5 border-b border-[var(--line)] px-4 py-3 sm:px-8 lg:h-[68px] lg:py-0">
                 <h2 className="m-0 mr-1 font-[family-name:var(--font-serif)] text-[17px] font-semibold text-[color:var(--ink-900)]">{tab === "logs" ? t("workbench.logs") : "本次结果"}</h2>
                 <div role="tablist" className="flex gap-1.5">
@@ -94,7 +93,7 @@ export function ResultSessionHeader({ time, prompt, meta }: { time: string; prom
                 {time} · {prompt}
             </span>
             <span className="h-px min-w-6 flex-1 bg-[var(--line)]" />
-            <span className="shrink-0 truncate">{meta}</span>
+            <span className="min-w-0 max-w-[50%] truncate">{meta}</span>
         </div>
     );
 }
@@ -164,11 +163,38 @@ export function WorkbenchEmpty({ title, hint, examples, onPick }: { icon?: React
  * Phone composer (PLAN 6.10): prompt + parameter chips + 生成, docked above the bottom tab bar.
  * Tapping a chip opens the parameter sheet.
  */
-export function MobileComposer({ prompt, onPromptChange, placeholder, chips, onOpenSettings, onGenerate, busy, disabled, label = "生成" }: { prompt: string; onPromptChange: (value: string) => void; placeholder: string; chips: string[]; onOpenSettings: () => void; onGenerate: () => void; busy?: boolean; disabled?: boolean; label?: string }) {
+export function MobileComposer({
+    prompt,
+    onPromptChange,
+    placeholder,
+    chips,
+    onOpenSettings,
+    onGenerate,
+    busy,
+    disabled,
+    label = "生成",
+}: {
+    prompt: string;
+    onPromptChange: (value: string) => void;
+    placeholder: string;
+    chips: string[];
+    onOpenSettings: () => void;
+    onGenerate: () => void;
+    busy?: boolean;
+    disabled?: boolean;
+    label?: string;
+}) {
     return (
         <div className="border-t border-[var(--line)] bg-[var(--paper-1)] px-3 pb-3 pt-2.5">
             <div className="rounded-[var(--r-lg)] border border-[var(--line)] bg-[var(--paper-0)] p-2.5 shadow-[var(--sh-2)]">
-                <textarea value={prompt} onChange={(event) => onPromptChange(event.target.value)} rows={2} placeholder={placeholder} aria-label="提示词" className="block w-full resize-none border-0 bg-transparent text-sm leading-6 text-[color:var(--ink-900)] outline-none placeholder:text-[color:var(--ink-400)]" />
+                <textarea
+                    value={prompt}
+                    onChange={(event) => onPromptChange(event.target.value)}
+                    rows={2}
+                    placeholder={placeholder}
+                    aria-label="提示词"
+                    className="block w-full resize-none border-0 bg-transparent text-sm leading-6 text-[color:var(--ink-900)] outline-none placeholder:text-[color:var(--ink-400)]"
+                />
                 <div className="mt-1.5 flex items-center gap-1.5">
                     <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
                         {chips.map((chip) => (
@@ -211,10 +237,7 @@ export function SettingsSheet({ open, onClose, title, children }: { open: boolea
     );
 }
 
-/** Ctrl/⌘ + Enter in the prompt box triggers generation. */
-export function isGenerateShortcut(event: { key: string; metaKey: boolean; ctrlKey: boolean; nativeEvent?: { isComposing?: boolean } }) {
-    return event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.nativeEvent?.isComposing;
-}
+export { isGenerateShortcut } from "@/lib/composer";
 
 /** On phone/tablet bring the results into view when a generation starts. */
 export function revealResults() {

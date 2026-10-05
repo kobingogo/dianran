@@ -23,7 +23,7 @@ export const videoResolutionOptions = [
 export const videoSizeOptions = videoRatioOptions.map((item) => ({ value: item.value, get label() { return item.value === "auto" ? i18n.t("settingsPanels.common.auto") : item.value; } }));
 export const videoSecondsRange = { min: VIDEO_SECONDS_MIN, max: VIDEO_SECONDS_MAX };
 
-const RESOLUTION_HINT: Record<string, string> = { "480p": "快", "720p": "标准", "1080p": "约 2×" };
+const RESOLUTION_HINT: Record<string, string> = { "480p": "快", "720p": "标准", "1080p": "费用由渠道计费" };
 const MODE_HINT: Record<string, string> = { frames: "首帧 / 尾帧控制起止画面", reference: "多张图作为角色 / 风格参考" };
 
 type VideoConfigKey = "vquality" | "videoSize" | "videoSeconds" | "videoGenerateAudio" | "videoWatermark" | "videoMode";

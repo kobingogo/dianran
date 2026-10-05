@@ -34,6 +34,8 @@
 - [Changelog](/docs/progress/changelog)
 - [Pending Tests](/docs/progress/pending-test)
 - [TODO](/docs/progress/todo)
+- [Phase6 Composer interaction plan](phase6/INTERACTION-PLAN.md)
+- [Phase6 P0 delivery](phase6/PROGRESS.md)
 
 ## Notes
 

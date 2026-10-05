@@ -158,12 +158,14 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
         body.append("generate_audio", String(boolConfig(config.videoGenerateAudio, true)));
         body.append("watermark", String(boolConfig(config.videoWatermark, false)));
     }
-    body.append("mode", mode);
-    if (mode === "frames") {
-        if (images[0]) body.append("first_frame", images[0], "first.png");
-        if (images[1]) body.append("last_frame", images[1], "last.png");
+    if (plan.caps.paramStyle === "openai-sora") {
+        if (images[0]) body.append("input_reference", images[0], "reference.png");
     } else {
-        images.forEach((file) => body.append("image[]", file, "ref.png"));
+        body.append("mode", mode);
+        if (mode === "frames") {
+            if (images[0]) body.append("first_frame", images[0], "first.png");
+            if (images[1]) body.append("last_frame", images[1], "last.png");
+        } else images.forEach((file) => body.append("image[]", file, "ref.png"));
     }
     videos.forEach((file) => body.append("video[]", file));
     audios.forEach((file) => body.append("audio[]", file));

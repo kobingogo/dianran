@@ -20,7 +20,7 @@ export const brandOverrides: Record<"zh-CN" | "en-US", Overrides> = {
             imageSubtitle: "文字或参考图生成图片",
             videoSubtitle: "文字或参考图生成短视频",
             imageEmptyTitle: "还没有生成图片",
-            imageEmptyHint: "在左侧写下想要的画面，或挑一个示例开始；结果会出现在这里，可下载、存入素材或作为参考图继续创作。",
+            imageEmptyHint: "在输入框写下想要的画面，或挑一个示例开始；结果会出现在这里，可下载、存入素材或作为参考图继续创作。",
             videoEmptyTitle: "还没有生成视频",
             videoEmptyHint: "描述镜头运动和画面内容，可附上参考图；生成通常需要一到几分钟，结果会出现在这里。",
             imageExamples: "水墨山水，晨雾缭绕，大面积留白，竖幅构图|霓虹雨夜的城市街角，地面倒影，电影感广角|极简产品海报：一只素白陶瓷杯，柔和侧光，浅色背景",
