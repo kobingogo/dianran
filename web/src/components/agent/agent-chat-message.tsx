@@ -1,3 +1,4 @@
+import { AgentWorkflowAction } from "./agent-workflow-action";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { App, Button, Image, Modal, Popover } from "antd";
 import { Brain, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FilePenLine, FileText, FolderOpen, ListChecks, LoaderCircle, Search, ShieldAlert, TerminalSquare, Wrench, XCircle } from "lucide-react";
@@ -132,6 +133,7 @@ export function AgentChatMessage({ item, theme, onRejectTool, onApproveTool }: {
                 ) : (
                     <Streamdown {...streamdownProps()} animated={streamdownAnimation} isAnimating={!!item.streamId}>{item.text}</Streamdown>
                 )}
+                {item.role === "assistant" && <AgentWorkflowAction id={item.id} text={item.text} streaming={!!item.streamId} />}
                 {item.attachments?.length ? <AgentMessageAttachments attachments={item.attachments} alignRight={isUser} /> : null}
                 {item.meta ? <div className={`mt-1 text-[11px] tabular-nums opacity-55 ${isUser ? "text-right" : ""}`}>{item.meta}</div> : null}
             </div>

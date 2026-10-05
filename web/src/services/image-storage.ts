@@ -4,7 +4,8 @@ import { nanoid } from "nanoid";
 import i18n from "@/i18n";
 import { withLocalProxy } from "@/stores/use-config-store";
 import { createImageThumbnail } from "@/lib/image-thumbnail";
-import { STORAGE_NS } from "@/constant/brand";
+import { STORAGE_NS, storageKey } from "@/constant/brand";
+import { canvasIndexedStorage } from "@/lib/localforage-storage";
 
 export type UploadedImage = {
     url: string;
@@ -243,6 +244,9 @@ export async function deleteStoredImages(keys: Iterable<string>) {
 
 export async function cleanupUnusedImages(usedData: unknown) {
     const usedKeys = collectImageStorageKeys(usedData);
+    const templates = await canvasIndexedStorage.getItem(storageKey("workflow_templates"));
+    if (templates && !Array.isArray(templates)) throw new Error("模板数据无法读取，已停止清理素材");
+    collectImageStorageKeys(templates, usedKeys);
     const { useComposerStore } = await import("@/stores/use-composer-store");
     collectImageStorageKeys(useComposerStore.getState(), usedKeys);
     await Promise.all([

@@ -1,5 +1,7 @@
 # PR 整合验证记录
 
+状态：用户已批准，#3–#7 与审查修复已按依赖合并到 main（`2066793`）。本页保留初次验证结果；后续检查与实现见 [可靠性与工作流验收记录](WORKFLOW-RELIABILITY-VALIDATION.md)。
+
 基线：`origin/phase6-composer`，提交 `19ada4e`。本地分支 `review/pr-integration`。
 
 ## 实际检查
@@ -53,4 +55,4 @@ playwright-cli -s=dianran-review close
 
 ## 远端状态
 
-本轮仅本地修复与计划交付，5 个 PR 均已关联当前聊天。没有向 GitHub 发评论、关闭 PR、合并 main、force push 或发布部署。按 AGENTS.md，最终合并方案需用户明确批准，详见 [开发计划](DEVELOPMENT-PLAN.md) 的合并章节。
+初次审查仅做本地修复与计划交付，5 个 PR 已关联聊天；用户随后明确批准整合，现已按依赖合并至 main。没有关闭替代需求、force push 或手动发布部署。后续新功能独立提交并保留用户验收入口。

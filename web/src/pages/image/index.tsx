@@ -74,6 +74,7 @@ const logStore = localforage.createInstance({ name: STORAGE_NS, storeName: "imag
 export default function ImagePage() {
     const { message } = App.useApp();
     const submissionRef = useRef<ComposerSubmission | undefined>(undefined);
+    const slotSubmissionsRef = useRef<ComposerSubmission[]>([]);
     const [session, setSession] = useState<CreationSnapshot | undefined>(undefined);
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -139,14 +140,18 @@ export default function ImagePage() {
         const batchStartedAt = performance.now();
         setStartedAt(batchStartedAt);
 
+        const originalSubmission = snapshot.submission;
+        slotSubmissionsRef.current = Array.from({ length: generationCount }, () => originalSubmission);
         try {
             snapshot = { ...snapshot, submission: await prepareCanvasSubmission(snapshot.submission) };
         } catch (error) {
             showErrorToast(message, error);
+            setResults((value) => value.map((item) => ({ ...item, status: "failed", error: error instanceof Error ? error.message : t("workbench.generationFailed") })));
             setRunning(false);
             return;
         }
         setSession(creationSnapshot(snapshot.submission));
+        slotSubmissionsRef.current = Array.from({ length: generationCount }, () => snapshot.submission);
         const tasks = Array.from({ length: generationCount }, (_, index) => runGenerationSlot(index, snapshot));
 
         const result = await Promise.allSettled(tasks);
@@ -321,17 +326,21 @@ export default function ImagePage() {
     };
 
     const retryResult = async (index: number) => {
-        const snapshot = buildRequestSnapshot();
+        const original = slotSubmissionsRef.current[index];
+        if (!original) { message.error("原始提交快照不存在，请重新生成"); return; }
+        let snapshot = buildRequestSnapshot(original);
         if (!snapshot) return;
         setPreviewLog(null);
         setResults((value) => updateResultAt(value, index, { status: "pending", error: undefined, image: undefined }));
         const retryStartedAt = performance.now();
         try {
+            snapshot = { ...snapshot, submission: await prepareCanvasSubmission(snapshot.submission) };
+            slotSubmissionsRef.current[index] = snapshot.submission;
             const image = await runGenerationSlot(index, snapshot);
             saveLog(
                 buildLog({
                     prompt: snapshot.text,
-                    model,
+                    model: snapshot.config.model,
                     config: { ...snapshot.config, count: "1" },
                     references: snapshot.references,
                     durationMs: performance.now() - retryStartedAt,
@@ -342,8 +351,8 @@ export default function ImagePage() {
                 }),
             );
             message.success(t("workbench.retrySuccess"));
-        } catch {
-            // runGenerationSlot has already marked the result as failed.
+        } catch (error) {
+            setResults((value) => updateResultAt(value, index, { status: "failed", error: error instanceof Error ? error.message : t("workbench.generationFailed") }));
         }
     };
 

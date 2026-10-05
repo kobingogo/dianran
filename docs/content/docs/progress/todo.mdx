@@ -8,7 +8,7 @@ description: Planned follow-up work
 - Replace the Claude Code CLI adapter with a Claude Agent SDK adapter and improve the tool queue, following the [Local Agent Integration Plan](/docs/progress/local-agent-integration-plan).
 - Add Skill installation from web search, Skill resource-file management, and controlled local-memory persistence.
 
-- Phase6 P2：可选「连同创作过程送入画布」、可复用工作流与执行、偏好沉淀；工作台送入画布默认仅送最终结果。后续接入有来源的渠道报价及同渠道同模型耗时历史。
+- Phase6 P2 后续：跨运行参数偏好、模板独立导入导出、更多节点与插件工作流；接入有来源的渠道报价及同渠道同模型耗时历史。
 
-- PR 整合后的可靠性：画布保存状态对应实际持久化成功；写入失败可重试或导出，避免业务数据降级到 localStorage。补齐仓库内可复现的 Composer/画布浏览器验收、CI、Docker 静态资源路径与真实 Agent 恢复验收。
-- 提示词周更：增加快照身份/资源完整性检查；使用统计缺少响应确认时可能丢失，评分需明确该信号不完整；明确匿名统计与部署方式，避免把站点描述为完全无服务端。
+- 实机验收：Docker 静态资源路径、真实模型输出与渠道计费、手机软键盘，以及真实 Agent 跨会话恢复和多步骤计划。自动化检查通过的改动仍需用户验收。
+- 提示词周更：使用统计缺少响应确认时可能丢失，评分需明确该信号不完整；明确匿名统计与部署方式，避免把站点描述为完全无服务端。

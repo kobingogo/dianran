@@ -48,7 +48,7 @@ export async function hydrateCanvasImages(nodes: CanvasNodeData[]) {
             const metadata = node.metadata;
             const content = metadata?.content;
             if ((node.type === CanvasNodeType.Video || node.type === CanvasNodeType.Audio) && metadata?.storageKey) return { ...node, metadata: { ...metadata, content: await resolveMediaUrl(metadata.storageKey, content) } };
-            if (node.type !== CanvasNodeType.Image || !metadata || !content) return node;
+            if (node.type !== CanvasNodeType.Image || !metadata || (!content && !metadata.storageKey)) return node;
             const images = await Promise.all(
                 (metadata.images || []).map(async (image) => {
                     if (!image.content) return image;
@@ -60,7 +60,7 @@ export async function hydrateCanvasImages(nodes: CanvasNodeData[]) {
                 void ensureImagePreview(metadata.storageKey);
                 return { ...node, metadata: { ...metadata, content: await resolveImageUrl(metadata.storageKey, content), images } };
             }
-            if (!content.startsWith("data:image/")) return node;
+            if (!content || !content.startsWith("data:image/")) return node;
             return { ...node, metadata: { ...metadata, ...imageMetadata(await uploadImage(content)) } };
         }),
     );
@@ -203,7 +203,7 @@ export function sanitizeClonedNode(node: CanvasNodeData): CanvasNodeData {
     if (!metadata || (metadata.status !== "loading" && !metadata.videoTaskId)) return node;
     const next = { ...metadata };
     if (next.status === "loading") next.status = undefined;
-    if (next.videoTaskId && !next.content) delete next.videoTaskId;
+    if (next.videoTaskId && !next.content) { delete next.videoTaskId; delete next.videoTaskEndpoint; delete next.videoTaskProvider; }
     if (next.images) next.images = next.images.filter((image) => image.status !== "loading");
     if (next.texts) next.texts = next.texts.filter((text) => text.status !== "loading");
     return { ...node, metadata: next };

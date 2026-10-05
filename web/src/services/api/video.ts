@@ -19,7 +19,7 @@ type VideoMediaOptions = RequestOptions & { videos?: ReferenceVideo[]; audios?: 
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
 export type VideoGenerationResult = { blob?: Blob; url?: string; mimeType?: string };
-export type VideoGenerationTask = { id: string; provider: "openai" | "gemini" | "plugin"; model: string };
+export type VideoGenerationTask = { id: string; provider: "openai" | "gemini" | "plugin"; model: string; endpoint?: string };
 type GeminiInlineData = { bytesBase64Encoded: string; mimeType: string };
 type GeminiVideoOperation = {
     name?: string;
@@ -75,8 +75,8 @@ export async function createVideoGenerationTask(config: AiConfig, prompt: string
     const script = resolveModelScript(config, selectedModel);
     if (script) return createPluginVideoTask(requestConfig, selectedModel, script, prompt, references, options);
     assertVideoConfig(requestConfig, requestConfig.model);
-    if (requestConfig.apiFormat === "gemini") return createGeminiVideoTask(requestConfig, selectedModel, prompt, references, options);
-    return createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options);
+    const task = await (requestConfig.apiFormat === "gemini" ? createGeminiVideoTask(requestConfig, selectedModel, prompt, references, options) : createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options));
+    return { ...task, endpoint: requestConfig.baseUrl };
 }
 
 export async function pollVideoGenerationTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
@@ -85,6 +85,7 @@ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGener
         return result ? { status: "completed", result } : { status: "failed", error: apiText("pluginVideoExpired") };
     }
     const requestConfig = resolveModelRequestConfig(config, task.model);
+    if (task.endpoint && task.endpoint !== requestConfig.baseUrl) throw new Error("任务所属渠道地址已改变，请恢复原渠道地址后取任务状态");
     assertVideoConfig(requestConfig, requestConfig.model);
     if (task.provider === "gemini") return pollGeminiVideoTask(requestConfig, task, options);
     return pollOpenAIVideoTask(requestConfig, task, options);

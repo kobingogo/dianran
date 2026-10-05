@@ -75,6 +75,7 @@ export function resultProvenance(source: CanvasNodeData | undefined) {
     return source?.metadata?.creation ? {
         creation: source.metadata.creation,
         inputSnapshot: source.metadata.inputSnapshot,
+        composerContent: source.metadata.composerContent,
         inputNodeIds: source.metadata.inputNodeIds,
         sourceNodeId: source.metadata.sourceNodeId,
         sourceConfigId: source.id,

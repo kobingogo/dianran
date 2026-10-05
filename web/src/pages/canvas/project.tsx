@@ -1,3 +1,7 @@
+import { flushSync } from "react-dom";
+import { CanvasWorkflowPanel } from "@/components/canvas/canvas-workflow-panel";
+import { workflowResults, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
+import { CanvasSaveStatus } from "@/components/canvas/canvas-save-status";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -8,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
 import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
 import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, waitForVideoGenerationTask } from "@/services/api/video";
-import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
+import { defaultConfig, resolveModelRequestConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { ensureImagePreview, uploadImage } from "@/services/image-storage";
 import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { nanoid } from "nanoid";
@@ -47,7 +51,7 @@ import { AssetPickerModal, type InsertAssetPayload } from "@/components/canvas/a
 import { CanvasSidePanel } from "@/components/canvas/canvas-side-panel";
 import { CanvasZoomControls } from "@/components/canvas/canvas-zoom-controls";
 import { useAgentStore } from "@/stores/use-agent-store";
-import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { flushCanvasSave, useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAgentBridge } from "@/pages/canvas/hooks/use-agent-bridge";
 import { usePluginHost } from "@/pages/canvas/hooks/use-plugin-host";
 import { buildNodeMentionReferences, getGroupResourceNodes, isCanvasReferenceNode, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
@@ -150,6 +154,7 @@ function applyGeneratedVideo(item: CanvasNodeData, video: UploadedFile, extra: C
 }
 
 export default function CanvasPage() {
+    const { id: projectId } = useParams();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -158,7 +163,7 @@ export default function CanvasPage() {
 
     if (!mounted) return <CanvasRefreshShell />;
 
-    return <InfiniteCanvasPage />;
+    return <InfiniteCanvasPage key={projectId} />;
 }
 
 function InfiniteCanvasPage() {
@@ -277,6 +282,10 @@ function InfiniteCanvasPage() {
     const pendingConnectionCreateRef = useRef(pendingConnectionCreate);
     const generationRequestsRef = useRef(new Map<string, CanvasGenerationRequest>());
     const videoPollIdsRef = useRef(new Set<string>());
+    useEffect(() => () => {
+        generationRequestsRef.current.forEach((request) => request.controller.abort());
+        void flushCanvasSave().catch(() => {});
+    }, []);
 
     const createHistoryEntry = useCallback(
         (): CanvasHistoryEntry => ({
@@ -313,12 +322,16 @@ function InfiniteCanvasPage() {
         async (nodeId: string, config: Parameters<typeof buildGenerationConfig>[0], prompt: string, images: Parameters<typeof createVideoGenerationTask>[2], signal: AbortSignal, extra: CanvasNodeData["metadata"] = {}, videos: ReferenceVideo[] = [], audios: ReferenceAudio[] = []) => {
             const task = await createVideoGenerationTask(config, prompt, images, { signal, videos, audios });
             if (task.provider !== "plugin") {
-                setNodes((prev) => prev.map((item) => (item.id === nodeId ? { ...item, metadata: { ...item.metadata, videoTaskId: task.id, videoTaskProvider: task.provider === "gemini" ? "gemini" : "openai", model: config.model } } : item)));
+                const nextNodes = nodesRef.current.map((item) => (item.id === nodeId ? { ...item, metadata: { ...item.metadata, videoTaskId: task.id, videoTaskEndpoint: task.endpoint, videoTaskProvider: task.provider === "gemini" ? "gemini" as const : "openai" as const, model: config.model } } : item));
+                nodesRef.current = nextNodes;
+                setNodes(nextNodes);
+                updateProject(projectId, { nodes: nextNodes, connections: connectionsRef.current });
+                await flushCanvasSave();
             }
             const video = await storeGeneratedVideo(await waitForVideoGenerationTask(config, task, { signal }));
             setNodes((prev) => prev.map((item) => (item.id === nodeId ? applyGeneratedVideo(item, video, { prompt, model: config.model, ...extra }) : item)));
         },
-        [],
+        [projectId, updateProject],
     );
 
     const pollVideoNodeTask = useCallback(
@@ -340,7 +353,7 @@ function InfiniteCanvasPage() {
                 setRunningNodeId(node.id);
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : item)));
                 controller = startGenerationRequest(node.id, node.id, node.id);
-                const video = await storeGeneratedVideo(await waitForVideoGenerationTask(generationConfig, { id: taskId, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : "openai", model: generationConfig.model }, { signal: controller.signal }));
+                const video = await storeGeneratedVideo(await waitForVideoGenerationTask(generationConfig, { id: taskId, endpoint: node.metadata?.videoTaskEndpoint, provider: node.metadata?.videoTaskProvider === "gemini" ? "gemini" : "openai", model: generationConfig.model }, { signal: controller.signal }));
                 setNodes((prev) =>
                     prev.map((item) =>
                         item.id === node.id
@@ -2837,6 +2850,8 @@ function InfiniteCanvasPage() {
                 return;
             }
             const sourceNode = findRetrySourceNode(node.id, nodesRef.current, connectionsRef.current) || node;
+            const snapshot = node.metadata?.inputSnapshot;
+            const retrySource = node.metadata?.creation ? node : sourceNode;
             const savedImageMetadata = node.type === CanvasNodeType.Image ? node.metadata : undefined;
             const hasSavedImageMetadata = Boolean(savedImageMetadata?.generationType);
             const generationConfig =
@@ -2849,13 +2864,16 @@ function InfiniteCanvasPage() {
                           background: savedImageMetadata.background ?? effectiveConfig.background,
                           count: "1",
                       }
-                    : { ...buildGenerationConfig(effectiveConfig, sourceNode, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
+                    : { ...buildGenerationConfig(effectiveConfig, retrySource, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
             }
 
-            const context = hasSavedImageMetadata ? null : await hydrateNodeGenerationContext(buildNodeGenerationContext(sourceNode.id, nodesRef.current, connectionsRef.current, sourceNode.metadata?.prompt || node.metadata?.prompt || ""));
+            let context: Awaited<ReturnType<typeof hydrateNodeGenerationContext>> | null;
+            try {
+                context = snapshot ? await hydrateNodeGenerationContext(snapshot) : hasSavedImageMetadata ? null : await hydrateNodeGenerationContext(buildNodeGenerationContext(sourceNode.id, nodesRef.current, connectionsRef.current, sourceNode.metadata?.prompt || node.metadata?.prompt || ""));
+            } catch (error) { showErrorToast(message, error, "原始输入已无法读取，请恢复素材后重试"); return; }
             const prompt = (savedImageMetadata?.prompt || context?.prompt || "").trim();
             if (!prompt) {
                 message.warning(t("canvas.projectPage.retryPromptMissing"));
@@ -2864,7 +2882,7 @@ function InfiniteCanvasPage() {
             const generationType = savedImageMetadata?.generationType;
             const useReferenceImages = generationType ? generationType === "edit" : Boolean(context?.referenceImages.length);
             const retryReferenceImages =
-                hasSavedImageMetadata && savedImageMetadata ? await resolveMetadataReferences(savedImageMetadata) : useReferenceImages ? (context?.referenceImages.length ? context.referenceImages : sourceNodeReferenceImages(sourceNode)) : [];
+                snapshot ? context?.referenceImages || [] : hasSavedImageMetadata && savedImageMetadata ? await resolveMetadataReferences(savedImageMetadata) : useReferenceImages ? (context?.referenceImages.length ? context.referenceImages : sourceNodeReferenceImages(sourceNode)) : [];
             if (useReferenceImages && !retryReferenceImages) {
                 message.error(t("canvas.projectPage.referenceMissing"));
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: item.metadata?.content ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: item.metadata?.content ? undefined : t("canvas.projectPage.referenceMissing"), images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_ERROR, errorDetails: t("canvas.projectPage.referenceMissing") } : image)) } } : item)));
@@ -3275,12 +3293,43 @@ function InfiniteCanvasPage() {
         [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, runningNodeId, effectiveConfig, message, submitCanvasComposer],
     );
 
-    if (!projectLoaded) return <CanvasRefreshShell />;
+    const commitWorkflowGraph = (nextNodes: CanvasNodeData[], nextConnections: CanvasConnection[]) => {
+        nodesRef.current = nextNodes; connectionsRef.current = nextConnections;
+        flushSync(() => { setNodes(nextNodes); setConnections(nextConnections); });
+        updateProject(projectId, { nodes: nextNodes, connections: nextConnections });
+    };
+    const executeWorkflowStep = async (step: WorkflowStep, inputIds: string[], state: WorkflowStepRun, checkpoint: () => Promise<void>, frozenInputs: CanvasNodeData[]) => {
+        if (generationRequestsRef.current.size) throw new Error("当前有生成任务，请待其结束后执行工作流");
+        const config = { ...effectiveConfig, ...step.parameters };
+        const model = step.parameters[step.mode === "image" ? "imageModel" : "videoModel"];
+        if (resolveModelRequestConfig(config, model).baseUrl !== step.endpoint) throw new Error("渠道地址已改变，请重新预览计划");
+        const prompt = step.prompt;
+        const approvedNodes = nodesRef.current.map((node) => frozenInputs.find((input) => input.id === node.id) || node);
+        const submission = prepareCanvasSubmission(step.mode, prompt, [], config, approvedNodes, inputIds);
+        if (JSON.stringify(submission.actual) !== JSON.stringify(step.actual)) throw new Error("实际参数已改变，请重新预览计划");
+        await hydrateNodeGenerationContext(submission.input);
+        const x = nodesRef.current.length ? Math.max(...nodesRef.current.map((node) => node.position.x + node.width)) + 96 : 80;
+        const graph = createCanvasSubmissionGraph(submission, nodesRef.current, connectionsRef.current, { x, y: 160 });
+        graph.config.metadata = { ...graph.config.metadata, agentSource: step.agentSource };
+        state.configId = graph.config.id;
+        commitWorkflowGraph(graph.nodes, graph.connections);
+        await checkpoint();
+        await handleGenerateNode(graph.config.id, step.mode, submission.prompt);
+        flushSync(() => { setNodes((value) => { nodesRef.current = value; return value; }); setConnections((value) => { connectionsRef.current = value; return value; }); });
+        updateProject(projectId, { nodes: nodesRef.current, connections: connectionsRef.current });
+        await flushCanvasSave();
+        const resultIds = workflowResults(step, state, nodesRef.current, connectionsRef.current);
+        state.resultNodes = resultIds.map((id) => structuredClone(nodesRef.current.find((node) => node.id === id)!));
+        return resultIds;
+    };
+
+    if (!projectLoaded) return <><CanvasRefreshShell /><div className="fixed left-6 top-6 z-50"><CanvasSaveStatus /></div></>;
 
     return (
         <main className="relative flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
             <CanvasSidePanel nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onInsertAsset={handleAssetInsert} />
             <section className="relative min-w-0 flex-1 overflow-hidden">
+                <CanvasWorkflowPanel selectedIds={selectedNodeIds} commit={commitWorkflowGraph} execute={executeWorkflowStep} />
                 <CanvasTopBar
                     title={currentProject?.title || t("canvas.projectPage.untitledCanvas")}
                     titleDraft={titleDraft}

@@ -62,6 +62,10 @@ node brand/pipeline/picks.mjs
 say "finalize (prune covers, manifest counts, data version)"
 node brand/pipeline/finalize.mjs "$DATE"
 
+say "validate IDs, manifest counts and image references"
+node --test brand/pipeline/prompt-key.test.mjs
+node brand/pipeline/validate.mjs
+
 say "build"
 (cd web && bun install --frozen-lockfile >/dev/null && bun run build >/dev/null) || die "build failed — branch $BRANCH left uncommitted for inspection"
 ELAPSED=$(( $(date +%s) - START ))
