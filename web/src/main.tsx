@@ -6,7 +6,7 @@ import "./styles/brand.css";
 import { RouterProvider } from "react-router-dom";
 
 import { AppProviders } from "@/components/layout/app-providers";
-import "@/i18n";
+import { i18nReady } from "@/i18n";
 import { initAnalytics } from "@/lib/analytics";
 import { router } from "@/router";
 import { installRequestTracker } from "@/features/tasks/request-tracker";
@@ -20,10 +20,12 @@ installPromptUsageFlush();
 
 document.body.style.fontFamily = "var(--font-sans)";
 
-createRoot(document.getElementById("root")!).render(
-    <React.StrictMode>
-        <AppProviders>
-            <RouterProvider router={router} />
-        </AppProviders>
-    </React.StrictMode>,
+void i18nReady.then(() =>
+    createRoot(document.getElementById("root")!).render(
+        <React.StrictMode>
+            <AppProviders>
+                <RouterProvider router={router} />
+            </AppProviders>
+        </React.StrictMode>,
+    ),
 );

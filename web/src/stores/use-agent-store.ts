@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import i18n from "@/i18n";
+import { useComposerStore } from "@/stores/use-composer-store";
 
 import type { CanvasAgentOp, CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
@@ -64,6 +65,7 @@ type AgentStore = {
     tokenUsage: AgentTokenUsage | null;
     eventLogs: AgentEventLog[];
     threads: AgentThreadSummary[];
+    sourceToLocate?: { threadId: string; turnId: string; itemId: string };
     activeThreadId: string;
     activeTurnId: string;
     workspacePath: string;
@@ -136,7 +138,19 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     connectError: "",
     pendingTool: null,
     pendingApprovals: [],
-    setAgentState: (patch) => set(patch),
+    setAgentState: (patch) => {
+        const current = get();
+        const drafts = useComposerStore.getState();
+        const key = current.url + ":" + current.activeThreadId;
+        if (patch.activeThreadId !== undefined && patch.activeThreadId !== current.activeThreadId) {
+            drafts.saveAgentDraft(key, { prompt: current.prompt, attachments: current.attachments, canvasReferences: current.canvasReferences });
+            const next = drafts.agentDrafts[current.url + ":" + patch.activeThreadId];
+            set({ prompt: next?.prompt || "", attachments: next?.attachments || [], canvasReferences: next?.canvasReferences || [], ...patch });
+        } else set(patch);
+        const state = get();
+        if (patch.prompt !== undefined || patch.attachments !== undefined || patch.canvasReferences !== undefined)
+            useComposerStore.getState().saveAgentDraft(state.url + ":" + state.activeThreadId, { prompt: state.prompt, attachments: state.attachments, canvasReferences: state.canvasReferences });
+    },
     openPanel: () => set({ panelOpen: true, panelMounted: true, panelClosing: false }),
     closePanel: () => {
         if (!get().panelMounted || get().panelClosing) return;

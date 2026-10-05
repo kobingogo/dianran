@@ -29,12 +29,12 @@ export function composerPlans(config: AiConfig) {
     };
 }
 
-export function normalizeComposerConfig(config: AiConfig, mode: ComposerMode) {
+export function normalizeComposerConfig(config: AiConfig, mode: ComposerMode, imageCountLimit = 10) {
     const plans = composerPlans(config);
     const next = { ...config };
     const notes: string[] = [];
     if (mode === "image") {
-        next.count = String(Math.max(1, Math.min(10, Number(config.count) || 1)));
+        next.count = String(Math.max(1, Math.min(imageCountLimit, Number(config.count) || 1)));
         for (const item of collectImageAdjustments({ model: modelOptionName(config.imageModel || config.model), channel: plans.channel, size: config.size, quality: config.quality, count: config.count, background: config.background })) {
             if (item.kind === "count") continue; // Workbench: one request per slot, existing limit remains 10.
             if (item.kind === "transparent") {
@@ -75,8 +75,8 @@ export function uniqueReferences(references: ReferenceImage[]) {
     });
 }
 
-export function createComposerSubmission(mode: ComposerMode, prompt: string, references: ReferenceImage[], config: AiConfig, canvas = false): ComposerSubmission {
-    const normalized = normalizeComposerConfig(config, mode).config;
+export function createComposerSubmission(mode: ComposerMode, prompt: string, references: ReferenceImage[], config: AiConfig, canvas = false, imageCountLimit = 10): ComposerSubmission {
+    const normalized = normalizeComposerConfig(config, mode, imageCountLimit).config;
     const refs = uniqueReferences(references);
     const text = prompt
         .replace(/@\[ref:([^\]]+)\]/g, (_, id: string) => {

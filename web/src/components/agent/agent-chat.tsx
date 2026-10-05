@@ -116,9 +116,12 @@ export function AgentTaskProgress({ theme, busy }: { theme: (typeof canvasThemes
 const AgentChatMessageRow = memo(function AgentChatMessageRow({ item, theme }: { item: AgentChatItem; theme: (typeof canvasThemes)[keyof typeof canvasThemes] }) {
     const endpoint = useAgentStore((state) => state.url);
     const token = useAgentStore((state) => state.token);
+    const canvasNodes = useAgentStore((state) => state.canvasContext?.snapshot.nodes);
+    const results = canvasNodes?.filter((node) => node.metadata?.agentSource && node.metadata.agentSource.threadId === item.threadId && node.metadata.agentSource.turnId === item.turnId && node.metadata.agentSource.itemId === item.itemId) || [];
     return (
-        <div style={item.streamId ? undefined : historyMessageStyle}>
+        <div tabIndex={-1} data-agent-thread={item.threadId} data-agent-turn={item.turnId} data-agent-item={item.itemId} style={item.streamId ? undefined : historyMessageStyle}>
             <AgentChatMessage item={agentMessageToChatMessage(item, endpoint, token)} theme={theme} />
+            {results.map((node) => <button key={node.id} className="mt-1 text-xs underline" onClick={() => { useAgentStore.getState().closePanel(); window.dispatchEvent(new CustomEvent("canvas-focus-node", { detail: node.id })); }}>定位结果 · {node.title}</button>)}
         </div>
     );
 });

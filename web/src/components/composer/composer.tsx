@@ -15,9 +15,11 @@ import { describeImagePlan } from "@/components/image-settings-panel";
 import { describeVideoPlan } from "@/components/video-settings-panel";
 import { CapabilityNote } from "@/components/ui/capability-note";
 import { imageQualitySupportsHd, imageTierSize, normalizeImageQuality, videoSecondsOptions } from "@/lib/model-capabilities";
-import { composerPlans, createComposerSubmission, isGenerateShortcut, normalizeComposerConfig, type ComposerMode, type ComposerSubmission } from "@/lib/composer";
-import { modelOptionLabel, modelOptionName, selectableModelsByCapability, useConfigStore } from "@/stores/use-config-store";
-import { useComposerStore } from "@/stores/use-composer-store";
+import { composerPlans, createComposerSubmission, isGenerateShortcut, normalizeComposerConfig, type ComposerMode, type ComposerSubmission, type ComposerParameters } from "@/lib/composer";
+import { modelOptionLabel, modelOptionName, selectableModelsByCapability, useConfigStore, type AiConfig } from "@/stores/use-config-store";
+import { canvasReferenceIds } from "@/lib/canvas/canvas-composer-references";
+import type { ReferenceImage } from "@/types/image";
+import { EMPTY_COMPOSER_DRAFT, useComposerStore } from "@/stores/use-composer-store";
 import { previewUrlFor, resolveImageUrl, uploadImage } from "@/services/image-storage";
 import { showErrorToast } from "@/features/errors/error-toast";
 
@@ -27,15 +29,32 @@ const PromptSelectDialog = lazy(() => import("@/components/prompts/prompt-select
 const titles = { add: "添加内容", model: "选择模型", ratio: "画面比例", quality: "画质与输出", count: "生成张数", seconds: "视频时长", resolution: "视频清晰度", more: "更多设置" };
 type Panel = keyof typeof titles;
 
-export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode: ComposerMode; onModeChange?: (mode: ComposerMode) => void; onSubmit: (submission: ComposerSubmission) => void; busy?: boolean }) {
+export type CanvasComposerBinding = {
+    scope: string;
+    header: ReactNode;
+    referenceBar: ReactNode;
+    error?: string;
+    onReference: () => void;
+    prepare: (prompt: string, references: ReferenceImage[], config: AiConfig) => ComposerSubmission;
+};
+
+export function Composer({ mode, onModeChange, onSubmit, busy = false, canvas }: { mode: ComposerMode; onModeChange?: (mode: ComposerMode) => void; onSubmit: (submission: ComposerSubmission) => void; busy?: boolean; canvas?: CanvasComposerBinding }) {
     const { message } = App.useApp();
     const navigate = useNavigate();
-    const config = useConfigStore((state) => state.config);
-    const updateConfig = useConfigStore((state) => state.updateConfig);
-    const draft = useComposerStore((state) => state[mode]);
+    const globalConfig = useConfigStore((state) => state.config);
+    const draft = useComposerStore((state) => canvas ? state.scoped[canvas.scope] || EMPTY_COMPOSER_DRAFT : state[mode]);
+    const config = canvas ? { ...globalConfig, ...draft.parameters } : globalConfig;
+    const currentConfig = () => canvas ? { ...useConfigStore.getState().config, ...useComposerStore.getState().scoped[canvas.scope]?.parameters } : useConfigStore.getState().config;
+    const replaceConfig = (next: AiConfig) => {
+        if (canvas) {
+            const keys: Array<keyof ComposerParameters> = ["imageModel", "videoModel", "size", "videoSize", "quality", "background", "count", "vquality", "videoSeconds", "videoGenerateAudio", "videoWatermark", "videoMode"];
+            useComposerStore.getState().patch(mode, { parameters: Object.fromEntries(keys.map((key) => [key, next[key]])) as ComposerParameters }, canvas.scope);
+        } else useConfigStore.setState({ config: next });
+    };
+    const updateConfig = (key: keyof ComposerParameters, value: string) => replaceConfig({ ...currentConfig(), [key]: value });
     const hydrated = useComposerStore((state) => state.hydrated);
-    const patch = useComposerStore((state) => state.patch);
-    const setReferences = useComposerStore((state) => state.setReferences);
+    const patch = (value: ComposerMode, change: Partial<typeof draft>) => useComposerStore.getState().patch(value, change, canvas?.scope);
+    const setReferences = (value: ComposerMode, next: ReferenceImage[] | ((refs: ReferenceImage[]) => ReferenceImage[])) => useComposerStore.getState().setReferences(value, next, canvas?.scope);
     const [panel, setPanel] = useState<Panel | null>(null);
     const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 767px)").matches);
     const [search, setSearch] = useState("");
@@ -51,12 +70,12 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
     const image = plans.image;
     const video = plans.video;
     const caps = mode === "image" ? plans.imageCaps : video.caps;
-    const count = Math.max(1, Math.min(10, Number(config.count) || 1));
+    const count = Math.max(1, Math.min(canvas ? 15 : 10, Number(config.count) || 1));
     const ratio = mode === "image" ? image.ratio : video.ratio;
     const qualityLabel = image.tier ? `输出 ${image.quality?.value || image.tier.toUpperCase()}` : plans.imageCaps.quality && imageQualitySupportsHd(plans.imageCaps) ? (normalizeImageQuality(config.quality) === "hd" ? "高清" : "标准") : "由模型决定";
 
     useEffect(() => {
-        if (hydrated && useComposerStore.getState().mode !== mode) useComposerStore.getState().setMode(mode);
+        if (!canvas && hydrated && useComposerStore.getState().mode !== mode) useComposerStore.getState().setMode(mode);
     }, [mode, hydrated]);
     useEffect(() => {
         const media = window.matchMedia("(max-width: 767px)");
@@ -67,22 +86,22 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
     useEffect(() => {
         if (normalizedModel.current === `${mode}:${model}`) return;
         normalizedModel.current = `${mode}:${model}`;
-        const next = normalizeComposerConfig(useConfigStore.getState().config, mode);
-        useConfigStore.setState({ config: next.config });
+        const next = normalizeComposerConfig(currentConfig(), mode, canvas ? 15 : 10);
+        replaceConfig(next.config);
         setAdjustNote(next.notes.join("；"));
     }, [mode, model]);
 
     const selectModel = (value: string) => {
-        const current = useConfigStore.getState().config;
+        const current = currentConfig();
         const selected = { ...current, [mode === "image" ? "imageModel" : "videoModel"]: value };
         const before = composerPlans(current);
         const after = composerPlans(selected);
         const resetTier = mode === "image" && before.image.tier && !after.imageCaps.tiers;
         if (resetTier) selected.size = before.image.ratio;
-        const next = normalizeComposerConfig(selected, mode);
+        const next = normalizeComposerConfig(selected, mode, canvas ? 15 : 10);
         if (resetTier) next.notes.unshift(`输出 ${before.image.tier!.toUpperCase()} → 比例预设`);
         normalizedModel.current = `${mode}:${value}`;
-        useConfigStore.setState({ config: next.config });
+        replaceConfig(next.config);
         setAdjustNote(next.notes.join("；"));
         if (next.notes.length) message.info(`已调整：${next.notes.join("；")}`);
         setPanel(null);
@@ -90,7 +109,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
     const submit = () => {
         if (busy || uploading || !hydrated) return;
         try {
-            onSubmit(createComposerSubmission(mode, draft.prompt, draft.references, useConfigStore.getState().config, draft.canvas));
+            onSubmit(canvas ? canvas.prepare(draft.prompt, draft.references, currentConfig()) : createComposerSubmission(mode, draft.prompt, draft.references, currentConfig(), draft.canvas));
         } catch (error) {
             showErrorToast(message, error);
         }
@@ -234,7 +253,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
         if (key === "count")
             return (
                 <div className="space-y-3">
-                    <InkStepper ariaLabel="张数" value={count} max={10} onChange={(value) => updateConfig("count", String(value))} />
+                    <InkStepper ariaLabel="张数" value={count} max={canvas ? 15 : 10} onChange={(value) => updateConfig("count", String(value))} />
                     <CapabilityNote>
                         {count} 张 = {count} 次生成请求
                     </CapabilityNote>
@@ -366,9 +385,11 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 void addFiles(event.dataTransfer.files);
             }}
         >
+            {canvas?.header}
             <div className="mb-2 flex flex-wrap items-center gap-2">
                 <div role="tablist" aria-label="创作模式" className="flex gap-1">
                     {(["image", "video"] as const).map((value) => (
@@ -378,7 +399,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
                             aria-selected={mode === value}
                             selected={mode === value}
                             onClick={() => {
-                                useComposerStore.getState().setMode(value);
+                                if (!canvas) useComposerStore.getState().setMode(value);
                                 if (onModeChange) onModeChange(value);
                                 else if (value !== mode) navigate(`/${value}`);
                             }}
@@ -390,10 +411,10 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
                         Agent ↗
                     </InkChip>
                 </div>
-                <label className="ml-auto flex items-center gap-2 text-xs text-[color:var(--ink-500)]">
+                {!canvas ? <label className="ml-auto flex items-center gap-2 text-xs text-[color:var(--ink-500)]">
                     在画布中创作
                     <Switch size="small" checked={draft.canvas} onChange={(canvas) => patch(mode, { canvas })} />
-                </label>
+                </label> : null}
             </div>
             <textarea
                 ref={textarea}
@@ -403,8 +424,8 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
                 placeholder={mode === "image" ? "描述你想创作或修改的画面… 输入 @ 引用素材" : "描述镜头、运动与场景… 输入 @ 引用素材"}
                 className="block w-full resize-none border-0 bg-transparent py-2 text-[15px] leading-7 text-[color:var(--ink-900)] outline-none placeholder:text-[color:var(--ink-400)]"
                 onChange={(event) => {
-                    patch(mode, { prompt: event.target.value });
-                    if (event.target.value.endsWith("@") && !(event.nativeEvent as InputEvent).isComposing) setAssetOpen(true);
+                    patch(mode, { prompt: event.target.value, ...(canvas ? { nodeIds: [...new Set([...(draft.nodeIds || []), ...canvasReferenceIds(event.target.value)])] } : {}) });
+                    if (event.target.value.endsWith("@") && !(event.nativeEvent as InputEvent).isComposing) canvas ? canvas.onReference() : setAssetOpen(true);
                 }}
                 onKeyDown={(event) => {
                     if (isGenerateShortcut(event)) {
@@ -419,6 +440,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
                     }
                 }}
             />
+            {canvas?.referenceBar}
             {draft.references.length ? (
                 <div className="mb-3 flex gap-2 overflow-x-auto">
                     {draft.references.map((ref, index) => (
@@ -491,7 +513,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
             ) : null}
             <div className="flex gap-1.5 overflow-x-auto pb-1 sm:flex-wrap">
                 {chip("add", <Plus className="size-4" />)}
-                <InkChip aria-label="引用素材" onClick={() => setAssetOpen(true)}>
+                <InkChip aria-label="引用素材" onClick={() => canvas ? canvas.onReference() : setAssetOpen(true)}>
                     <AtSign className="size-4" />
                 </InkChip>
                 {chip("model", <span className="max-w-40 truncate">{modelOptionName(model) || "选择模型"} ▾</span>)}
@@ -509,6 +531,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
                 )}
                 {chip("more", "更多⋯")}
             </div>
+            {canvas?.error ? <div role="alert" className="mt-1 text-xs text-[color:var(--zhu-600)]">{canvas.error}</div> : null}
             {adjustNote ? (
                 <div role="status" className="mt-1 text-xs text-[color:var(--zhu-600)]">
                     已调整：{adjustNote}
@@ -527,7 +550,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false }: { mode:
                     {mode === "video" && video.caps.audio && config.videoGenerateAudio === "true" ? " · 有声" : ""}
                     {mode === "video" && video.caps.paramStyle !== "openai-sora" && config.videoWatermark === "true" ? " · 水印" : ""}
                 </span>
-                <InkButton variant="zhu" size={40} className="shrink-0" disabled={!draft.prompt.trim() || busy || uploading || !hydrated} onClick={submit}>
+                <InkButton variant="zhu" size={40} className="shrink-0" disabled={!draft.prompt.trim() || busy || uploading || !hydrated || Boolean(canvas?.error)} onClick={submit}>
                     <ArrowUp className="size-4" />
                     {uploading ? "添加中…" : busy ? "晕染中…" : mode === "image" ? "落笔生成" : "生成视频"}
                 </InkButton>

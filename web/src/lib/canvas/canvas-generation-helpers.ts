@@ -103,6 +103,7 @@ export function getInputSummary(inputs: NodeGenerationInput[]) {
 }
 
 export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefined, mode: CanvasNodeGenerationMode): AiConfig {
+    config = { ...config, ...node?.metadata?.creation?.parameters };
     return {
         ...config,
         model: resolveModelForCapability(config, node?.metadata?.model, mode),
