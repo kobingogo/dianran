@@ -3,10 +3,10 @@ import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
 import { dataUrlToFile, readFileAsDataUrl } from "@/lib/image-utils";
-import { clampVideoSeconds, computeVideoSize, inferVideoRatio } from "@/lib/media-size";
+import { planVideoRequest } from "@/lib/model-capabilities";
 import { getMediaBlob, resolveMediaUrl, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { imageToDataUrl } from "@/services/image-storage";
-import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, withLocalProxy, type AiConfig } from "@/stores/use-config-store";
+import { boolConfig, buildApiUrl, modelOptionName, resolveModelRequestConfig, resolveModelScript, resolveVideoSize, withLocalProxy, type AiConfig } from "@/stores/use-config-store";
 import { runModelPlugin } from "./model-plugin";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
@@ -106,10 +106,7 @@ async function createPluginVideoTask(config: AiConfig, model: string, script: st
             videos,
             audios,
             params: {
-                seconds: normalizeVideoSeconds(config.videoSeconds),
-                size: normalizeVideoSize(config.size, config.vquality),
-                resolution: normalizeVideoResolution(config.vquality),
-                ratio: videoAspectRatio(config.size),
+                ...pluginVideoParams(videoPlan(config, model)),
                 generateAudio: boolConfig(config.videoGenerateAudio, true),
                 watermark: boolConfig(config.videoWatermark, false),
                 mode: resolveVideoMode(config.videoMode, refs.length),
@@ -154,11 +151,13 @@ async function createOpenAIVideoTask(config: AiConfig, model: string, prompt: st
     const body = new FormData();
     body.append("model", modelOptionName(model));
     body.append("prompt", prompt);
-    body.append("seconds", normalizeVideoSeconds(config.videoSeconds));
-    body.append("size", normalizeVideoSize(config.size, config.vquality) || "1280x720");
-    body.append("resolution_name", normalizeVideoResolution(config.vquality));
-    body.append("generate_audio", String(boolConfig(config.videoGenerateAudio, true)));
-    body.append("watermark", String(boolConfig(config.videoWatermark, false)));
+    // P0-5: one parameter form per model (Sora: size; relay: size, or resolution_name when the ratio is 自动).
+    const plan = videoPlan(config, model);
+    Object.entries(plan.fields).forEach(([key, value]) => body.append(key, String(value)));
+    if (plan.caps.paramStyle !== "openai-sora") {
+        body.append("generate_audio", String(boolConfig(config.videoGenerateAudio, true)));
+        body.append("watermark", String(boolConfig(config.videoWatermark, false)));
+    }
     body.append("mode", mode);
     if (mode === "frames") {
         if (images[0]) body.append("first_frame", images[0], "first.png");
@@ -223,9 +222,7 @@ async function createGeminiVideoTask(config: AiConfig, model: string, prompt: st
         const created = unwrapEnvelope((await axios.post<ApiEnvelope<GeminiVideoOperation>>(geminiVideoUrl(config, model, "predictLongRunning"), {
             instances: [instance],
             parameters: {
-                aspectRatio: videoAspectRatio(config.size),
-                durationSeconds: Number(normalizeVideoSeconds(config.videoSeconds)) || 8,
-                resolution: normalizeVideoResolution(config.vquality),
+                ...videoPlan(config, model).fields,
                 generateAudio: boolConfig(config.videoGenerateAudio, true),
                 addWatermark: boolConfig(config.videoWatermark, false),
             },
@@ -275,9 +272,13 @@ function geminiVideoHeaders(config: Pick<AiConfig, "apiKey">) {
     return { "x-goog-api-key": config.apiKey, "Content-Type": "application/json" };
 }
 
-function videoAspectRatio(size: string) {
-    const ratio = inferVideoRatio(size);
-    return ratio === "auto" ? "16:9" : ratio;
+function videoPlan(config: AiConfig, model: string) {
+    return planVideoRequest({ model: modelOptionName(model), apiFormat: config.apiFormat === "gemini" ? "gemini" : "openai", videoSize: resolveVideoSize(config), vquality: config.vquality, seconds: config.videoSeconds });
+}
+
+/** Plugins receive every derived value; the script picks what its API takes. */
+function pluginVideoParams(plan: ReturnType<typeof planVideoRequest>) {
+    return { seconds: String(plan.seconds), size: plan.size || null, resolution: plan.resolution, ratio: plan.ratio === "auto" ? "16:9" : plan.ratio };
 }
 
 function parseDataUrlInline(dataUrl: string, fallbackType = "image/png"): GeminiInlineData {
@@ -305,28 +306,9 @@ async function referenceMediaToFile(item: { name: string; type?: string; url?: s
     return new File([blob], item.name || fallbackName, { type: item.type || blob.type || "application/octet-stream" });
 }
 
-function normalizeVideoSeconds(value: string) {
-    return clampVideoSeconds(value);
-}
-
 function resolveVideoMode(mode: string | undefined, imageCount: number) {
     if (mode === "reference" || imageCount > 2) return "reference";
     return "frames";
-}
-
-function normalizeVideoSize(value: string, resolution?: string) {
-    if (value === "auto") return null;
-    if (/^\d+x\d+$/.test(value || "")) return value;
-    const ratio = inferVideoRatio(value || "16:9");
-    if (ratio === "auto") return null;
-    return computeVideoSize(resolution || "720", ratio);
-}
-
-function normalizeVideoResolution(value: string) {
-    if (value === "low") return "480p";
-    if (value === "auto" || value === "high" || value === "medium") return "720p";
-    const resolution = value.replace(/p$/i, "") || "720";
-    return `${resolution}p`;
 }
 
 function unwrapVideoResponse(payload: ApiVideoResponse) {

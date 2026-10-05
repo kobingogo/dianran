@@ -2,7 +2,7 @@
 <html lang="zh-CN" class="font-sans">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <title>点染 Dianran · 一点灵感，染成画面</title>
         <meta name="description" content="点染 Dianran：节点式 AI 创作画布，在一张画布上完成生图、视频与文本的连续推演。" />
         <meta name="application-name" content="点染" />
@@ -29,7 +29,8 @@
             try {
                 // [dianran] storage key kept from upstream (STORAGE_NS in src/constant/brand.ts) so existing themes survive.
                 var s = JSON.parse(localStorage.getItem("infinite-canvas:theme_store") || "{}");
-                var t = s.state && s.state.theme === "light" ? "light" : "dark";
+                var stored = s.state && s.state.theme;
+                var t = stored === "dark" || stored === "light" ? stored : "light";
                 document.documentElement.classList.toggle("dark", t === "dark");
                 document.documentElement.style.colorScheme = t;
             } catch (e) {}

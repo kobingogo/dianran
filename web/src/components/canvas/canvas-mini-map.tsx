@@ -96,7 +96,7 @@ export function Minimap({ nodes, viewport, viewportSize, onViewportChange }: { n
     };
 
     return (
-        <div className="absolute bottom-24 left-6 z-50 overflow-hidden rounded-lg border shadow-2xl backdrop-blur-sm" style={{ width, height, background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
+        <div className="absolute bottom-[140px] left-2 z-50 overflow-hidden rounded-[var(--r-md)] border p-1 shadow-[var(--sh-2)] backdrop-blur-sm md:bottom-[84px] md:left-auto md:right-5" style={{ width, height, background: theme.toolbar.panel, borderColor: theme.toolbar.border }}>
             <div
                 ref={containerRef}
                 className="relative h-full w-full cursor-crosshair"
@@ -130,7 +130,7 @@ export function Minimap({ nodes, viewport, viewportSize, onViewportChange }: { n
                         />
                     );
                 })}
-                <div className="pointer-events-none absolute border" style={{ left: viewportRect.x, top: viewportRect.y, width: viewportRect.w, height: viewportRect.h, borderColor: theme.node.activeStroke, background: `${theme.node.activeStroke}18` }} />
+                <div className="pointer-events-none absolute border" style={{ left: viewportRect.x, top: viewportRect.y, width: viewportRect.w, height: viewportRect.h, borderColor: "var(--zhu-500)", borderWidth: 1.5, background: "color-mix(in srgb, var(--zhu-500) 8%, transparent)" }} />
             </div>
         </div>
     );

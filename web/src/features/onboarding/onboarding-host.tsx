@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect } from "react";
 
 import { useConfigStore } from "@/stores/use-config-store";
 import { PRESET_PROVIDERS } from "@/constant/brand";
-import { hasUsableChannel, onboardingDismissed, useOnboardingStore } from "./onboarding-store";
+import { hasUsableChannel, useOnboardingStore } from "./onboarding-store";
 
 const OnboardingWizard = lazy(() => import("./onboarding-wizard").then((module) => ({ default: module.OnboardingWizard })));
 
@@ -22,7 +22,6 @@ export function OnboardingHost() {
     const open = useOnboardingStore((state) => state.open);
 
     useEffect(() => {
-        let timer = 0;
         whenHydrated(() => {
             const params = new URLSearchParams(window.location.search);
             const providerId = params.get("provider");
@@ -32,11 +31,8 @@ export function OnboardingHost() {
                 useOnboardingStore.getState().show({ providerId, reason: "manual" });
                 return;
             }
-            if (useOnboardingStore.getState().open) return;
-            if (hasUsableChannel(useConfigStore.getState().config) || onboardingDismissed()) return;
-            timer = window.setTimeout(() => {
-                if (!hasUsableChannel(useConfigStore.getState().config) && !useOnboardingStore.getState().open) useOnboardingStore.getState().show({ reason: "first-run" });
-            }, 500);
+            // PLAN P1-5: no auto-popup on first visit any more — the home page shows an inline
+            // setup card the first time the user presses 落笔生成 without a usable key.
         });
         // Generating without a usable key opens the config dialog with "continue after saving";
         // when nothing is configured yet, show the guide instead of the full settings panel.
@@ -47,7 +43,6 @@ export function OnboardingHost() {
             useOnboardingStore.getState().show({ reason: "missing-key" });
         });
         return () => {
-            window.clearTimeout(timer);
             unsubscribe();
         };
     }, []);

@@ -24,8 +24,8 @@ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpe
     const activeStyle = { background: theme.toolbar.activeBg, color: theme.toolbar.activeText };
 
     return (
-        <div className="absolute bottom-[84px] left-2 z-50 md:bottom-5 md:left-5" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-            <div className="flex h-11 items-center gap-1 rounded-xl border px-1.5 shadow-lg backdrop-blur md:h-14 md:px-2" style={dockStyle}>
+        <div className="absolute bottom-[84px] left-2 z-50 md:bottom-5 md:left-auto md:right-5" onMouseDown={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+            <div className="flex h-11 items-center gap-1 rounded-[var(--r-md)] border px-1.5 shadow-[var(--sh-1)] backdrop-blur md:h-11 md:px-2" style={dockStyle}>
                 <Tooltip title={isMiniMapOpen ? t("canvas.miniMapClose") : t("canvas.miniMapOpen")}>
                     <Button
                         type="text"
@@ -47,7 +47,7 @@ export function CanvasZoomControls({ scale, onScaleChange, onReset, isMiniMapOpe
                         step="1"
                         value={Math.round(scale * 100)}
                         className="hidden w-24 md:block"
-                        style={{ accentColor: theme.node.activeStroke }}
+                        style={{ accentColor: "var(--zhu-500)" }}
                         onChange={(event) => onScaleChange(Number(event.target.value) / 100)}
                         aria-label={t("canvas.zoom")}
                     />

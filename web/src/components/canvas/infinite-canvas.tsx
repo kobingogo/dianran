@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-import { canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
+import { CANVAS_GRID_SIZE, canvasThemes, type CanvasBackgroundMode } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import type { ViewportTransform } from "@/types/canvas";
 
@@ -279,7 +279,7 @@ function CanvasGrid({ viewport, mode }: { viewport: ViewportTransform; mode: Can
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     if (mode === "blank") return null;
 
-    const gridSize = 48 * viewport.k;
+    const gridSize = CANVAS_GRID_SIZE * viewport.k;
     const x = viewport.x % gridSize;
     const y = viewport.y % gridSize;
     const dotSize = viewport.k < 0.12 ? 0.8 : 1.15;

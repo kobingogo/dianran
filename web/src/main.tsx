@@ -1,6 +1,5 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import "antd/dist/reset.css";
 import "streamdown/styles.css";
 import "./styles/globals.css";
 import "./styles/brand.css";
@@ -19,7 +18,7 @@ installRequestTracker();
 // [dianran] anonymous prompt copy/use counts (see services/usage-stats.ts)
 installPromptUsageFlush();
 
-document.body.style.fontFamily = '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+document.body.style.fontFamily = "var(--font-sans)";
 
 createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 import { dataUrlToFile } from "@/lib/image-utils";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { imageToDataUrl } from "@/services/image-storage";
-import { imageSizePresets, inferMediaScale } from "@/lib/media-size";
+import { imageChannelFormatOf, planImageRequest, type ImageChannelFormat, type ImageSendPlan } from "@/lib/model-capabilities";
 import type { ReferenceImage } from "@/types/image";
 import { presetApiFlags } from "@/constant/brand";
 
@@ -98,19 +98,6 @@ type GeminiPayload = {
 type GeminiStreamState = { buffer: string; text: string; toolCalls: ResponseToolCall[]; error?: string };
 type RequestOptions = { signal?: AbortSignal };
 
-const QUALITY_BASE: Record<string, number> = {
-    low: 1024,
-    medium: 2048,
-    high: 2880,
-    standard: 1024,
-    hd: 2048,
-};
-const QUALITY_ALIASES: Record<string, string> = {
-    "1k": "low",
-    "2k": "medium",
-    "4k": "high",
-};
-const DEFAULT_IMAGE_SHORT_SIDE = 1024;
 const IMAGE_SIZE_STEP = 16;
 const IMAGE_MIN_PIXELS = 655360;
 const IMAGE_MAX_PIXELS = 8294400;
@@ -120,61 +107,40 @@ const IMAGE_OUTPUT_FORMAT = "png";
 // 与 image-storage 的下载超时保持一致，避免接口挂起时节点一直停在生成中。
 const IMAGE_REQUEST_TIMEOUT_MS = 10 * 60_000;
 
-const GEMINI_SUPPORTED_RATIOS = ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"];
-const GEMINI_IMAGE_SIZE_BY_QUALITY: Record<string, string> = { low: "1K", medium: "2K", high: "4K", standard: "1K", hd: "2K" };
-
-function normalizeQuality(quality: string) {
-    const value = quality.trim().toLowerCase();
-    const normalized = QUALITY_ALIASES[value] || value;
-    return QUALITY_BASE[normalized] ? normalized : undefined;
+function imageChannelFormat(config: Pick<AiConfig, "apiFormat" | "baseUrl">): ImageChannelFormat {
+    return imageChannelFormatOf({ apiFormat: config.apiFormat, imageApi: imageApiOf(config as AiConfig) });
 }
 
-/** Only "transparent" is forwarded; any other value (incl. empty) means keep the default opaque background. */
-function normalizeBackground(background: string | undefined) {
-    return background?.trim().toLowerCase() === "transparent" ? "transparent" : undefined;
+/** Channel the image request will use, including a session-detected chat fallback. */
+export function imageChannelFormatFor(config: Pick<AiConfig, "apiFormat" | "baseUrl">) {
+    return imageChannelFormat(config);
 }
 
-/** Map "quality + ratio" to an explicit pixel dimension like "3840x2160". */
-function resolveSize(quality: string | undefined, ratio: string): string {
-    const parsedRatio = parseImageRatio(ratio);
-    const scale = quality === "high" ? "4k" : quality === "medium" || quality === "hd" ? "2k" : "1k";
-    const preset = imageSizePresets[scale][ratio];
-    if (preset) return preset;
-    const basePixels = quality ? QUALITY_BASE[quality] : undefined;
-    const isLandscape = parsedRatio.width >= parsedRatio.height;
-    const longRatio = isLandscape ? parsedRatio.width / parsedRatio.height : parsedRatio.height / parsedRatio.width;
-    let longSide: number;
-    let shortSide: number;
-
-    if (basePixels) {
-        const targetPixels = basePixels * basePixels;
-        const longSideRaw = Math.sqrt(targetPixels * longRatio);
-        longSide = Math.floor(longSideRaw / IMAGE_SIZE_STEP) * IMAGE_SIZE_STEP;
-        shortSide = Math.round(longSide / longRatio / IMAGE_SIZE_STEP) * IMAGE_SIZE_STEP;
-    } else {
-        shortSide = DEFAULT_IMAGE_SHORT_SIDE;
-        longSide = Math.round((shortSide * longRatio) / IMAGE_SIZE_STEP) * IMAGE_SIZE_STEP;
-    }
-
-    const width = isLandscape ? longSide : shortSide;
-    const height = isLandscape ? shortSide : longSide;
-    validateImageSize(width, height);
-    return `${width}x${height}`;
+function imagePlan(config: Pick<AiConfig, "model" | "size" | "quality" | "background" | "apiFormat" | "baseUrl">) {
+    return planImageRequest({ model: config.model, size: config.size, quality: config.quality, background: config.background, channel: imageChannelFormat(config) });
 }
 
-function parseRatioValue(value: string) {
-    const parts = value.split(":");
-    if (parts.length !== 2) throw new Error(apiText("invalidImageSizeFormat"));
-    const w = Number(parts[0]);
-    const h = Number(parts[1]);
-    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) throw new Error(apiText("positiveImageRatio"));
-    return { width: w, height: h };
+function ensureImagePlan(plan: ImageSendPlan) {
+    if (plan.invalid) throw new Error(apiText("invalidImageSizeFormat"));
+    if (plan.fixedSize || !plan.sizeValue || plan.sizeValue === "auto") return;
+    if (plan.sizeField !== "size" && plan.sizeField !== "image_size") return;
+    const dimensions = parseImageDimensions(plan.sizeValue);
+    if (!dimensions) throw new Error(apiText("invalidImageSizeFormat"));
+    validateImageSize(dimensions.width, dimensions.height);
 }
 
-function parseImageRatio(value: string) {
-    const ratio = parseRatioValue(value);
-    if (Math.max(ratio.width, ratio.height) / Math.min(ratio.width, ratio.height) > IMAGE_MAX_RATIO) throw new Error(apiText("imageRatioLimit"));
-    return ratio;
+function openAiImageFields(plan: ImageSendPlan) {
+    return {
+        ...(plan.sizeField === "size" && plan.sizeValue ? { size: plan.sizeValue } : {}),
+        ...(plan.quality?.param === "quality" ? { quality: plan.quality.value } : {}),
+        ...(plan.background ? { background: plan.background } : {}),
+    };
+}
+
+function pluginImageParams(plan: ImageSendPlan, count: number) {
+    const size = plan.sizeField === "none" ? undefined : plan.sizeValue;
+    const quality = plan.quality?.value;
+    return { ...(size ? { size } : {}), ...(quality ? { quality } : {}), count, ...(plan.background ? { background: plan.background } : {}) };
 }
 
 function parseImageDimensions(value: string) {
@@ -192,55 +158,13 @@ function validateImageSize(width: number, height: number) {
     if (pixels < IMAGE_MIN_PIXELS || pixels > IMAGE_MAX_PIXELS) throw new Error(apiText("imagePixelLimit"));
 }
 
-function resolveRequestSize(quality: string | undefined, size: string) {
-    const value = size.trim();
-    if (!value || value.toLowerCase() === "auto") return undefined;
-    const dimensions = parseImageDimensions(value);
-    if (dimensions) {
-        validateImageSize(dimensions.width, dimensions.height);
-        return `${dimensions.width}x${dimensions.height}`;
-    }
-    if (value.includes(":")) return resolveSize(quality, value);
-    throw new Error(apiText("invalidImageSizeFormat"));
-}
-
 function resolveGeminiImageConfig(config: AiConfig) {
-    const value = config.size.trim();
-    const dimensions = parseImageDimensions(value);
-    const ratio = dimensions ? `${dimensions.width}:${dimensions.height}` : value;
-    const aspectRatio = value && value.toLowerCase() !== "auto" ? closestGeminiAspectRatio(ratio) : undefined;
-    const imageSize = supportsGeminiImageSize(config.model) ? resolveGeminiImageSize(config.quality, dimensions) : undefined;
-    const image = { ...(aspectRatio ? { aspectRatio } : {}), ...(imageSize ? { imageSize } : {}) };
+    const plan = imagePlan(config);
+    const image = {
+        ...(plan.sizeField === "aspectRatio" && plan.sizeValue ? { aspectRatio: plan.sizeValue } : {}),
+        ...(plan.quality?.param === "imageSize" ? { imageSize: plan.quality.value } : {}),
+    };
     return Object.keys(image).length ? { imageConfig: image } : {};
-}
-
-function closestGeminiAspectRatio(value: string) {
-    const ratio = parseImageRatio(value);
-    const target = ratio.width / ratio.height;
-    return GEMINI_SUPPORTED_RATIOS.reduce((best, item) => {
-        const current = parseRatioValue(item);
-        const bestRatio = parseRatioValue(best);
-        return Math.abs(current.width / current.height - target) < Math.abs(bestRatio.width / bestRatio.height - target) ? item : best;
-    });
-}
-
-function resolveGeminiImageSize(quality: string, dimensions: { width: number; height: number } | null) {
-    const normalizedQuality = normalizeQuality(quality);
-    if (normalizedQuality) return GEMINI_IMAGE_SIZE_BY_QUALITY[normalizedQuality];
-    if (!dimensions) return undefined;
-    const size = `${dimensions.width}x${dimensions.height}`;
-    const scale = inferMediaScale(size);
-    if (Object.values(imageSizePresets[scale]).includes(size)) return scale.toUpperCase();
-    const edge = Math.max(dimensions.width, dimensions.height);
-    if (edge <= 768) return "512";
-    if (edge <= 1536) return "1K";
-    if (edge <= 3072) return "2K";
-    return "4K";
-}
-
-function supportsGeminiImageSize(model: string) {
-    const value = model.toLowerCase();
-    return value.includes("gemini-3") || value.includes("3.1") || value.includes("3-pro");
 }
 
 function resolveImageSource(item: Record<string, unknown>) {
@@ -850,9 +774,8 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const script = resolveModelScript(config, config.model || config.imageModel);
     if (script) {
-        const quality = normalizeQuality(config.quality);
-        const requestSize = resolveRequestSize(quality, config.size);
-        const background = normalizeBackground(config.background);
+        const plan = imagePlan(requestConfig);
+        ensureImagePlan(plan);
         try {
             const result = await runModelPlugin({
                 capability: "image",
@@ -860,7 +783,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
                 config: requestConfig,
                 prompt: withSystemPrompt(requestConfig, prompt),
                 images: [],
-                params: { size: requestSize, quality, count: n, ...(background ? { background } : {}) },
+                params: pluginImageParams(plan, n),
                 signal: options?.signal,
             });
             return normalizePluginImages(result).map((dataUrl) => ({ id: nanoid(), dataUrl }));
@@ -875,9 +798,10 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             throw new Error(readAxiosError(error, apiText("requestFailed")));
         }
     }
-    const quality = normalizeQuality(config.quality);
-    const requestSize = resolveRequestSize(quality, config.size);
-    const background = normalizeBackground(config.background);
+    const plan = imagePlan(requestConfig);
+    ensureImagePlan(plan);
+    const fields = openAiImageFields(plan);
+    const requestSize = plan.sizeField === "size" || plan.sizeField === "image_size" ? plan.sizeValue : undefined;
     try {
         return await requestOpenAiCompatibleImages(requestConfig, prompt, [], n, requestSize, async () => {
             const response = await axios.post<ImageApiResponse>(
@@ -886,9 +810,7 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
                     model: requestConfig.model,
                     prompt: withSystemPrompt(requestConfig, prompt),
                     n,
-                    ...(quality ? { quality } : {}),
-                    ...(requestSize ? { size: requestSize } : {}),
-                    ...(background ? { background } : {}),
+                    ...fields,
                     // gpt-image models reject response_format; they always return b64.
                     ...(/gpt-image/.test(requestConfig.model) ? {} : { response_format: "b64_json" }),
                     output_format: IMAGE_OUTPUT_FORMAT,
@@ -912,9 +834,8 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     const requestPrompt = buildImageReferencePromptText(prompt, references);
     const script = resolveModelScript(config, config.model || config.imageModel);
     if (script) {
-        const quality = normalizeQuality(config.quality);
-        const requestSize = resolveRequestSize(quality, config.size);
-        const background = normalizeBackground(config.background);
+        const plan = imagePlan(requestConfig);
+        ensureImagePlan(plan);
         const refs = await Promise.all(references.map((image) => imageToDataUrl(image)));
         try {
             const result = await runModelPlugin({
@@ -923,7 +844,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
                 config: requestConfig,
                 prompt: withSystemPrompt(requestConfig, requestPrompt),
                 images: refs,
-                params: { size: requestSize, quality, count: n, ...(background ? { background } : {}) },
+                params: pluginImageParams(plan, n),
                 signal: options?.signal,
             });
             return normalizePluginImages(result).map((dataUrl) => ({ id: nanoid(), dataUrl }));
@@ -939,9 +860,10 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         }
     }
 
-    const quality = normalizeQuality(config.quality);
-    const requestSize = resolveRequestSize(quality, config.size);
-    const background = normalizeBackground(config.background);
+    const plan = imagePlan(requestConfig);
+    ensureImagePlan(plan);
+    const fields = openAiImageFields(plan);
+    const requestSize = plan.sizeField === "size" || plan.sizeField === "image_size" ? plan.sizeValue : undefined;
     const formData = new FormData();
     formData.set("model", requestConfig.model);
     formData.set("prompt", withSystemPrompt(requestConfig, requestPrompt));
@@ -951,15 +873,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         formData.set("response_format", "b64_json");
     }
     formData.set("output_format", IMAGE_OUTPUT_FORMAT);
-    if (quality) {
-        formData.set("quality", quality);
-    }
-    if (requestSize) {
-        formData.set("size", requestSize);
-    }
-    if (background) {
-        formData.set("background", background);
-    }
+    Object.entries(fields).forEach(([key, value]) => formData.set(key, value));
     const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
     const imageField = files.length > 1 ? "image[]" : "image";
     files.forEach((file) => formData.append(imageField, file));

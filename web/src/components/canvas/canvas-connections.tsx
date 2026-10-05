@@ -49,11 +49,12 @@ export function ConnectionPath({
             />
             <path
                 d={pathD}
-                stroke={active ? theme.node.activeStroke : theme.node.muted}
-                strokeWidth={active ? 3 : 2}
-                strokeOpacity={active ? 1 : 0.82}
+                stroke={active ? "var(--zhu-500)" : theme.node.text}
+                strokeWidth={active ? 2.8 : 2.2}
+                strokeOpacity={active ? 1 : 0.78}
+                strokeLinecap="round"
                 fill="none"
-                style={{ filter: active ? `drop-shadow(0 0 8px ${theme.node.activeStroke}66)` : undefined, pointerEvents: "none" }}
+                style={{ filter: active ? "drop-shadow(0 0 6px color-mix(in srgb, var(--zhu-500) 40%, transparent))" : undefined, pointerEvents: "none" }}
             />
         </g>
     );
@@ -74,5 +75,5 @@ export function ActiveConnectionPath({ node, handle, mouseWorld, target }: { nod
     const distance = Math.abs(snappedEndX - snappedStartX);
     const pathD = `M ${snappedStartX} ${snappedStartY} C ${snappedStartX + distance * 0.5} ${snappedStartY}, ${snappedEndX - distance * 0.5} ${snappedEndY}, ${snappedEndX} ${snappedEndY}`;
 
-    return <path d={pathD} stroke={theme.node.activeStroke} strokeWidth="2" fill="none" strokeDasharray="5,5" />;
+    return <path d={pathD} stroke={theme.node.text} strokeWidth="2.2" strokeLinecap="round" fill="none" strokeDasharray="2,6" />;
 }
