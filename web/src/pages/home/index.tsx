@@ -1,5 +1,5 @@
 import { ArrowRight, Copy, ExternalLink } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { App, Button, Image, Tag } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,10 @@ import { showcaseItems } from "@/pages/home/showcase";
 import { InkButton } from "@/components/ui/ink-button";
 import { InkChip } from "@/components/ui/chip";
 import { hasUsableChannel, useOnboardingStore } from "@/features/onboarding/onboarding-store";
-import { normalizeImageQuality } from "@/lib/model-capabilities";
+import { Composer } from "@/components/composer/composer";
+import { prepareCanvasSubmission } from "@/components/composer/canvas-delivery";
+import type { ComposerSubmission } from "@/lib/composer";
+import { useComposerStore } from "@/stores/use-composer-store";
 import { modelOptionName, resolveVideoSize, useConfigStore } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
@@ -23,13 +26,11 @@ const ALBUM = [
     { src: `${base}showcase/library/ink-cats.webp`, caption: "墨猫 · 1:1", style: "left-[44%] top-10 h-[300px] w-[230px] rotate-[2.5deg]" },
     { src: `${base}showcase/lotus-moon.webp`, caption: "荷月 · 16:9", style: "left-[16%] top-[300px] h-[220px] w-[330px] -rotate-[0.5deg]" },
 ];
-const HOME_RATIOS = ["1:1", "3:4", "4:3", "9:16", "16:9"];
 const TRY_PROMPTS = [
     { label: "水墨山水", prompt: "水墨山水，晨雾缭绕，远山层叠，大面积留白，竖幅构图，宣纸质感" },
     { label: "产品海报", prompt: "极简产品海报：一只素白陶瓷杯，柔和侧光，浅色背景，大量留白" },
     { label: "夜行百鬼", prompt: "民俗插画：夜行百鬼队列，深蓝水彩夜空，朱红与金色点缀，版画质感" },
 ];
-type HomeMode = "image" | "video" | "canvas";
 type RecentCanvas = { id: string; title: string; updatedAt: string; cover?: string };
 
 function useRecentCanvases() {
@@ -65,8 +66,9 @@ export default function IndexPage() {
     const navigate = useNavigate();
     const [previewIndex, setPreviewIndex] = useState(0);
     const [previewOpen, setPreviewOpen] = useState(false);
-    const [mode, setMode] = useState<HomeMode>("image");
-    const [prompt, setPrompt] = useState("");
+    const mode = useComposerStore((state) => state.mode);
+    const setMode = useComposerStore((state) => state.setMode);
+    const setPrompt = (prompt: string) => useComposerStore.getState().patch(mode, { prompt });
     const [setupOpen, setSetupOpen] = useState(false);
     const config = useConfigStore((state) => state.config);
     const updateConfig = useConfigStore((state) => state.updateConfig);
@@ -75,11 +77,6 @@ export default function IndexPage() {
     const recent = useRecentCanvases();
     const connected = hasUsableChannel(config);
     const channelName = config.channels.find((channel) => channel.baseUrl.trim() && channel.apiKey.trim() && channel.models.length)?.name;
-    const imageModel = modelOptionName(config.imageModel || config.model || "");
-    const videoModel = modelOptionName(config.videoModel || "");
-    const imageRatio = HOME_RATIOS.includes(config.size) ? config.size : config.size === "auto" ? "自动" : "1:1";
-    const videoSize = resolveVideoSize(config);
-    const videoRatio = HOME_RATIOS.includes(videoSize) ? videoSize : "16:9";
     // [dianran] Local showcase instead of remote prompt sources (raw.githubusercontent.com is unreliable in mainland China).
     const locale = i18n.resolvedLanguage === "en-US" ? "en-US" : "zh-CN";
     const promptShowcase = showcaseItems.map((item) => ({ ...item, title: item.title[locale], coverUrl: item.cover }));
@@ -87,35 +84,39 @@ export default function IndexPage() {
         copy(value);
         message.success(t("home.copied"));
     };
-    const cycleRatio = () => {
-        const current = mode === "video" ? videoRatio : imageRatio;
-        const next = HOME_RATIOS[(HOME_RATIOS.indexOf(current) + 1) % HOME_RATIOS.length];
-        updateConfig(mode === "video" ? "videoSize" : "size", next);
-    };
-    const submit = () => {
-        if (mode === "canvas") {
-            navigate("/canvas?mode=new");
-            return;
-        }
-        const text = prompt.trim();
-        if (!text) {
-            message.info("先写一句想要的画面");
-            return;
-        }
-        // PLAN 6.2：首访不再弹配置；第一次点生成且未配置 Key 时在输入框下方展开内联配置卡。
+    const submitting = useRef(false);
+    const submit = async (draft: ComposerSubmission) => {
         if (!connected) {
             setSetupOpen(true);
             return;
         }
-        const store = useWorkbenchAgentStore.getState();
-        if (mode === "video") store.dispatchVideo({ prompt: text, run: Boolean(videoModel) });
-        else store.dispatchImage({ prompt: text, run: true });
-        navigate(mode === "video" ? "/video" : "/image");
+        const model = draft.parameters[draft.mode === "image" ? "imageModel" : "videoModel"];
+        if (!model) {
+            message.info("请先选择模型");
+            return;
+        }
+        if (submitting.current) return;
+        submitting.current = true;
+        try {
+            const submission = await prepareCanvasSubmission(draft);
+            const store = useWorkbenchAgentStore.getState();
+            const command = { prompt: submission.prompt, submission, run: true };
+            if (submission.mode === "video") store.dispatchVideo(command);
+            else store.dispatchImage(command);
+            navigate(submission.mode === "video" ? "/video" : "/image");
+        } catch {
+            message.error("创建画布失败，请重试");
+        } finally {
+            submitting.current = false;
+        }
     };
 
     return (
         <main className="relative h-full overflow-y-auto bg-[var(--paper-1)] text-[color:var(--ink-900)]" style={{ backgroundImage: "var(--paper-noise)" }}>
-            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(420px_260px_at_22%_18%,color-mix(in_srgb,var(--ink-900)_7%,transparent),transparent_70%),radial-gradient(300px_200px_at_30%_30%,color-mix(in_srgb,var(--dai-600)_6%,transparent),transparent_70%)]" />
+            <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(420px_260px_at_22%_18%,color-mix(in_srgb,var(--ink-900)_7%,transparent),transparent_70%),radial-gradient(300px_200px_at_30%_30%,color-mix(in_srgb,var(--dai-600)_6%,transparent),transparent_70%)]"
+            />
             <section className="relative mx-auto min-h-full max-w-[1280px] px-5 sm:px-10 lg:px-16">
                 <div className="flex h-14 items-center justify-end gap-2.5 sm:h-16">
                     {connected ? (
@@ -138,8 +139,7 @@ export default function IndexPage() {
                     <div className="min-w-0">
                         <div className="flex items-center gap-2.5 text-[12.5px] tracking-[0.2em] text-[color:var(--ink-500)] before:h-px before:w-7 before:bg-[var(--ink-400)]">DIANRAN · AI 创作工作室</div>
                         <h1 className="relative isolate mb-3.5 mt-5 inline-block font-[family-name:var(--font-serif)] text-[54px] font-bold leading-none tracking-[0.08em] sm:text-[96px]">
-                            <span aria-hidden className="absolute -left-3.5 -top-2 size-[34px] rounded-full bg-[radial-gradient(circle_at_40%_40%,var(--zhu-500),transparent_70%)] opacity-85 blur-[1px]" />
-                            点
+                            <span aria-hidden className="absolute -left-3.5 -top-2 size-[34px] rounded-full bg-[radial-gradient(circle_at_40%_40%,var(--zhu-500),transparent_70%)] opacity-85 blur-[1px]" />点
                             <em className="relative not-italic">
                                 染
                                 <span aria-hidden className="absolute -right-[2%] bottom-1.5 left-[4%] -z-10 h-4 rounded-[40%_60%_50%_50%] bg-[color-mix(in_srgb,var(--zhu-500)_18%,transparent)]" />
@@ -148,61 +148,8 @@ export default function IndexPage() {
                         <div className="font-[family-name:var(--font-serif)] text-lg tracking-[0.12em] text-[color:var(--ink-700)] sm:text-[22px]">{t("home.tagline", { defaultValue: BRAND.taglineZh })}</div>
                         <p className="mt-3 max-w-[520px] text-[15px] leading-7 text-[color:var(--ink-500)]">写下一句话，先出图；满意了，拖进画布继续串联图片、视频与文字。所有密钥与作品只存在你的浏览器里。</p>
 
-                        <div className="mt-7 max-w-[600px] rounded-[18px] border border-[var(--line)] bg-[var(--paper-0)] px-3.5 pb-3 pt-3.5 shadow-[var(--sh-1)]">
-                            <div role="tablist" className="mb-2.5 flex gap-1">
-                                {(
-                                    [
-                                        ["image", "生图"],
-                                        ["video", "视频"],
-                                        ["canvas", "在画布中打开"],
-                                    ] as const
-                                ).map(([value, label]) => (
-                                    <button key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => setMode(value)} className={`cursor-pointer rounded-lg border-0 px-3 py-[5px] text-[13px] ${mode === value ? "bg-[var(--paper-2)] font-semibold text-[color:var(--ink-900)]" : "bg-transparent text-[color:var(--ink-500)] hover:text-[color:var(--ink-900)]"}`}>
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                            <textarea
-                                value={prompt}
-                                onChange={(event) => setPrompt(event.target.value)}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) {
-                                        event.preventDefault();
-                                        submit();
-                                    }
-                                }}
-                                rows={2}
-                                aria-label="提示词"
-                                placeholder={mode === "video" ? "想拍什么？例如：镜头缓慢推进，晨雾中的竹林，光束穿过叶隙" : mode === "canvas" ? "直接打开一张新画布，在画布里继续创作" : "想画什么？例如：水墨山水，晨雾缭绕，大面积留白，竖幅构图"}
-                                disabled={mode === "canvas"}
-                                className="block min-h-[58px] w-full resize-none border-0 bg-transparent px-1 py-0.5 text-[15.5px] leading-7 text-[color:var(--ink-900)] outline-none placeholder:text-[color:var(--ink-400)] disabled:cursor-default"
-                            />
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                                {mode !== "canvas" ? (
-                                    <>
-                                        <InkChip onClick={() => navigate(mode === "video" ? "/video" : "/image")} title="在工作台切换模型">
-                                            {(mode === "video" ? videoModel : imageModel) || "未设置模型"} ▾
-                                        </InkChip>
-                                        <InkChip onClick={cycleRatio} title="切换比例">
-                                            ▯ {mode === "video" ? videoRatio : imageRatio}
-                                        </InkChip>
-                                        {mode === "image" ? (
-                                            <InkChip onClick={() => updateConfig("quality", normalizeImageQuality(config.quality) === "hd" ? "standard" : "hd")} title="切换画质">
-                                                {normalizeImageQuality(config.quality) === "hd" ? "高清画质" : "标准画质"}
-                                            </InkChip>
-                                        ) : (
-                                            <InkChip onClick={() => updateConfig("vquality", config.vquality === "1080" ? "720" : "1080")} title="切换清晰度">
-                                                {config.vquality === "1080" ? "1080p" : "720p"}
-                                            </InkChip>
-                                        )}
-                                    </>
-                                ) : null}
-                                <span className="flex-1" />
-                                {mode !== "canvas" ? <span className="hidden text-xs text-[color:var(--ink-400)] sm:inline">约 1 次调用</span> : null}
-                                <InkButton variant="zhu" size={40} className="h-[38px]" onClick={submit}>
-                                    {mode === "canvas" ? "新建画布 →" : "落笔生成 →"}
-                                </InkButton>
-                            </div>
+                        <div className="mt-7">
+                            <Composer mode={mode} onModeChange={setMode} onSubmit={(submission) => void submit(submission)} />
                         </div>
                         {setupOpen && !connected ? (
                             <div className="mt-3 max-w-[600px] rounded-[var(--r-lg)] border border-[var(--line)] bg-[var(--dai-100)] p-4 text-[color:var(--dai-600)]" role="region" aria-label="配置模型">
@@ -225,8 +172,16 @@ export default function IndexPage() {
                         ) : null}
                         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--ink-400)]">
                             <span>试试：</span>
+                            <button type="button" className="ml-auto border-0 bg-transparent text-xs text-[color:var(--ink-500)]" onClick={() => navigate("/canvas?mode=new")}>
+                                新建空白画布 ↗
+                            </button>
                             {TRY_PROMPTS.map((item) => (
-                                <button key={item.label} type="button" onClick={() => setPrompt(item.prompt)} className="cursor-pointer border-0 bg-[linear-gradient(transparent_62%,color-mix(in_srgb,var(--zhu-500)_22%,transparent)_62%,color-mix(in_srgb,var(--zhu-500)_22%,transparent)_88%,transparent_88%)] p-0 text-xs text-[color:var(--ink-700)]">
+                                <button
+                                    key={item.label}
+                                    type="button"
+                                    onClick={() => setPrompt(item.prompt)}
+                                    className="cursor-pointer border-0 bg-[linear-gradient(transparent_62%,color-mix(in_srgb,var(--zhu-500)_22%,transparent)_62%,color-mix(in_srgb,var(--zhu-500)_22%,transparent)_88%,transparent_88%)] p-0 text-xs text-[color:var(--ink-700)]"
+                                >
                                     {item.label}
                                 </button>
                             ))}
@@ -252,7 +207,12 @@ export default function IndexPage() {
                             ["三", "画布", "把结果串成可迭代的创作流", "/canvas"],
                         ] as const
                     ).map(([n, title, desc, to]) => (
-                        <button key={to} type="button" onClick={() => navigate(to)} className="flex cursor-pointer items-start gap-3.5 rounded-[var(--r-lg)] border border-[var(--line)] bg-[var(--paper-0)] px-[18px] py-4 text-left shadow-[var(--sh-1)] transition-transform hover:-translate-y-px">
+                        <button
+                            key={to}
+                            type="button"
+                            onClick={() => navigate(to)}
+                            className="flex cursor-pointer items-start gap-3.5 rounded-[var(--r-lg)] border border-[var(--line)] bg-[var(--paper-0)] px-[18px] py-4 text-left shadow-[var(--sh-1)] transition-transform hover:-translate-y-px"
+                        >
                             <span className="grid size-6 shrink-0 place-items-center rounded-full border border-[var(--zhu-500)] font-[family-name:var(--font-serif)] text-[13px] text-[color:var(--zhu-600)]">{n}</span>
                             <span>
                                 <b className="block font-[family-name:var(--font-serif)] text-base">{title}</b>
@@ -270,13 +230,19 @@ export default function IndexPage() {
                         {recent.length ? (
                             <div className="mt-2 flex gap-2 overflow-x-auto">
                                 {recent.map((item) => (
-                                    <button key={item.id} type="button" title={item.title} onClick={() => navigate(`/canvas/${item.id}`)} className="grid size-14 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--paper-2)] p-0 text-[11px] text-[color:var(--ink-500)]">
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        title={item.title}
+                                        onClick={() => navigate(`/canvas/${item.id}`)}
+                                        className="grid size-14 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--paper-2)] p-0 text-[11px] text-[color:var(--ink-500)]"
+                                    >
                                         {item.cover ? <img src={item.cover} alt="" className="size-full object-cover" /> : <span className="line-clamp-2 px-1 text-center leading-tight">{item.title}</span>}
                                     </button>
                                 ))}
                             </div>
                         ) : (
-                            <div className="mt-2 text-xs text-[color:var(--ink-400)]">还没有画布，从「在画布中打开」开始。</div>
+                            <div className="mt-2 text-xs text-[color:var(--ink-400)]">还没有画布，可先生成结果，或新建空白画布。</div>
                         )}
                     </div>
                 </div>
@@ -318,12 +284,7 @@ export default function IndexPage() {
                                     <h3 className="text-sm font-medium">{item.title}</h3>
                                     <p className="mt-1 hidden text-xs leading-5 text-white/75 line-clamp-2 sm:[display:-webkit-box]">{item.prompt}</p>
                                     {/* attribution: original author + library, links to the source post */}
-                                    <a
-                                        href={item.sourceUrl}
-                                        target="_blank"
-                                        rel="noreferrer noopener"
-                                        className="pointer-events-auto mt-1.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-white/70 hover:text-white"
-                                    >
+                                    <a href={item.sourceUrl} target="_blank" rel="noreferrer noopener" className="pointer-events-auto mt-1.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-white/70 hover:text-white">
                                         <span className="truncate">
                                             {item.author} · {item.source}
                                         </span>

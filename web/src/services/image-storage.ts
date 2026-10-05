@@ -243,6 +243,8 @@ export async function deleteStoredImages(keys: Iterable<string>) {
 
 export async function cleanupUnusedImages(usedData: unknown) {
     const usedKeys = collectImageStorageKeys(usedData);
+    const { useComposerStore } = await import("@/stores/use-composer-store");
+    collectImageStorageKeys(useComposerStore.getState(), usedKeys);
     await Promise.all([
         imageLogStore.iterate((value) => {
             collectImageStorageKeys(value, usedKeys);

@@ -176,3 +176,6 @@ export function scoreEntry(entry, libraryId, usage, cfg, now = Date.now()) {
     const total = engagementScore + s.freshnessWeight * freshness + s.usageWeight * usageScore;
     return { total: Math.round(total * 1000) / 1000, engagement: +engagementScore.toFixed(3), freshness: +freshness.toFixed(3), usage: +usageScore.toFixed(3) };
 }
+
+// Content identity must retain Chinese and the complete prompt.
+export const promptKey = (prompt) => String(prompt || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");

@@ -1,3 +1,4 @@
+import type { ComposerSubmission } from "@/lib/composer";
 import { create } from "zustand";
 
 // The Agent panel dispatches commands through this store to set workbench prompts and optionally start generation.
@@ -6,6 +7,7 @@ import { create } from "zustand";
 
 export type WorkbenchCommand = {
     nonce: number;
+    submission?: ComposerSubmission;
     taskId?: string;
     prompt?: string;
     run: boolean;

@@ -51,3 +51,17 @@ describe("planVideoRequest", () => {
         expect(notes).toEqual(["videoSize", "vquality", "videoSeconds"]);
     });
 });
+
+describe("Gemini explicit output tiers", () => {
+    test("all declared ratios keep 1K / 2K / 4K distinct, including extreme ratios", async () => {
+        const { getImageCaps, imageTierSize } = await import("../src/lib/model-capabilities");
+        const model = "gemini-3-pro-image-preview";
+        for (const ratio of getImageCaps(model, "gemini").ratios) {
+            for (const tier of ["1k", "2k", "4k"] as const) {
+                const plan = planImageRequest({ model, size: imageTierSize(ratio, tier), quality: "standard", channel: "gemini" });
+                expect(plan.ratio).toBe(ratio);
+                expect(plan.quality).toEqual({ param: "imageSize", value: tier.toUpperCase() });
+            }
+        }
+    });
+});

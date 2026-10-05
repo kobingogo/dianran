@@ -45,6 +45,18 @@ export type CanvasNodeText = {
 };
 
 export type CanvasNodeMetadata = {
+    creation?: import("@/lib/composer").CreationSnapshot;
+    sourceResultId?: string;
+    inputSnapshot?: import("@/components/canvas/canvas-node-generation").NodeGenerationContext;
+    inputNodeIds?: string[];
+    draftReferenceIds?: string[];
+    sourceNodeId?: string;
+    sourceConfigId?: string;
+    versionOf?: string;
+    branchKind?: "regenerate" | "edit" | "video";
+    resultTargetId?: string;
+    inputChanged?: boolean;
+    agentSource?: { threadId: string; turnId: string; itemId: string };
     content?: string;
     composerContent?: string;
     prompt?: string;
@@ -101,6 +113,7 @@ export type CanvasConnection = {
     id: string;
     fromNodeId: string;
     toNodeId: string;
+    kind?: "input" | "generation";
 };
 
 export type CanvasAssistantReference = {

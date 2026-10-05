@@ -34,6 +34,10 @@
 - [Changelog](/docs/progress/changelog)
 - [Pending Tests](/docs/progress/pending-test)
 - [TODO](/docs/progress/todo)
+- [Phase6 Composer interaction plan](phase6/INTERACTION-PLAN.md)
+- [Phase6 P0/P1 delivery](phase6/PROGRESS.md)
+- [项目分析与后续开发计划](DEVELOPMENT-PLAN.md)
+- [PR 整合验证记录](PR-REVIEW-VALIDATION.md)
 
 ## Notes
 

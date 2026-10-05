@@ -40,7 +40,7 @@ export type NodeGenerationInput = NodeGenerationResourceInput | NodeGenerationGr
 export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[], prompt: string): NodeGenerationContext {
     const inputs = buildNodeGenerationInputs(nodeId, nodes, connections);
     const sourceNode = nodes.find((node) => node.id === nodeId);
-    if (sourceNode?.type === CanvasNodeType.Config && Boolean(sourceNode.metadata?.composerContent?.trim())) {
+    if (/@\[node:/.test(prompt) || sourceNode?.type === CanvasNodeType.Config && sourceNode.metadata?.composerContent !== undefined) {
         return buildComposerGenerationContext(inputs, prompt);
     }
 
@@ -63,7 +63,7 @@ export function buildNodeGenerationContext(nodeId: string, nodes: CanvasNodeData
     };
 }
 
-function buildComposerGenerationContext(inputs: NodeGenerationInput[], prompt: string): NodeGenerationContext {
+export function buildComposerGenerationContext(inputs: NodeGenerationInput[], prompt: string): NodeGenerationContext {
     const inputByNodeId = new Map(inputs.map((input) => [input.nodeId, input]));
     const selectedInputs: NodeGenerationResourceInput[] = [];
     const labelByNodeId = new Map<string, string>();
@@ -78,12 +78,14 @@ function buildComposerGenerationContext(inputs: NodeGenerationInput[], prompt: s
         hasToken = true;
         nextPrompt += prompt.slice(lastIndex, match.index);
         const input = inputByNodeId.get(match[1]);
+        if (!input) throw new Error("引用已失效，请移除或重新添加：" + match[1]);
         if (input) {
             const labels = flattenGenerationInputs([input]).map((resource) => {
-                let label = labelByNodeId.get(resource.nodeId);
+                const identity = resource.image?.storageKey || resource.image?.dataUrl || resource.video?.storageKey || resource.video?.url || resource.audio?.storageKey || resource.audio?.url || resource.nodeId;
+                let label = labelByNodeId.get(identity);
                 if (!label) {
                     label = generationLabel(resource.type, counts[resource.type]++);
-                    labelByNodeId.set(resource.nodeId, label);
+                    labelByNodeId.set(identity, label);
                     if (resource.type === "text") textBlocks.push(textBlock(label, resource.text || ""));
                     else selectedInputs.push(resource);
                 }
@@ -141,6 +143,7 @@ function flattenGenerationInputs(inputs: NodeGenerationInput[]) {
 }
 
 function readNodeGenerationResource(node: CanvasNodeData): NodeGenerationResourceInput[] {
+    if ([CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Audio].includes(node.type as CanvasNodeType) && !node.metadata?.content) return [];
     const image = readReferenceImage(node);
     if (image) return [{ nodeId: node.id, type: "image", title: node.title, image }];
     const video = readReferenceVideo(node);
@@ -171,7 +174,25 @@ export function buildNodeResponseMessages(context: NodeGenerationContext): AiTex
 
 export async function hydrateNodeGenerationContext(context: NodeGenerationContext) {
     const { imageToDataUrl } = await import("@/services/image-storage");
-    return { ...context, referenceImages: await Promise.all(context.referenceImages.map(async (image) => ({ ...image, dataUrl: await imageToDataUrl(image) }))) };
+    const { resolveMediaUrl } = await import("@/services/file-storage");
+    return {
+        ...context,
+        referenceImages: await Promise.all(context.referenceImages.map(async (image) => {
+            const dataUrl = await imageToDataUrl(image.storageKey ? { storageKey: image.storageKey } : image);
+            if (!dataUrl) throw new Error("引用图片已失效：" + image.name);
+            return { ...image, dataUrl };
+        })),
+        referenceVideos: await Promise.all(context.referenceVideos.map(async (ref) => {
+            const url = await resolveMediaUrl(ref.storageKey, ref.storageKey ? "" : ref.url);
+            if (!url) throw new Error("引用视频已失效：" + ref.name);
+            return { ...ref, url };
+        })),
+        referenceAudios: await Promise.all(context.referenceAudios.map(async (ref) => {
+            const url = await resolveMediaUrl(ref.storageKey, ref.storageKey ? "" : ref.url);
+            if (!url) throw new Error("引用音频已失效：" + ref.name);
+            return { ...ref, url };
+        })),
+    };
 }
 
 function readNodeTextInput(node: CanvasNodeData) {

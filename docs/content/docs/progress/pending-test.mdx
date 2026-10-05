@@ -5,7 +5,22 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- PR 整合修复：复制生成中的图片/视频、创建组副本后，副本不应继续转圈或查询原视频任务，原节点不受影响。Banana Prompt Quicker 的「拍照解题」「汽车发动机工作原理3D剖面图」「创意丝绸宇宙」「奇幻水下场景冰棒」具有独立 ID；刷新旧缓存后收藏、详情和使用统计应定位正确条目。
+
 The current release needs manual verification in these areas:
+
+- Phase6 P0 统一 Composer：首页、桌面与手机共用生图/视频输入；模型、比例、画质/清晰度、张数/时长和更多分别打开对应弹层，手机为底部面板。验证上传、粘贴、素材 `@` 引用、排序与移除，独立模式草稿刷新后恢复，Ctrl/Cmd+Enter 提交与中文输入法不误提交。
+- 草稿交接与请求快照：首页提交携带身份、附件及能力解析后的参数，工作台只消费一次；返回或刷新不得重复生成。生成中修改草稿不影响本轮结果及「本轮参数」。确认 N 张图对应 N 次请求，视频仅一次创建任务；默认显示「费用由所选渠道计费」，无固定金额、费用倍率或伪精确耗时。
+- 能力参数：切模型保留合法值，非法值吸附并提示；Gemini 3 高清发 2K，显式 1K/2K/4K 覆盖画质，覆盖所有开放比例（含 1:8）。视频 Veo 4/6/8、Sora 4/8/12、Relay 5/6/8/10，均无 4K；Sora 1080p 档注明真实像素，单图用 input_reference，不发送 mode / first_frame / last_frame。
+- 结果闭环：图片可作参考、转视频；视频可提取当前帧作参考。送入画布支持选择已有或新建画布，默认仅结果节点及本轮提示词/实际参数 metadata，不创建输入/配置/关系；「在画布中创作」只选择落点，提交后创建项目、结果成功后送入。删除历史或素材后，仍被画布或 Composer 引用的文件应保留。
+- 当前边界：SiliconFlow 多图编辑、Sora 尾帧和首尾帧模式的多余附件在提交前明确拦截；既有视频 7 张收集上限保留。真实渠道计费/模型产出与手机原生软键盘仍需人工验收；自动化使用模拟响应，未产生真实付费调用。工作台完整过程同步与工作流执行留到 P2，详见 [phase6 方案](../../../phase6/INTERACTION-PLAN.md)。
+
+- Phase6 P1 画布 Composer：底部停靠输入复用首页规则，操作对象显示新建、继续编辑或编辑配置；切节点与生图/视频模式，提示词、附件、参数和引用草稿应分别保留，刷新后恢复。浏览选中不会自动引用，只有「用作参考」或继续编辑/转视频加入本轮。
+- 自动建图与迭代：空白提交得到配置+结果，上传参考只在提交时得到素材+配置+结果；选中空图片/视频节点应原位填充。继续编辑和转视频创建分支，再生成使用原输入快照创建新版本；原结果保留，「本轮参数」和「定位来源配置」可追溯，修改上游仅显示输入已变化，不自动重新请求。
+- 引用与多图：`@[node:…]`、本轮引用条与配置输入连线一致；删除正文提及不应偷偷删除引用，引用条移除才退出本轮；历史连线未加入本轮时显式显示可用输入。整组/单图/副本/附件同资源去重，失效节点或缺失本地文件阻止提交。验证批次部分成功、单图重试、展开、切主图、比例与副本来源；保留原画布 15 张选择范围。
+- 视频任务恢复：查询中断与远端生成失败分开，保留已有任务 ID；「取任务状态」和刷新恢复不得再次创建任务。「停止等待」仅停止本地等待和查询，不声称取消远端任务。
+- Agent 最小对齐：打开侧栏时画布 Composer 卸载，仅保留一个可提交编辑器；会话草稿独立，带来源的结果按 threadId/turnId/itemId 定位原消息，消息可定位结果。协议及消息存储版本不变；真实本地 Agent 连接和服务商仍需人工复核，自动化使用模拟消息/请求，未付费调用。
+- 首屏优化：移除未使用的 ProConfigProvider，英语词包按需加载；复核首页、生图/视频、画布的浅/深色，以及切换英语和刷新后恢复语言，中文和水墨视觉保持现有全局主题。
 
 - Video size and default model: changing the image size must not change the video size, and the reverse must also hold. When no separate video size was saved, reuse the old size only if it is a legal video ratio and its short side is at most 1080; otherwise the video size defaults to 1280×720 and the stored image size stays unchanged. A new install should show "Not set · Configure" on the video page and canvas video settings, linking to settings. A saved video model must stay as stored. New standard/HD quality values affect only the outgoing request; stored values such as auto and high must not be rewritten.
 - Canvas image previews: canvas image nodes, the left element list, the node reference bar, my-assets cards, the asset picker, image workbench result cards and history thumbnails, and the image/video workbench reference strips all render from a preview capped at a 768px long edge, so image-heavy views no longer decode the originals. Previews live locally only: canvas data, asset data, generation history, exported zips, and WebDAV sync must never contain preview content, and previews should be cleaned up when an image is deleted or no longer used. Opening the full-size image, editing, downloading, exporting, and generation references must keep using the original; an image that is already at or under 768px, exists only as a remote URL, or uses a custom cover should fall back to the original.

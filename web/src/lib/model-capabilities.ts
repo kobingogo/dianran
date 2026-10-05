@@ -521,12 +521,10 @@ export function imageTierSize(ratio: string, tier: "1k" | "2k" | "4k" = "1k") {
     const shortSide = tier === "4k" ? 2880 : tier === "2k" ? 2048 : 1024;
     const landscape = parsed.width >= parsed.height;
     const longRatio = landscape ? parsed.width / parsed.height : parsed.height / parsed.width;
-    let longSide = Math.round((shortSide * longRatio) / 16) * 16;
-    let short = Math.round(shortSide / 16) * 16;
-    if (longSide > 3840) {
-        longSide = 3840;
-        short = Math.max(16, Math.round(longSide / longRatio / 16) * 16);
-    }
+    // Extra ratios are Gemini aspect-only tier markers; these pixels are never sent.
+    // Keep each tier distinct. Actual pixel requests still use image.ts size validation.
+    const longSide = Math.round((shortSide * longRatio) / 16) * 16;
+    const short = Math.round(shortSide / 16) * 16;
     const width = landscape ? longSide : short;
     const height = landscape ? short : longSide;
     return `${width}x${height}`;
@@ -537,7 +535,7 @@ function matchedTier(size: string, caps: ImageCaps): "1k" | "2k" | "4k" | undefi
     const pixels = parsePixelSize(size);
     if (!pixels) return undefined;
     const key = `${pixels.width}x${pixels.height}`;
-    return caps.tiers.find((tier) => Object.values(imageSizePresets[tier] || {}).includes(key));
+    return caps.tiers.find((tier) => caps.ratios.some((ratio) => imageTierSize(ratio, tier) === key));
 }
 
 function displayRatio(size: string, caps: ImageCaps) {

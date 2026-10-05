@@ -127,6 +127,15 @@ function conversationBootstrapView(conversation: AgentConversationState) {
 export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?: boolean; headless?: boolean; autoConnect?: boolean }) {
     const { t } = useTranslation();
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const sourceToLocate = useAgentStore((state) => state.sourceToLocate);
+    useEffect(() => {
+        void import("@/stores/use-composer-store").then(async ({ useComposerStore }) => {
+            if (!useComposerStore.persist.hasHydrated()) await useComposerStore.persist.rehydrate();
+            const state = useAgentStore.getState();
+            const draft = useComposerStore.getState().agentDrafts[state.url + ":" + state.activeThreadId];
+            if (draft && !state.prompt && !state.attachments.length && !state.canvasReferences.length) state.setAgentState(draft);
+        });
+    }, []);
     const { message, modal } = App.useApp();
     const { hash } = useLocation();
     const [searchParams] = useSearchParams();
@@ -636,8 +645,8 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
         const canvasNodeIds = new Set(currentState.canvasContext?.snapshot.nodes.map((node) => node.id) || []);
         const canvasReferences = currentState.canvasReferences.filter((item) => canvasNodeIds.has(item.nodeId));
         if (canvasReferences.length !== currentState.canvasReferences.length) {
-            setAgentState({ canvasReferences });
-            message.warning(rt(canvasReferences.length ? "someCanvasReferencesMissing" : "canvasReferencesMissing"));
+            message.error("画布引用已失效，请在引用条移除或重新添加后提交");
+            return;
         }
         const requestPrompt = promptWithCanvasReferences(promptWithAttachments(text, files), canvasReferences);
         if (!currentState.connected || !requestPrompt || currentState.sending || currentState.waiting || currentState.loadingThreads || !["ready", "warning"].includes(currentState.conversation.status)) return;
@@ -652,7 +661,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
                 return;
             }
         }
-        const requestFiles = [...files, ...referenceImages.filter((reference) => !files.some((file) => file.dataUrl === reference.dataUrl))];
+        const requestFiles = [...new Map([...files, ...referenceImages].map((file) => [file.dataUrl || file.url || file.id, file])).values()];
         if (requestFiles.length > MAX_ATTACHMENTS) {
             setAgentState({ sending: false, activity: rt("tooManyImages") });
             addMessage({ role: "error", title: rt("tooManyImages"), text: rt("imageCountLimit", { count: MAX_ATTACHMENTS }) });
@@ -1060,6 +1069,17 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
         }
     };
 
+    useEffect(() => {
+        if (!sourceToLocate) return;
+        if (activeThreadId !== sourceToLocate.threadId) {
+            if (connected && !loadingThreads && !sending && !waiting) void resumeThread(sourceToLocate.threadId);
+            return;
+        }
+        const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-agent-item]"));
+        const row = rows.find((node) => node.dataset.agentThread === sourceToLocate.threadId && node.dataset.agentTurn === sourceToLocate.turnId && node.dataset.agentItem === sourceToLocate.itemId);
+        if (row) { row.scrollIntoView({ block: "center" }); row.focus(); setAgentState({ sourceToLocate: undefined }); }
+    }, [sourceToLocate, activeThreadId, connected, loadingThreads, sending, waiting]);
+
     const deleteThreads = async (threadIds: string[]) => {
         if (!connected || !threadIds.length || sending || waiting || loadingThreads) return;
         const operation = beginThreadOperation();
@@ -1270,7 +1290,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
                             title: image.name,
                             position: { x: right + index * 40, y: index * 40 },
                             ...size,
-                            metadata: imageMetadata(image.upload),
+                            metadata: { ...imageMetadata(image.upload), agentSource: { ...eventScope(event), itemId: event.item!.id! } },
                         };
                     });
                     const result = context.applyOps(ops);
