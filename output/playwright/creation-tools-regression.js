@@ -1,0 +1,103 @@
+async (page) => {
+  page.on('dialog', dialog => { if(dialog.type()==='beforeunload') void dialog.accept().catch(()=>{}); });
+  const base='http://127.0.0.1:4317';
+  const calls=[];
+  await page.route('https://tools-mock.example/**', route=>{ calls.push(route.request().url()); return route.abort(); });
+  await page.goto(base+'/image');
+  await page.evaluate(async()=>{
+    const {useConfigStore,defaultConfig}=await import('/src/stores/use-config-store.ts');
+    const config={...defaultConfig,count:'2',size:'1:1',channels:[{id:'tools',name:'mock',baseUrl:'https://tools-mock.example/v1',apiKey:'mock-key',apiFormat:'openai',models:[{name:'gpt-image-1',capability:'image'}]}],imageModel:'tools::gpt-image-1',model:'tools::gpt-image-1'};
+    useConfigStore.setState({config});
+    const {useComposerStore}=await import('/src/stores/use-composer-store.ts');useComposerStore.getState().patch('image',{prompt:'原始描述'});
+    const {estimateCondition}=await import('/src/lib/creation-estimates.ts');
+    const {createComposerSubmission}=await import('/src/lib/composer.ts');
+    const {useCreationEstimatesStore}=await import('/src/stores/use-creation-estimates-store.ts');
+    await useCreationEstimatesStore.getState().record('browser-sample',estimateCondition(config,createComposerSubmission('image','原始描述',[],config)),2000);
+  });
+  await page.getByRole('button',{name:'参数预设',exact:true}).click();
+  await page.getByRole('textbox',{name:'预设名称'}).fill('方形两张');
+  await page.getByRole('button',{name:'保存当前参数',exact:true}).click();
+  await page.getByText('参数预设已保存到本机',{exact:true}).waitFor();
+  await page.evaluate(async()=>{const {useConfigStore}=await import('/src/stores/use-config-store.ts');useConfigStore.setState({config:{...useConfigStore.getState().config,count:'1',size:'16:9'}});});
+  await page.getByRole('button',{name:'应用',exact:true}).click();
+  const applied=await page.evaluate(async()=>{const {useConfigStore}=await import('/src/stores/use-config-store.ts'); return {count:useConfigStore.getState().config.count,size:useConfigStore.getState().config.size};});
+  if(applied.count!=='2'||applied.size!=='1:1') throw new Error('preset not applied '+JSON.stringify(applied));
+  await page.getByRole('button',{name:'参数预设',exact:true}).click();
+  await page.getByRole('button',{name:'报价与耗时',exact:true}).click();
+  await page.getByRole('textbox',{name:'渠道单价'}).fill('0.25');
+  await page.getByRole('textbox',{name:'报价来源'}).fill('用户测试合同报价');
+  await page.getByRole('button',{name:'保存当前条件报价',exact:true}).click();
+  await page.getByText('当前条件报价已保存',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Close',exact:true}).click();
+  await page.getByText('参考费用 0.5000 CNY',{exact:true}).waitFor();
+  await page.getByText('历史耗时中位数 2秒 · 1 次',{exact:true}).waitFor();
+  await page.evaluate(async()=>{const {useConfigStore}=await import('/src/stores/use-config-store.ts');useConfigStore.setState({config:{...useConfigStore.getState().config,count:'3'}});});
+  await page.getByText('参考费用 0.7500 CNY',{exact:true}).waitFor();
+  if(await page.getByText('历史耗时中位数 2秒 · 1 次',{exact:true}).count()) throw new Error('duration reused for different batch count');
+  await page.reload();
+  await page.getByRole('button',{name:'参数预设',exact:true}).click();
+  await page.getByText('方形两张',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'应用',exact:true}).click();
+  await page.getByText('参考费用 0.5000 CNY',{exact:true}).waitFor();
+  await page.goto(base+'/canvas');
+  const id=await page.evaluate(async()=>{
+    const {useCanvasStore,flushCanvasSave}=await import('/src/stores/canvas/use-canvas-store.ts');if(!useCanvasStore.getState().hydrated)await useCanvasStore.persist.rehydrate();
+    const {useConfigStore}=await import('/src/stores/use-config-store.ts');const config=useConfigStore.getState().config;
+    const c=document.createElement('canvas');c.width=32;c.height=32;c.getContext('2d').fillRect(0,0,32,32);
+    const {uploadImage}=await import('/src/services/image-storage.ts');const image=await uploadImage(c.toDataURL('image/png'));
+    const {createComposerSubmission,creationSnapshot}=await import('/src/lib/composer.ts');const creation=creationSnapshot(createComposerSubmission('image','原作品',[],config));
+    const nodes=[{id:'material',type:'image',title:'原始素材',position:{x:80,y:80},width:200,height:200,metadata:{content:image.url,storageKey:image.storageKey,status:'success',creation}}, {id:'config',type:'config',title:'配置',position:{x:400,y:80},width:240,height:200,metadata:{prompt:'@[node:material] 新版本',composerContent:'@[node:material] 新版本',generationMode:'image',model:config.imageModel,count:1}}];
+    const edges=[{id:'input',fromNodeId:'material',toNodeId:'config',kind:'input'}];
+    const {planWorkflow}=await import('/src/lib/canvas/workflow.ts');const plan=planWorkflow(nodes,edges,['config'],config,'独立素材模板');
+    const {useWorkflowStore}=await import('/src/stores/canvas/use-workflow-store.ts');await useWorkflowStore.getState().save(plan,plan.title);
+    const id=useCanvasStore.getState().createProject('创作辅助验收');useCanvasStore.getState().updateProject(id,{nodes,connections:edges});await flushCanvasSave();return id;
+  });
+  await page.goto(base+'/canvas/'+id);
+  await page.locator('[data-node-id="material"]').waitFor();
+  await page.evaluate(()=>{document.activeElement?.blur();});await page.keyboard.press('Control+a');
+  await page.getByRole('button',{name:'比较所选结果',exact:true}).click();
+  await page.getByText('批次与版本比较',{exact:true}).waitFor();
+  await page.getByText('原作品',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Close',exact:true}).click();
+  await page.getByRole('button',{name:'工作流',exact:true}).click();
+  await page.getByText('本机模板（1）',{exact:true}).click();
+  await page.evaluate(()=>{const create=URL.createObjectURL.bind(URL);URL.createObjectURL=(blob)=>{if(blob.type==='application/zip')window.templateZip=blob;return create(blob);};});
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'导出 ZIP',exact:true}).click();
+  if(!(await download).suggestedFilename().endsWith('.zip')) throw new Error('no template download');
+  const zip=await page.evaluate(async()=>{
+    const {readZip}=await import('/src/lib/zip.ts');const entries=await readZip(window.templateZip);const manifest=JSON.parse(await entries.get('template.json').text());
+    if(manifest.assets.length!==1 || !entries.get(manifest.assets[0].path)?.size || JSON.stringify(manifest).includes('mock-key'))throw new Error('incomplete/unsafe archive');
+    return Array.from(new Uint8Array(await window.templateZip.arrayBuffer()));
+  });
+  await page.locator('input[type=file][accept=".zip"]').setInputFiles({name:'portable.zip',mimeType:'application/zip',buffer:Buffer.from(zip)});
+  await page.getByText('模板及原始素材已导入，请展开并重新预览参数',{exact:true}).waitFor();
+  await page.evaluate(async()=>{
+    const {readZip,createZip}=await import('/src/lib/zip.ts');const entries=await readZip(window.templateZip);
+    const {importWorkflowTemplate}=await import('/src/lib/canvas/workflow-archive.ts');
+    const {useWorkflowStore}=await import('/src/stores/canvas/use-workflow-store.ts');
+    const before=useWorkflowStore.getState().templates.length;
+    const broken=await createZip([{name:'template.json',data:entries.get('template.json')}]);
+    let missingRejected=false;try{await importWorkflowTemplate(broken);}catch{missingRejected=true;}
+    if(!missingRejected || useWorkflowStore.getState().templates.length!==before)throw new Error('Missing archive file published a template');
+    const {canvasIndexedStorage}=await import('/src/lib/localforage-storage.ts');
+    const {STORAGE_NS}=await import('/src/constant/brand.ts');const localforage=(await import('/node_modules/.vite/deps/localforage.js')).default;
+    const images=localforage.createInstance({name:STORAGE_NS,storeName:'image_files'});const keysBefore=(await images.keys()).sort();
+    const write=canvasIndexedStorage.setItem.bind(canvasIndexedStorage);canvasIndexedStorage.setItem=async()=>{throw new DOMException('test quota','QuotaExceededError');};
+    let quotaRejected=false;try{await importWorkflowTemplate(window.templateZip);}catch{quotaRejected=true;}finally{canvasIndexedStorage.setItem=write;}
+    if(!quotaRejected || useWorkflowStore.getState().templates.length!==before || JSON.stringify((await images.keys()).sort())!==JSON.stringify(keysBefore))throw new Error('Failed template save did not roll back original-file writes');
+  });
+  await page.getByRole('button',{name:'展开到画布',exact:true}).last().click();
+  await page.getByText('模板已展开为独立节点，请选择节点预览后执行',{exact:true}).waitFor();
+  const result=await page.evaluate(async(id)=>{
+    const {useCanvasStore,flushCanvasSave}=await import('/src/stores/canvas/use-canvas-store.ts');await flushCanvasSave();const p=useCanvasStore.getState().openProject(id);
+    const {useWorkflowStore}=await import('/src/stores/canvas/use-workflow-store.ts');const t=useWorkflowStore.getState().templates;
+    const {getImageBlob}=await import('/src/services/image-storage.ts');
+    if(t[0].plan.resources[0].metadata.storageKey===t[1].plan.resources[0].metadata.storageKey)throw new Error('import reused original file identity');
+    if(!(await getImageBlob(t[1].plan.resources[0].metadata.storageKey))?.size)throw new Error('import missing file');
+    if(p.nodes.length!==4 || p.nodes[0].metadata.creation.prompt!=='原作品')throw new Error('comparison/template overwrote originals');
+    return {templates:t.length,nodes:p.nodes.length};
+  },id);
+  if(calls.length)throw new Error('auxiliary actions generated paid requests');
+  await page.screenshot({path:'output/playwright/evidence/creation-tools.png'});
+  return {preset:'applied and persisted',quote:'count updates cost; incompatible history excluded',comparison:'preserves original',archive:'original file included and remapped',...result,modelCalls:0};
+}

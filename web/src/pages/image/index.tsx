@@ -1,3 +1,6 @@
+import { estimateCondition } from "@/lib/creation-estimates";
+import { useCreationEstimatesStore } from "@/stores/use-creation-estimates-store";
+import { CreationComparison, type ComparisonItem } from "@/components/composer/creation-comparison";
 import { CreationDetails } from "@/components/composer/creation-details";
 import { Composer } from "@/components/composer/composer";
 import { CanvasDeliveryButton, deliverToCanvas, prepareCanvasSubmission } from "@/components/composer/canvas-delivery";
@@ -95,6 +98,7 @@ export default function ImagePage() {
     const [elapsedMs, setElapsedMs] = useState(0);
     const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
     const [previewLog, setPreviewLog] = useState<GenerationLog | null>(null);
+    const [comparison, setComparison] = useState<ComparisonItem[] | undefined>();
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [autoRunToken, setAutoRunToken] = useState(0);
     const imageCommand = useWorkbenchAgentStore((state) => state.imageCommand);
@@ -162,6 +166,7 @@ export default function ImagePage() {
         const error = failed?.reason instanceof Error ? failed.reason.message : failCount ? t("workbench.generationFailed") : undefined;
         if (agentTaskId) updateAgentTask(agentTaskId, { status: successCount ? "succeeded" : "failed", successCount, failCount, error: successCount ? undefined : error });
 
+        if (!failCount) void useCreationEstimatesStore.getState().record(snapshot.submission.id, estimateCondition(snapshot.config, snapshot.submission), performance.now() - batchStartedAt).catch((error) => showErrorToast(message, error, "结果已生成，耗时记录保存失败"));
         try {
             saveLog(
                 buildLog({
@@ -385,6 +390,8 @@ export default function ImagePage() {
                         }
                     >
                         {panelTab === "logs" ? (
+                            <>
+                            <div className="mb-3"><InkChip disabled={!selectedLogIds.length} onClick={() => setComparison(logs.filter((log) => selectedLogIds.includes(log.id)).flatMap((log) => log.images.map((image, index) => ({ id: image.id, title: `${log.title} · ${index + 1}`, mode: "image" as const, content: image.dataUrl, storageKey: image.storageKey, creation: image.creation, prompt: log.prompt, parameters: log.config, source: log.id }))))}>比较勾选批次</InkChip></div>
                             <LogPanel
                                 logs={logs}
                                 selectedLogIds={selectedLogIds}
@@ -394,6 +401,7 @@ export default function ImagePage() {
                                 onDeleteSelected={() => setDeleteConfirmOpen(true)}
                                 onPreviewLog={(log) => void previewGenerationLog(log)}
                             />
+                            </>
                         ) : results.length ? (
                             <>
                                 <ResultSessionHeader time={sessionTime} prompt={sessionPrompt.slice(0, 24) + (sessionPrompt.length > 24 ? "…" : "")} meta={sessionMeta} />
@@ -456,6 +464,7 @@ export default function ImagePage() {
                 }
                 composer={<Composer mode="image" busy={running} onSubmit={(submission) => void generate(submission)} />}
             />
+            <CreationComparison items={comparison || []} open={comparison !== undefined} onClose={() => setComparison(undefined)} />
             <Modal title={t("workbench.deleteLogs")} open={deleteConfirmOpen} onCancel={() => setDeleteConfirmOpen(false)} onOk={deleteSelectedLogs} okText={t("common.delete")} okButtonProps={{ danger: true }} cancelText={t("common.cancel")}>
                 {t("workbench.deleteLogsConfirm", { count: selectedLogIds.length })}
             </Modal>

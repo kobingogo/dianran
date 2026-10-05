@@ -1,3 +1,6 @@
+import { estimateCondition } from "@/lib/creation-estimates";
+import { useCreationEstimatesStore } from "@/stores/use-creation-estimates-store";
+import { CreationComparison, canvasComparisonItems, type ComparisonItem } from "@/components/composer/creation-comparison";
 import { flushSync } from "react-dom";
 import { CanvasWorkflowPanel } from "@/components/canvas/canvas-workflow-panel";
 import { workflowResults, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
@@ -3293,6 +3296,7 @@ function InfiniteCanvasPage() {
         [configInputsById, confirmStopGeneration, handleConfigNodeChange, handleGenerateNode, runningNodeId, effectiveConfig, message, submitCanvasComposer],
     );
 
+    const [comparison, setComparison] = useState<ComparisonItem[] | undefined>();
     const commitWorkflowGraph = (nextNodes: CanvasNodeData[], nextConnections: CanvasConnection[]) => {
         nodesRef.current = nextNodes; connectionsRef.current = nextConnections;
         flushSync(() => { setNodes(nextNodes); setConnections(nextConnections); });
@@ -3314,11 +3318,13 @@ function InfiniteCanvasPage() {
         state.configId = graph.config.id;
         commitWorkflowGraph(graph.nodes, graph.connections);
         await checkpoint();
+        const startedAt = performance.now();
         await handleGenerateNode(graph.config.id, step.mode, submission.prompt);
         flushSync(() => { setNodes((value) => { nodesRef.current = value; return value; }); setConnections((value) => { connectionsRef.current = value; return value; }); });
         updateProject(projectId, { nodes: nodesRef.current, connections: connectionsRef.current });
         await flushCanvasSave();
         const resultIds = workflowResults(step, state, nodesRef.current, connectionsRef.current);
+        void useCreationEstimatesStore.getState().record(graph.config.id, estimateCondition(config, submission), performance.now() - startedAt).catch((error) => showErrorToast(message, error, "结果已生成，耗时记录保存失败"));
         state.resultNodes = resultIds.map((id) => structuredClone(nodesRef.current.find((node) => node.id === id)!));
         return resultIds;
     };
@@ -3329,8 +3335,10 @@ function InfiniteCanvasPage() {
         <main className="relative flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
             <CanvasSidePanel nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onInsertAsset={handleAssetInsert} />
             <section className="relative min-w-0 flex-1 overflow-hidden">
+                <CreationComparison open={comparison !== undefined} items={comparison || []} onClose={() => setComparison(undefined)} />
                 <CanvasWorkflowPanel selectedIds={selectedNodeIds} commit={commitWorkflowGraph} execute={executeWorkflowStep} />
                 <CanvasTopBar
+                    onCompare={() => setComparison(canvasComparisonItems(nodesRef.current.filter((node) => selectedNodeIds.has(node.id))))}
                     title={currentProject?.title || t("canvas.projectPage.untitledCanvas")}
                     titleDraft={titleDraft}
                     isTitleEditing={titleEditing}

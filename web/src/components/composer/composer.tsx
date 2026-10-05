@@ -1,3 +1,6 @@
+import { CreationEstimate } from "./creation-estimate";
+import { useCreationPreferencesStore } from "@/stores/use-creation-preferences-store";
+import { applyCreationPreset } from "@/lib/creation-preferences";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { App, Input, Popover, Switch } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +29,7 @@ import { showErrorToast } from "@/features/errors/error-toast";
 const SettingsSheet = lazy(() => import("@/components/workbench/workbench-layout").then((module) => ({ default: module.SettingsSheet })));
 const AssetPickerModal = lazy(() => import("@/components/canvas/asset-picker-modal").then((module) => ({ default: module.AssetPickerModal })));
 const PromptSelectDialog = lazy(() => import("@/components/prompts/prompt-select-dialog").then((module) => ({ default: module.PromptSelectDialog })));
-const titles = { add: "添加内容", model: "选择模型", ratio: "画面比例", quality: "画质与输出", count: "生成张数", seconds: "视频时长", resolution: "视频清晰度", more: "更多设置" };
+const titles = { add: "添加内容", model: "选择模型", ratio: "画面比例", quality: "画质与输出", count: "生成张数", seconds: "视频时长", resolution: "视频清晰度", presets: "参数预设", more: "更多设置" };
 type Panel = keyof typeof titles;
 
 export type CanvasComposerBinding = {
@@ -55,6 +58,11 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false, canvas }:
     const hydrated = useComposerStore((state) => state.hydrated);
     const patch = (value: ComposerMode, change: Partial<typeof draft>) => useComposerStore.getState().patch(value, change, canvas?.scope);
     const setReferences = (value: ComposerMode, next: ReferenceImage[] | ((refs: ReferenceImage[]) => ReferenceImage[])) => useComposerStore.getState().setReferences(value, next, canvas?.scope);
+    const presets = useCreationPreferencesStore((state) => state.presets);
+    const [presetName, setPresetName] = useState("");
+    const [keepModel, setKeepModel] = useState(true);
+    const [presetBusy, setPresetBusy] = useState(false);
+    const presetAction = async (action: () => Promise<void>) => { setPresetBusy(true); try { await action(); } catch (error) { showErrorToast(message, error); } finally { setPresetBusy(false); } };
     const [panel, setPanel] = useState<Panel | null>(null);
     const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 767px)").matches);
     const [search, setSearch] = useState("");
@@ -183,7 +191,19 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false, canvas }:
         </div>
     );
     const resolutionLabel = video.caps.paramStyle === "openai-sora" && video.resolution === "1080p" ? "1080p 档" : video.resolution;
+    useEffect(() => { if (panel === "presets") void useCreationPreferencesStore.getState().load().catch((error) => showErrorToast(message, error)); }, [panel, message]);
     const panelBody = (key: Panel): ReactNode => {
+        if (key === "presets") return <div className="space-y-3">
+            <Input aria-label="预设名称" placeholder="预设名称" value={presetName} onChange={(event) => setPresetName(event.target.value)} />
+            <InkButton disabled={presetBusy} onClick={() => void presetAction(async () => { await useCreationPreferencesStore.getState().save(presetName, mode, currentConfig()); message.success("参数预设已保存到本机"); })}>保存当前参数</InkButton>
+            <label className="flex gap-2 text-sm"><input type="checkbox" checked={keepModel} onChange={(event) => setKeepModel(event.target.checked)} />保留当前模型</label>
+            {presets.filter((preset) => preset.mode === mode).map((preset) => <div key={preset.id} className="space-y-1 border-t border-[var(--ink-200)] pt-2">
+                <p>{preset.title}</p><pre className="overflow-auto text-xs">{JSON.stringify(preset.parameters, null, 2)}</pre>
+                <div className="flex gap-2"><InkButton disabled={presetBusy || busy} onClick={() => { const next = applyCreationPreset(preset, currentConfig(), keepModel, canvas ? 15 : 10); replaceConfig(next.config); setAdjustNote(next.notes.join("；")); message.success("预设已应用，请核对参数后提交"); }}>应用</InkButton>
+                <InkButton disabled={presetBusy} onClick={() => void presetAction(() => useCreationPreferencesStore.getState().remove(preset.id))}>删除</InkButton></div>
+            </div>)}
+            <CapabilityNote>只保存本模式参数；应用不会生成，模型能力调整会显示在输入区。</CapabilityNote>
+        </div>;
         if (key === "add")
             return (
                 <div className="grid gap-2">
@@ -356,6 +376,8 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false, canvas }:
             </div>
         );
     };
+    let estimateSubmission: ComposerSubmission | undefined;
+    try { estimateSubmission = canvas ? canvas.prepare(draft.prompt || "估算", draft.references, config) : createComposerSubmission(mode, draft.prompt || "估算", draft.references, config, false); } catch { /* Invalid inputs have no estimate. */ }
     const chip = (key: Panel, label: ReactNode) => {
         const button = (
             <InkChip key={key} aria-label={titles[key]} onClick={mobile ? () => setPanel((current) => (current === key ? null : key)) : undefined}>
@@ -529,8 +551,10 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false, canvas }:
                         {chip("seconds", `${video.seconds} 秒 ▾`)}
                     </>
                 )}
+                {chip("presets", "预设")}
                 {chip("more", "更多⋯")}
             </div>
+            <CreationEstimate submission={estimateSubmission} config={config} />
             {canvas?.error ? <div role="alert" className="mt-1 text-xs text-[color:var(--zhu-600)]">{canvas.error}</div> : null}
             {adjustNote ? (
                 <div role="status" className="mt-1 text-xs text-[color:var(--zhu-600)]">
@@ -545,7 +569,7 @@ export function Composer({ mode, onModeChange, onSubmit, busy = false, canvas }:
             <div className="mt-2 flex items-center gap-3">
                 <span className="min-w-0 flex-1 text-[11px] leading-5 text-[color:var(--ink-400)]">
                     {mode === "image" ? `${count} 次生成请求` : "1 次创建任务（不含轮询）"}
-                    <br className="sm:hidden" /> · 费用由所选渠道计费{draft.canvas ? " · 仅最终结果入画布" : ""}
+                    <br className="sm:hidden" />{draft.canvas ? " · 仅最终结果入画布" : ""}
                     {mode === "image" && image.background ? " · 透明背景" : ""}
                     {mode === "video" && video.caps.audio && config.videoGenerateAudio === "true" ? " · 有声" : ""}
                     {mode === "video" && video.caps.paramStyle !== "openai-sora" && config.videoWatermark === "true" ? " · 水印" : ""}

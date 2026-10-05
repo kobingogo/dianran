@@ -1,3 +1,6 @@
+import { CreationEstimate } from "@/components/composer/creation-estimate";
+import { workflowEstimateCondition } from "@/lib/creation-estimates";
+import { exportWorkflowTemplate, importWorkflowTemplate } from "@/lib/canvas/workflow-archive";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { App, Modal } from "antd";
@@ -33,6 +36,8 @@ export function CanvasWorkflowPanel({
     const [plan, setPlan] = useState<WorkflowPlan>();
     const [busy, setBusy] = useState(false);
     const stop = useRef(false);
+    const templateInput = useRef<HTMLInputElement>(null);
+    const templateAction = async (action: () => Promise<void>) => { setBusy(true); try { await action(); } catch (error) { report(error); } finally { setBusy(false); } };
     useEffect(() => {
         return () => {
             stop.current = true;
@@ -166,6 +171,7 @@ export function CanvasWorkflowPanel({
                                     {step.inputs.map((input) => (input.stepId ? `步骤 ${plan.steps.findIndex((item) => item.id === input.stepId) + 1}` : input.nodeId)).join("、") || "无"}
                                 </p>
                                 <pre className="overflow-auto text-xs">{JSON.stringify(step.actual, null, 2)}</pre>
+                                <CreationEstimate config={config} approvedCondition={workflowEstimateCondition(step, plan, config)} />
                             </div>
                         ))}
                         <div className="flex gap-3">
@@ -189,9 +195,12 @@ export function CanvasWorkflowPanel({
                 )}
                 <details className="mt-5">
                     <summary>本机模板（{templates.length}）</summary>
+                    <input hidden ref={templateInput} type="file" accept=".zip" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void templateAction(async () => { await importWorkflowTemplate(file); message.success("模板及原始素材已导入，请展开并重新预览参数"); }); }} />
+                    <button disabled={busy} onClick={() => templateInput.current?.click()}>导入模板 ZIP</button>
                     {templates.map((template) => (
                         <div key={template.id} className="my-2 flex gap-3">
                             <span>{template.title}</span>
+                            <button disabled={busy} onClick={() => void templateAction(() => exportWorkflowTemplate(template))}>导出 ZIP</button>
                             <button disabled={busy} onClick={() => void apply(template.plan)}>
                                 展开到画布
                             </button>
