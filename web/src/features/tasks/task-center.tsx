@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { Popover } from "antd";
 import { AudioLines, CheckCircle2, CircleSlash, Clock3, FileText, ImageIcon, ListChecks, LoaderCircle, Video, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 
 import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 import { isActiveTask, useTaskStore, type GenerationTask } from "./task-store";
 import { formatElapsed, phaseHint, phaseLabel } from "./task-labels";
 import { useNow } from "./use-now";
+import { useAgentStore } from "@/stores/use-agent-store";
 
 const KIND_ICON = { image: ImageIcon, video: Video, text: FileText, audio: AudioLines } as const;
 const RECENT_MS = 3 * 60_000;
@@ -53,6 +55,11 @@ function TaskRow({ task, now }: { task: GenerationTask; now: number }) {
 
 export function TaskCenter({ className }: { className?: string }) {
     const { t } = useTranslation();
+    // [dianran] On the canvas editor the left side panel + zoom controls own the bottom-left corner and the toolbar spans the
+    // bottom edge, so the pill sits top-right under the canvas top bar and slides left of the Agent panel when it is open.
+    const onCanvas = /^\/canvas\/[^/]+/.test(useLocation().pathname);
+    const agentOpen = useAgentStore((state) => state.panelOpen);
+    const agentWidth = useAgentStore((state) => state.width);
     const tasks = useTaskStore((state) => state.tasks);
     const clearFinished = useTaskStore((state) => state.clearFinished);
     const [open, setOpen] = useState(false);
@@ -72,7 +79,7 @@ export function TaskCenter({ className }: { className?: string }) {
     if (!visible) return null;
 
     const content = (
-        <div className="w-[340px]" data-task-center>
+        <div className="w-[min(340px,calc(100vw-48px))]" data-task-center>
             <div className="mb-1 flex items-center justify-between">
                 <div className="text-sm font-semibold">{t("tasks.title")}</div>
                 <button type="button" className="text-[11px] text-stone-400 transition hover:text-stone-700 dark:hover:text-stone-200" onClick={clearFinished}>
@@ -89,13 +96,14 @@ export function TaskCenter({ className }: { className?: string }) {
     );
 
     return (
-        <Popover content={content} trigger="click" open={open} onOpenChange={setOpen} placement="topLeft" arrow={false}>
+        <Popover content={content} trigger="click" open={open} onOpenChange={setOpen} placement={onCanvas ? "bottomRight" : "topLeft"} arrow={false}>
             <button
                 type="button"
                 className={
                     className ||
-                    "fixed bottom-4 left-4 z-[65] inline-flex h-9 items-center gap-2 rounded-full border border-stone-200 bg-white/95 px-3.5 text-xs font-medium text-stone-700 shadow-lg backdrop-blur transition hover:shadow-xl dark:border-stone-700 dark:bg-stone-900/95 dark:text-stone-200"
+                    `fixed z-[65] inline-flex h-9 items-center gap-2 rounded-full border border-stone-200 bg-white/95 px-3.5 text-xs font-medium text-stone-700 shadow-lg backdrop-blur transition-[right,box-shadow] duration-300 hover:shadow-xl dark:border-stone-700 dark:bg-stone-900/95 dark:text-stone-200 ${onCanvas ? "top-[60px] sm:top-[68px]" : "bottom-4 left-4"}`
                 }
+                style={onCanvas && !className ? { right: agentOpen && window.innerWidth >= 640 ? agentWidth + 17 : 16 } : undefined}
                 aria-label={t("tasks.title")}
                 data-task-center-trigger
             >

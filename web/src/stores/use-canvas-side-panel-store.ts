@@ -17,6 +17,8 @@ function initialWidth() {
 
 function initialOpen() {
     if (typeof window === "undefined") return true;
+    // [dianran] Phones start with the panel closed (it opens as an overlay there).
+    if (window.matchMedia("(max-width: 767px)").matches) return false;
     return localStorage.getItem(OPEN_KEY) !== "0";
 }
 

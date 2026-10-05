@@ -41,7 +41,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     return (
         <div className="inline-flex shrink-0 items-center gap-1" data-header-actions>
             {showConfig ? (
-                <button type="button" className={variant === "canvas" ? labelButtonClass : naturalIconClass} style={iconStyle} onClick={() => openConfigDialog(false)} aria-label={t("navigation.config")} title={t("navigation.config")}>
+                <button type="button" className={variant === "canvas" ? labelButtonClass : `${naturalIconClass} max-md:hidden`} style={iconStyle} onClick={() => openConfigDialog(false)} aria-label={t("navigation.config")} title={t("navigation.config")}>
                     <Settings2 className="size-4" />
                     {/* main pages already show a labelled 设置 nav item; the canvas bar has no nav, so label it there */}
                     {variant === "canvas" ? <span className="hidden sm:inline">{t("navigation.config")}</span> : null}
@@ -50,7 +50,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             <AnimatedThemeToggler
                 theme={theme}
                 onThemeChange={setTheme}
-                className={naturalIconClass}
+                className={variant === "canvas" ? naturalIconClass : `${naturalIconClass} max-md:hidden`}
                 style={iconStyle}
                 aria-label={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")}
                 title={t(theme === "dark" ? "topNav.lightTheme" : "topNav.darkTheme")}
@@ -68,7 +68,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
                     ];
                     return (
                         <Dropdown trigger={["click"]} placement="bottomRight" menu={{ items }}>
-                            <button type="button" className={`${naturalIconClass} relative`} style={iconStyle} aria-label={t("topNav.more")} title={t("topNav.more")} data-header-more>
+                            <button type="button" className={`${naturalIconClass} relative max-md:size-10`} style={iconStyle} aria-label={t("topNav.more")} title={t("topNav.more")} data-header-more>
                                 <Ellipsis className="size-4" />
                                 {hasNewVersion ? <span className="absolute right-1 top-1 size-1.5 rounded-full bg-green-500" /> : null}
                             </button>

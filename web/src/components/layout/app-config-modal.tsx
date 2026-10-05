@@ -17,6 +17,7 @@ import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from 
 import { createModelChannel, modelOptionsFromChannels, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
 import { DEFAULT_WEBDAV_DIRECTORY } from "@/constant/brand";
 import { useOnboardingStore } from "@/features/onboarding/onboarding-store";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 // [dianran] Settings split into 常用 (model services, default models) and 高级 (everything else).
 const COMMON_TABS: ConfigTabKey[] = ["channels", "preferences"];
@@ -93,7 +94,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
             await importAppConfig(file);
             message.success(t("config.imported"));
         } catch (error) {
-            message.error(error instanceof Error ? error.message : t("config.importFailed"));
+            showErrorToast(message, error, t("config.importFailed"));
         } finally {
             if (configInputRef.current) configInputRef.current.value = "";
         }
@@ -129,7 +130,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
             await testWebdavConnection(webdav);
             message.success(t("config.webdav.available"));
         } catch (error) {
-            message.error(error instanceof Error ? error.message : t("config.webdav.testFailed"));
+            showErrorToast(message, error, t("config.webdav.testFailed"));
         } finally {
             setTestingWebdav(false);
         }
@@ -163,7 +164,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
             message.success(t("config.webdav.completed", { projects: result.projects, assets: result.assets, records: result.imageLogs + result.videoLogs, files: result.uploadedFiles, bytes: formatBytes(result.uploadedBytes) }));
         } catch (error) {
             setWebdavSyncStatus(error instanceof Error ? error.message : t("config.webdav.failed"));
-            message.error(error instanceof Error ? error.message : t("config.webdav.failed"));
+            showErrorToast(message, error, t("config.webdav.failed"));
         } finally {
             setSyncingWebdav(false);
         }

@@ -1,0 +1,90 @@
+{
+  "id": "product-set",
+  "title": "产品图组",
+  "titleEn": "Product photo set",
+  "description": "描述一次产品，生成白底主图、使用场景、细节特写和生活方式四张电商图。",
+  "descriptionEn": "Describe the product once and get a white-background hero, an in-use scene, a detail close-up and a lifestyle shot.",
+  "tags": [
+    "电商",
+    "产品"
+  ],
+  "accent": "#2F4A7A",
+  "nodes": [
+    {
+      "key": "product",
+      "type": "text",
+      "title": "产品描述（先改这里）",
+      "x": 0,
+      "y": 415,
+      "w": 340,
+      "h": 280,
+      "content": "产品：陶瓷手冲咖啡壶，哑光燕麦白釉面，木质手柄，容量 600ml，细长鹅颈壶嘴。\n卖点：出水稳定、握感舒适、适合家用手冲。\n统一要求：商业产品摄影质感，柔和自然光，真实材质细节，画面干净，不出现文字和品牌 Logo。"
+    },
+    {
+      "key": "hero",
+      "type": "config",
+      "title": "白底主图",
+      "x": 440,
+      "y": 0,
+      "w": 340,
+      "h": 240,
+      "size": "1:1",
+      "count": 1,
+      "prompt": "{{product}}\n纯白背景的电商主图，产品居中、三分之二侧面角度，柔和投影，高清锐利。"
+    },
+    {
+      "key": "scene",
+      "type": "config",
+      "title": "使用场景",
+      "x": 440,
+      "y": 290,
+      "w": 340,
+      "h": 240,
+      "size": "4:3",
+      "count": 1,
+      "prompt": "{{product}}\n产品正在使用：木质台面上手冲咖啡，热气升腾，背景是晨光中的厨房，浅景深。"
+    },
+    {
+      "key": "detail",
+      "type": "config",
+      "title": "细节特写",
+      "x": 440,
+      "y": 580,
+      "w": 340,
+      "h": 240,
+      "size": "1:1",
+      "count": 1,
+      "prompt": "{{product}}\n微距特写壶嘴和釉面质感，可见细腻的釉面颗粒和木柄纹理，暗色背景，侧逆光。"
+    },
+    {
+      "key": "lifestyle",
+      "type": "config",
+      "title": "生活方式",
+      "x": 440,
+      "y": 870,
+      "w": 340,
+      "h": 240,
+      "size": "3:4",
+      "count": 1,
+      "prompt": "{{product}}\n生活方式图：周末早晨的餐桌，产品与咖啡杯、书本、绿植自然摆放，温暖色调，俯拍构图。"
+    }
+  ],
+  "connections": [
+    [
+      "product",
+      "hero"
+    ],
+    [
+      "product",
+      "scene"
+    ],
+    [
+      "product",
+      "detail"
+    ],
+    [
+      "product",
+      "lifestyle"
+    ]
+  ]
+}

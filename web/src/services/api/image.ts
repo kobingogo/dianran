@@ -9,6 +9,7 @@ import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { imageToDataUrl } from "@/services/image-storage";
 import { imageSizePresets, inferMediaScale } from "@/lib/media-size";
 import type { ReferenceImage } from "@/types/image";
+import { presetApiFlags } from "@/constant/brand";
 
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
 
@@ -337,6 +338,127 @@ function readStatusError(status: number | undefined, fallback: string) {
     return status ? apiText("httpFailed", { status }) : fallback;
 }
 
+// ---- [dianran] Responses API -> Chat Completions fallback (SiliconFlow, OpenRouter, many relays) ----
+class ApiStatusError extends Error {
+    constructor(message: string, readonly status: number) {
+        super(message);
+    }
+}
+
+/** Base URLs that proved to need /chat/completions in this session (auto-detected after a 404 / unsupported reply). */
+const chatTextHosts = new Set<string>();
+const chatImageHosts = new Set<string>();
+const hostKey = (config: Pick<AiConfig, "baseUrl">) => config.baseUrl.trim().replace(/\/+$/, "").toLowerCase();
+
+function prefersChatText(config: AiConfig) {
+    return presetApiFlags(config.baseUrl).textApi === "chat" || chatTextHosts.has(hostKey(config));
+}
+
+function imageApiOf(config: AiConfig) {
+    return chatImageHosts.has(hostKey(config)) ? "chat" : presetApiFlags(config.baseUrl).imageApi || "openai";
+}
+
+/** 404 / 405 / 501, or a 400 that says the endpoint itself is unknown -> the provider lacks this API, try the other one. */
+function isUnsupportedEndpoint(error: unknown) {
+    const status = error instanceof ApiStatusError ? error.status : axios.isAxiosError(error) ? error.response?.status : undefined;
+    if (status === 404 || status === 405 || status === 501) return true;
+    const text = error instanceof Error ? error.message : "";
+    return status === 400 && /(unknown|unsupported|not supported|invalid).{0,20}(url|endpoint|path|route|api)|no route|responses api/i.test(text);
+}
+
+async function requestStreamingChat(config: AiConfig, messages: AiTextMessage[], onDelta?: (text: string) => void, options?: RequestOptions): Promise<string> {
+    const response = await fetch(aiApiUrl(config, "/chat/completions"), {
+        method: "POST",
+        headers: { ...aiHeaders(config, "application/json"), Accept: "text/event-stream" },
+        body: JSON.stringify({ model: config.model, messages, stream: true, ...(config.reasoningEffort === "auto" ? {} : { reasoning_effort: config.reasoningEffort }) }),
+        signal: options?.signal,
+    });
+    if (!response.ok) throw new ApiStatusError(await readFetchError(response, apiText("requestFailed")), response.status);
+    if (!response.body || !(response.headers.get("content-type") || "").includes("event-stream")) {
+        const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } };
+        if (payload.error?.message) throw new Error(payload.error.message);
+        const text = payload.choices?.[0]?.message?.content || "";
+        onDelta?.(text);
+        return text;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let text = "";
+    const consume = (line: string) => {
+        if (!line.startsWith("data:")) return;
+        const data = line.slice(5).trim();
+        if (!data || data === "[DONE]") return;
+        const event = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }>; error?: { message?: string } };
+        if (event.error?.message) throw new Error(event.error.message);
+        const delta = event.choices?.[0]?.delta?.content;
+        if (delta) {
+            text += delta;
+            onDelta?.(text);
+        }
+    };
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || "";
+        lines.forEach(consume);
+    }
+    consume((buffer + decoder.decode()).trim());
+    return text;
+}
+
+type ChatImagePayload = { choices?: Array<{ message?: { content?: unknown; images?: Array<{ image_url?: { url?: string }; url?: string }> } }>; error?: { message?: string } };
+
+/** Image generation through /chat/completions with modalities (OpenRouter style). */
+async function requestChatImages(config: AiConfig, prompt: string, references: ReferenceImage[], count: number, options?: RequestOptions) {
+    const refs = await Promise.all(references.map((image) => imageToDataUrl(image)));
+    const content = [{ type: "text", text: withSystemPrompt(config, prompt) }, ...refs.map((url) => ({ type: "image_url", image_url: { url } }))];
+    const once = async () => {
+        const response = await axios.post<ChatImagePayload>(aiApiUrl(config, "/chat/completions"), { model: config.model, messages: [{ role: "user", content }], modalities: ["image", "text"] }, { headers: aiHeaders(config, "application/json"), signal: options?.signal, timeout: IMAGE_REQUEST_TIMEOUT_MS });
+        if (response.data.error?.message) throw new Error(response.data.error.message);
+        const message = response.data.choices?.[0]?.message;
+        const urls = (message?.images || []).map((image) => image.image_url?.url || image.url || "").filter(Boolean);
+        if (!urls.length && Array.isArray(message?.content)) {
+            (message.content as Array<{ type?: string; image_url?: { url?: string } }>).forEach((part) => part.type === "image_url" && part.image_url?.url && urls.push(part.image_url.url));
+        }
+        if (!urls.length) throw new Error(apiText("noImageReturned"));
+        return urls.map((dataUrl) => ({ id: nanoid(), dataUrl }));
+    };
+    return (await Promise.all(Array.from({ length: count }, once))).flat();
+}
+
+/** SiliconFlow /images/generations body: image_size + batch_size (+ image for edits). */
+async function requestSiliconFlowImages(config: AiConfig, prompt: string, references: ReferenceImage[], count: number, requestSize: string | undefined, options?: RequestOptions) {
+    const image = references[0] ? await imageToDataUrl(references[0]) : undefined;
+    const response = await axios.post<ImageApiResponse>(
+        aiApiUrl(config, "/images/generations"),
+        { model: config.model, prompt: withSystemPrompt(config, prompt), batch_size: Math.min(4, count), ...(requestSize && /^\d+x\d+$/.test(requestSize) ? { image_size: requestSize } : {}), ...(image ? { image } : {}) },
+        { headers: aiHeaders(config, "application/json"), signal: options?.signal, timeout: IMAGE_REQUEST_TIMEOUT_MS },
+    );
+    return parseImagePayload(response.data);
+}
+
+/** Run the OpenAI-style image call; providers flagged (or detected) as siliconflow/chat use their own endpoint. */
+async function requestOpenAiCompatibleImages(config: AiConfig, prompt: string, references: ReferenceImage[], count: number, requestSize: string | undefined, standard: () => Promise<Array<{ id: string; dataUrl: string }>>, options?: RequestOptions) {
+    const api = imageApiOf(config);
+    if (api === "siliconflow") return requestSiliconFlowImages(config, prompt, references, count, requestSize, options);
+    if (api === "chat") return requestChatImages(config, prompt, references, count, options);
+    try {
+        return await standard();
+    } catch (error) {
+        if (!isUnsupportedEndpoint(error)) throw error;
+        try {
+            const images = await requestChatImages(config, prompt, references, count, options);
+            chatImageHosts.add(hostKey(config));
+            return images;
+        } catch {
+            throw error; // fallback failed too: report the original error
+        }
+    }
+}
+
 function withSystemPrompt(config: AiConfig, prompt: string) {
     const systemPrompt = config.systemPrompt.trim();
     return systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
@@ -508,7 +630,7 @@ async function requestStreamingResponse(config: AiConfig, body: Record<string, u
         body: JSON.stringify({ ...body, stream: true }),
         signal: options?.signal,
     });
-    if (!response.ok) throw new Error(await readFetchError(response, apiText("requestFailed")));
+    if (!response.ok) throw new ApiStatusError(await readFetchError(response, apiText("requestFailed")), response.status);
     if (!response.body) {
         const payload = (await response.json()) as ResponseApiPayload;
         validateResponsePayload(payload);
@@ -757,27 +879,28 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
     const requestSize = resolveRequestSize(quality, config.size);
     const background = normalizeBackground(config.background);
     try {
-        const response = await axios.post<ImageApiResponse>(
-            aiApiUrl(requestConfig, "/images/generations"),
-            {
-                model: requestConfig.model,
-                prompt: withSystemPrompt(requestConfig, prompt),
-                n,
-                ...(quality ? { quality } : {}),
-                ...(requestSize ? { size: requestSize } : {}),
-                ...(background ? { background } : {}),
-                // gpt-image models reject response_format; they always return b64.
-                ...(/gpt-image/.test(requestConfig.model) ? {} : { response_format: "b64_json" }),
-                output_format: IMAGE_OUTPUT_FORMAT,
-            },
-            {
-                headers: aiHeaders(requestConfig, "application/json"),
-                signal: options?.signal,
-                timeout: IMAGE_REQUEST_TIMEOUT_MS,
-            },
-        );
-        const images = await parseImagePayload(response.data);
-        return images;
+        return await requestOpenAiCompatibleImages(requestConfig, prompt, [], n, requestSize, async () => {
+            const response = await axios.post<ImageApiResponse>(
+                aiApiUrl(requestConfig, "/images/generations"),
+                {
+                    model: requestConfig.model,
+                    prompt: withSystemPrompt(requestConfig, prompt),
+                    n,
+                    ...(quality ? { quality } : {}),
+                    ...(requestSize ? { size: requestSize } : {}),
+                    ...(background ? { background } : {}),
+                    // gpt-image models reject response_format; they always return b64.
+                    ...(/gpt-image/.test(requestConfig.model) ? {} : { response_format: "b64_json" }),
+                    output_format: IMAGE_OUTPUT_FORMAT,
+                },
+                {
+                    headers: aiHeaders(requestConfig, "application/json"),
+                    signal: options?.signal,
+                    timeout: IMAGE_REQUEST_TIMEOUT_MS,
+                },
+            );
+            return parseImagePayload(response.data);
+        }, options);
     } catch (error) {
         throw new Error(readAxiosError(error, apiText("requestFailed")));
     }
@@ -842,9 +965,10 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     files.forEach((file) => formData.append(imageField, file));
 
     try {
-        const response = await axios.post<ImageApiResponse>(aiApiUrl(requestConfig, "/images/edits"), formData, { headers: aiHeaders(requestConfig), signal: options?.signal, timeout: IMAGE_REQUEST_TIMEOUT_MS });
-        const images = await parseImagePayload(response.data);
-        return images;
+        return await requestOpenAiCompatibleImages(requestConfig, requestPrompt, references, n, requestSize, async () => {
+            const response = await axios.post<ImageApiResponse>(aiApiUrl(requestConfig, "/images/edits"), formData, { headers: aiHeaders(requestConfig), signal: options?.signal, timeout: IMAGE_REQUEST_TIMEOUT_MS });
+            return parseImagePayload(response.data);
+        }, options);
     } catch (error) {
         throw new Error(readAxiosError(error, apiText("requestFailed")));
     }
@@ -876,11 +1000,29 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
             if (answer === apiText("noContent")) onDelta(answer);
             return answer;
         }
-        const answer = (await requestStreamingResponse(requestConfig, {
-            model: requestConfig.model,
-            input: toResponseInput(withSystemMessage(requestConfig, messages)),
-            ...(requestConfig.reasoningEffort === "auto" ? {} : { reasoning: { effort: requestConfig.reasoningEffort } }),
-        }, onDelta, options)).content || apiText("noContent");
+        const chatMessages = withSystemMessage(requestConfig, messages) as AiTextMessage[];
+        const viaChat = () => requestStreamingChat(requestConfig, chatMessages, onDelta, options);
+        let answer = "";
+        if (prefersChatText(requestConfig)) answer = await viaChat();
+        else {
+            try {
+                answer = (await requestStreamingResponse(requestConfig, {
+                    model: requestConfig.model,
+                    input: toResponseInput(chatMessages),
+                    ...(requestConfig.reasoningEffort === "auto" ? {} : { reasoning: { effort: requestConfig.reasoningEffort } }),
+                }, onDelta, options)).content;
+            } catch (error) {
+                // [dianran] Provider without the Responses API: retry once on /chat/completions and remember the choice.
+                if (!isUnsupportedEndpoint(error)) throw error;
+                try {
+                    answer = await viaChat();
+                } catch {
+                    throw error;
+                }
+                chatTextHosts.add(hostKey(requestConfig));
+            }
+        }
+        answer = answer || apiText("noContent");
         if (answer === apiText("noContent")) onDelta(answer);
         return answer;
     } catch (error) {

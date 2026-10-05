@@ -8,6 +8,7 @@ import { useCopyText } from "@/hooks/use-copy-text";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { fetchSourcePrompts, refreshSource, type Prompt } from "@/services/api/prompts";
 import type { PromptSource } from "@/services/api/prompt-source-presets";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 export function PromptSourceContentModal({ source, onClose }: { source: PromptSource | null; onClose: () => void }) {
     const { message } = App.useApp();
@@ -25,7 +26,7 @@ export function PromptSourceContentModal({ source, onClose }: { source: PromptSo
             try {
                 setItems(force ? await refreshSourceItems(source.id) : await fetchSourcePrompts(source.id));
             } catch (error) {
-                message.error(error instanceof Error ? error.message : t("config.promptSources.content.loadFailed"));
+                showErrorToast(message, error, t("config.promptSources.content.loadFailed"));
             } finally {
                 setLoading(false);
             }

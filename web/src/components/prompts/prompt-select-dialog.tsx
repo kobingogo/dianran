@@ -7,6 +7,7 @@ import { ALL_PROMPTS_OPTION } from "@/services/api/prompts";
 import { cn } from "@/lib/utils";
 import { PromptCard } from "./prompt-card";
 import { usePromptList } from "./use-prompt-list";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect: (prompt: string) => void }) {
     const { message } = App.useApp();
@@ -25,7 +26,7 @@ export function PromptSelectDialog({ open, onOpenChange, onSelect }: { open: boo
     };
 
     useEffect(() => {
-        if (query.isError) message.error(query.error instanceof Error ? query.error.message : t("prompts.loadFailed"));
+        if (query.isError) showErrorToast(message, query.error, t("prompts.loadFailed"));
     }, [message, query.error, query.isError, t]);
 
     const handleListScroll = (event: UIEvent<HTMLDivElement>) => {

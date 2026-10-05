@@ -1,9 +1,24 @@
 import { Copy, FileText } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Card, Tag } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { formatPromptDate, type Prompt } from "@/services/api/prompts";
+
+/** Local placeholder (no network) used when a prompt has no bundled cover or the image fails to load. */
+function PromptCoverPlaceholder({ className }: { className: string }) {
+    return (
+        <span className={`grid place-items-center bg-gradient-to-br from-stone-100 to-stone-200 text-stone-400 dark:from-stone-900 dark:to-stone-800 dark:text-stone-600 ${className}`}>
+            <FileText className="size-8" />
+        </span>
+    );
+}
+
+export function PromptCover({ src, alt, className, loading = "lazy" }: { src?: string; alt: string; className: string; loading?: "lazy" | "eager" }) {
+    const [failed, setFailed] = useState("");
+    if (!src || failed === src) return <PromptCoverPlaceholder className={className} />;
+    return <img src={src} alt={alt} className={`bg-stone-100 object-cover dark:bg-stone-900 ${className}`} loading={loading} decoding="async" onError={() => setFailed(src)} />;
+}
 
 export function PromptCard({
     item,
@@ -32,7 +47,7 @@ export function PromptCard({
             styles={{ body: compact ? { padding: 0 } : { display: "flex", flex: 1, flexDirection: "column", padding: 0 } }}
             cover={
                 <button type="button" className="block w-full cursor-pointer text-left" onClick={onOpen}>
-                    {item.coverUrl ? <img src={item.coverUrl} alt={item.title} className={compact ? "aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" : "aspect-[4/3] w-full object-cover"} loading="lazy" /> : <span className={compact ? "grid aspect-square w-full place-items-center bg-stone-100 text-stone-400 dark:bg-stone-900 dark:text-stone-600" : "grid aspect-[4/3] w-full place-items-center bg-stone-100 text-stone-400 dark:bg-stone-900 dark:text-stone-600"}><FileText className="size-8" /></span>}
+                    <PromptCover src={item.coverUrl} alt={item.title} className={compact ? "aspect-square w-full transition-transform duration-300 group-hover:scale-[1.03]" : "aspect-[4/3] w-full"} />
                 </button>
             }
         >
@@ -42,7 +57,7 @@ export function PromptCard({
                         <h2 className="line-clamp-1 text-sm font-semibold text-stone-950 dark:text-stone-100">{item.title}</h2>
                         {!compact ? <span className="shrink-0 text-xs text-stone-400 dark:text-stone-500">{formatPromptDate(item.updatedAt, i18n.resolvedLanguage)}</span> : null}
                     </div>
-                    {!compact ? <><p className="mt-2 line-clamp-3 text-xs leading-5 text-stone-600 dark:text-stone-400">{item.description || item.prompt}</p><div className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((tag) => <Tag key={tag} className="m-0 text-[11px]">{tag}</Tag>)}</div></> : null}
+                    {!compact ? <><p className="mt-2 line-clamp-3 text-xs leading-5 text-stone-600 dark:text-stone-400">{item.description || item.prompt}</p>{item.author && /^https:\/\/(x|twitter)\.com\//.test(item.sourceUrl || "") ? <p className="mt-2 truncate text-[11px] text-stone-400 dark:text-stone-500">{item.author} · X</p> : null}<div className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((tag) => <Tag key={tag} className="m-0 text-[11px]">{tag}</Tag>)}</div></> : null}
                 </div>
             </button>
             {!compact ? <div className="mt-auto flex items-center gap-2 px-4 pb-4"><Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={onCopy}>{actionLabel || t("common.copy")}</Button>{extraAction}</div> : null}

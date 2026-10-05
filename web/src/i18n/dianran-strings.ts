@@ -11,9 +11,9 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
         canvas: { title: "画布", shortcuts: "快捷键（?）", deleteSelected: "删除选中（Delete）", shortcut: { help: "打开快捷键面板" } },
         imageWorkbench: { title: "生图" },
         videoWorkbench: { title: "视频" },
-        prompts: { title: "提示词" },
+        prompts: { title: "提示词", attribution: { author: "作者 {{author}}", source: "查看原帖", model: "模型：{{model}}", posted: "发布于 {{date}}" } },
         assets: { title: "素材" },
-        home: { openCanvas: "生图" },
+        home: { openCanvas: "生图", templates: { title: "从模板开始", description: "海报、产品图、分镜、情绪板……打开就是一张排好版的画布，改改文案点「生成」即可。", open: "使用模板", nodes: "{{count}} 个节点", loadFailed: "模板加载失败", opening: "正在创建画布…" } },
         topNav: { more: "更多", setupGuide: "快速配置向导", versionLog: "更新日志", shortcuts: "快捷键" },
         config: {
             title: "设置",
@@ -25,7 +25,8 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
         },
         apiErrors: { networkOrCors: "连接不上接口：可能是网络不通，或该服务不允许浏览器直接跨域访问（CORS）。可以在「设置 → 高级 → 本地代理」开启本地代理后重试。" },
         friendlyError: {
-            raw: "原始信息",
+            raw: "详情",
+            seeDetails: "展开「详情」可查看服务商返回的原因。",
             actions: { openConfig: "检查设置", openProxy: "开启本地代理", retry: "重试" },
             network: { title: "连不上接口", hint: `网络不通或被浏览器跨域（CORS）拦截。在本机运行 npx ${LOCAL_PROXY_PACKAGE}@latest，再到设置里开启「本地代理」即可绕过。` },
             auth: { title: "API Key 无效或没有权限", hint: "请检查 Key 是否填错、已过期，或这个 Key 没有该模型的权限。" },
@@ -37,7 +38,7 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             server: { title: "服务商暂时出错", hint: "对方服务繁忙或故障（5xx），稍后重试即可。" },
             safety: { title: "内容未通过安全审核", hint: "提示词或参考图触发了服务商的内容审核，换个说法再试。" },
             canceled: { title: "已取消", hint: "这次生成已被取消。" },
-            unknown: { title: "生成失败", hint: "可以展开原始信息查看服务商返回的具体原因。" },
+            unknown: { title: "生成失败", hint: "可以展开「详情」查看服务商返回的具体原因。" },
         },
         tasks: {
             title: "任务中心",
@@ -88,9 +89,9 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
         canvas: { title: "Canvases", shortcuts: "Shortcuts (?)", deleteSelected: "Delete selected (Delete)", shortcut: { help: "Open this shortcut panel" } },
         imageWorkbench: { title: "Image" },
         videoWorkbench: { title: "Video" },
-        prompts: { title: "Prompts" },
+        prompts: { title: "Prompts", attribution: { author: "By {{author}}", source: "View original post", model: "Model: {{model}}", posted: "Posted {{date}}" } },
         assets: { title: "Assets" },
-        home: { openCanvas: "Image" },
+        home: { openCanvas: "Image", templates: { title: "Start from a template", description: "Posters, product shots, storyboards, moodboards: open a ready-made canvas, tweak the brief and hit Generate.", open: "Use template", nodes: "{{count}} nodes", loadFailed: "Failed to load templates", opening: "Creating canvas…" } },
         topNav: { more: "More", setupGuide: "Setup guide", versionLog: "Changelog", shortcuts: "Shortcuts" },
         config: {
             title: "Settings",
@@ -101,7 +102,8 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
         },
         apiErrors: { networkOrCors: "Could not reach the API: the network is down or the provider blocks direct browser requests (CORS). Enable the local proxy in Settings → Advanced → Local proxy and retry." },
         friendlyError: {
-            raw: "Raw message",
+            raw: "Details",
+            seeDetails: "Expand Details to see the provider's reason.",
             actions: { openConfig: "Check settings", openProxy: "Enable local proxy", retry: "Retry" },
             network: { title: "Can't reach the API", hint: `Network issue or blocked by CORS. Run npx ${LOCAL_PROXY_PACKAGE}@latest on your computer and enable "Local proxy" in Settings.` },
             auth: { title: "Invalid API key or no permission", hint: "Check the key is correct, not expired, and allowed to use this model." },
@@ -113,7 +115,7 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             server: { title: "Provider error", hint: "The provider is busy or failing (5xx). Retry in a moment." },
             safety: { title: "Blocked by content safety", hint: "The prompt or reference image triggered moderation. Rephrase and retry." },
             canceled: { title: "Canceled", hint: "This generation was canceled." },
-            unknown: { title: "Generation failed", hint: "Expand the raw message to see the provider's reason." },
+            unknown: { title: "Generation failed", hint: "Expand Details to see the provider's reason." },
         },
         tasks: {
             title: "Task center",

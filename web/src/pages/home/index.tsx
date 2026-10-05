@@ -7,6 +7,7 @@ import { Trans, useTranslation } from "react-i18next";
 import copy from "copy-to-clipboard";
 
 import { showcaseItems } from "@/pages/home/showcase";
+import { TemplateGallery } from "@/pages/home/template-gallery";
 import { BRAND } from "@/constant/brand";
 import { navigationTools } from "@/constant/navigation-tools";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,8 @@ export default function IndexPage() {
                         </Button>
                     </div>
                 </div>
+
+                <TemplateGallery />
 
                 <section className="relative mx-auto mb-20 max-w-6xl border-t border-stone-200 pt-12 dark:border-stone-800">
                     <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">

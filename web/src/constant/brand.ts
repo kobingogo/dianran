@@ -71,6 +71,16 @@ export type PresetProvider = {
     recommended?: Partial<Record<"image" | "video" | "text" | "audio", string[]>>;
     /** Allow the user to switch protocol in the guide (custom/relay only). */
     customizable?: boolean;
+    /**
+     * Text endpoint. "responses" (default) = POST /v1/responses; "chat" = POST /v1/chat/completions for providers without
+     * the Responses API. Unknown providers start with "responses" and fall back to "chat" automatically on 404 / unsupported.
+     */
+    textApi?: "responses" | "chat";
+    /**
+     * Image endpoint. "openai" (default) = /v1/images/generations + /v1/images/edits; "siliconflow" = /v1/images/generations with
+     * SiliconFlow's body (image_size / batch_size / image); "chat" = /v1/chat/completions with modalities ["image","text"] (OpenRouter).
+     */
+    imageApi?: "openai" | "siliconflow" | "chat";
 };
 
 /** Optional "official" provider injected at build time (e.g. your own new-api relay), shown first in the guide. */
@@ -129,7 +139,9 @@ export const PRESET_PROVIDERS: PresetProvider[] = [
         region: "cn",
         keyUrl: "https://cloud.siliconflow.cn/account/ak",
         note: { "zh-CN": "国内直连 · 以生图模型为主（Kolors、Qwen-Image 等）", "en-US": "China mainland · mostly image models" },
-        recommended: { image: ["Kwai-Kolors/Kolors", "Qwen/Qwen-Image"] },
+        recommended: { image: ["Kwai-Kolors/Kolors", "Qwen/Qwen-Image"], text: ["deepseek-ai/DeepSeek-V3", "Qwen/Qwen3-32B"] },
+        textApi: "chat",
+        imageApi: "siliconflow",
     },
     {
         id: "openrouter",
@@ -139,6 +151,22 @@ export const PRESET_PROVIDERS: PresetProvider[] = [
         region: "global",
         keyUrl: "https://openrouter.ai/keys",
         note: { "zh-CN": "海量文本模型，适合画布助手 · 需海外网络", "en-US": "Hundreds of text models for the canvas assistant" },
-        recommended: { text: ["openai/gpt-5", "anthropic/claude-sonnet-4.5", "google/gemini-2.5-flash"] },
+        recommended: { image: ["google/gemini-2.5-flash-image"], text: ["openai/gpt-5", "anthropic/claude-sonnet-4.5", "google/gemini-2.5-flash"] },
+        textApi: "chat",
+        imageApi: "chat",
     },
 ];
+
+/** Endpoint flags of the preset whose base URL host matches (works for channels created before the flags existed). */
+export function presetApiFlags(baseUrl: string): Pick<PresetProvider, "textApi" | "imageApi"> {
+    const host = (value: string) => {
+        try {
+            return new URL(value).host.toLowerCase();
+        } catch {
+            return "";
+        }
+    };
+    const target = host(baseUrl.trim());
+    const preset = target ? PRESET_PROVIDERS.find((item) => item.baseUrl && host(item.baseUrl) === target) : undefined;
+    return { textApi: preset?.textApi, imageApi: preset?.imageApi };
+}

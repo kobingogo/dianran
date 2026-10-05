@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { fetchChannelModels } from "@/services/api/image";
 import type { ModelChannel } from "@/stores/use-config-store";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 // Channel model selector: fetch upstream models or add them manually, then include checked models in the channel list.
 export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onClose }: { open: boolean; channel: ModelChannel | null; selectedNames: string[]; onConfirm: (names: string[]) => void; onClose: () => void }) {
@@ -72,7 +73,7 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
             setActiveTab("new");
             message.success(t("config.modelSelect.fetched", { count: models.length }));
         } catch (error) {
-            message.error(error instanceof Error ? error.message : t("config.modelSelect.fetchFailed"));
+            showErrorToast(message, error, t("config.modelSelect.fetchFailed"));
         } finally {
             setLoading(false);
         }

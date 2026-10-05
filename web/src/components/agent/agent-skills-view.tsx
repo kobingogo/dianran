@@ -9,6 +9,7 @@ import { createCodexSkill, createCodexSkillDraft, deleteCodexSkill, fetchCodexSk
 import { useAgentSkillStore } from "@/stores/use-agent-skill-store";
 import { useAgentStore, type AgentChatItem } from "@/stores/use-agent-store";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 type ScopeFilter = "all" | AgentSkillScope;
 type SkillDraftSource = "conversation" | "canvas";
@@ -114,7 +115,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
             setDraft(response.data);
             message.success(t("agent.skillManager.draftCreated"));
         } catch (error) {
-            if (connectionIsCurrent(connectionRevision)) message.error(error instanceof Error ? error.message : t("agent.skillManager.draftFailed"));
+            if (connectionIsCurrent(connectionRevision)) showErrorToast(message, error, t("agent.skillManager.draftFailed"));
         } finally {
             if (connectionIsCurrent(connectionRevision)) setGeneratingSource(null);
         }
@@ -129,7 +130,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
             if (!response.data) throw new Error(t("agent.skillManager.contentMissing"));
             setEditor({ mode: "edit", detail: response.data });
         } catch (error) {
-            if (connectionIsCurrent(connectionRevision)) message.error(error instanceof Error ? error.message : t("agent.skillManager.readFailed"));
+            if (connectionIsCurrent(connectionRevision)) showErrorToast(message, error, t("agent.skillManager.readFailed"));
         } finally {
             if (connectionIsCurrent(connectionRevision)) setBusySkill("");
         }
@@ -168,7 +169,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
             if (!connectionIsCurrent(connectionRevision)) return;
             message.success(t(editor.mode === "create" ? "agent.skillManager.created" : "agent.skillManager.updated"));
         } catch (error) {
-            if (connectionIsCurrent(connectionRevision)) message.error(error instanceof Error ? error.message : t("agent.skillManager.saveFailed"));
+            if (connectionIsCurrent(connectionRevision)) showErrorToast(message, error, t("agent.skillManager.saveFailed"));
         } finally {
             if (connectionIsCurrent(connectionRevision)) setSaving(false);
         }
@@ -196,7 +197,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
                     message.success(t("agent.skillManager.deleted"));
                 } catch (error) {
                     if (!connectionIsCurrent(connectionRevision)) return;
-                    message.error(error instanceof Error ? error.message : t("agent.skillManager.deleteFailed"));
+                    showErrorToast(message, error, t("agent.skillManager.deleteFailed"));
                     throw error;
                 } finally {
                     if (connectionIsCurrent(connectionRevision)) setBusySkill("");
@@ -217,7 +218,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
             if (!enabled && selectedSkill?.name === skill.name && selectedSkill.path === skill.path) clearSelection();
             await refresh();
         } catch (error) {
-            if (connectionIsCurrent(connectionRevision)) message.error(error instanceof Error ? error.message : t("agent.skillManager.statusFailed"));
+            if (connectionIsCurrent(connectionRevision)) showErrorToast(message, error, t("agent.skillManager.statusFailed"));
         } finally {
             if (connectionIsCurrent(connectionRevision)) setBusySkill("");
         }

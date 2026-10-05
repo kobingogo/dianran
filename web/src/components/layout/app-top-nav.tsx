@@ -36,7 +36,7 @@ export function AppTopNav() {
         <>
             {!hideHeader ? (
                 <header className="sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-background/90 backdrop-blur-xl dark:border-stone-800">
-                    <div className="mx-auto flex h-full max-w-7xl items-stretch justify-between gap-5 px-6">
+                    <div className="mx-auto flex h-full max-w-7xl items-stretch justify-between gap-3 px-3 sm:gap-5 sm:px-6">
                         <div className="flex min-w-0 items-center">
                             <Link to="/" className="flex h-full shrink-0 items-center gap-2 text-sm font-semibold leading-none tracking-tight text-stone-950 transition hover:text-stone-600 dark:text-stone-100 dark:hover:text-stone-300">
                                 <span
@@ -51,7 +51,7 @@ export function AppTopNav() {
 
                             <button
                                 type="button"
-                                className="ml-3 inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 md:hidden dark:text-stone-300 dark:hover:text-white"
+                                className="ml-2 inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-stone-600 transition hover:text-stone-950 md:hidden dark:text-stone-300 dark:hover:text-white"
                                 onClick={() => setMobileNavOpen(true)}
                                 aria-label={t("topNav.openMenu")}
                                 title={t("topNav.menu")}
@@ -83,8 +83,9 @@ export function AppTopNav() {
                         </div>
 
                         <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
+                            {/* [dianran] Phones: Agent / Settings / theme move into the navigation drawer (collapsed header). */}
                             <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
-                                <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
+                                <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8 max-md:!hidden" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
                             </Tooltip>
                             <UserStatusActions />
                         </div>

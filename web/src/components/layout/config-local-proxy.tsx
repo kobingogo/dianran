@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { testLocalProxy } from "@/services/api/local-proxy";
 import { DEFAULT_LOCAL_PROXY_URL, LOCAL_PROXY_PACKAGE, normalizeLocalProxyUrl, useConfigStore } from "@/stores/use-config-store";
+import { showErrorToast } from "@/features/errors/error-toast";
 
 export function ConfigLocalProxy() {
     const { message } = App.useApp();
@@ -21,7 +22,7 @@ export function ConfigLocalProxy() {
         try {
             message.success(t("config.proxy.available", { proxy: await testLocalProxy(config.proxyUrl) }));
         } catch (error) {
-            message.error(error instanceof Error ? error.message : t("config.proxy.unreachable"));
+            showErrorToast(message, error, t("config.proxy.unreachable"));
         } finally {
             setTesting(false);
         }
