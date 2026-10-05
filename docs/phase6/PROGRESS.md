@@ -16,7 +16,9 @@
 - [x] 适配器：Sora 单张参考改为 `input_reference`，不发 `mode/first_frame/last_frame`；SiliconFlow 多图编辑、Sora 尾帧与首尾帧的多余附件在提交前明确阻止静默丢弃。沿用视频 7 张收集上限，未新增超时/重试/并发阈值。
 - [x] 文档：检查并更新 TODO、Pending Tests、Unreleased；正式功能说明等用户验收后更新。
 - [x] 本地 typecheck/build/相关测试/Playwright 截图。
-- [ ] Git 提交推送、PR、production 发布：收尾阶段执行并补写链接。
+- [x] 实现提交 `cf7cac1` 已推送 `phase6-composer`；PR [#7](https://github.com/kobingogo/dianran/pull/7)，base `phase4-fixes`，当前可合并但未执行合并。
+- [x] Production：[dianran-next.vercel.app](https://dianran-next.vercel.app)，项目 `dianran-next`，状态 Ready。独立部署目录 `/tmp/dr-next-phase6`；未操作 `dianran` 项目。
+- [x] Production 冒烟：1440 / 390 的首页、生图、视频共 6 页均 HTTP 200，各页恰好一个 Composer、渠道计费提示可见，运行时错误 0；截图为 `production-*-light.png`。
 
 ## 费用显示决策
 
@@ -64,3 +66,12 @@
 - 浏览器自动化证明前端交互和请求字段，真实服务商产出、计费、Sora/Veo 附件适配仍需用户使用自己的渠道验收。真实手机软键盘和外域视频截帧需人工确认；外域 CORS 受限时截帧会明确失败，可改用上传图片。
 - 当前作品与草稿主要在浏览器本地，未承诺云同步。Key 在浏览器本地，前端直连所选服务；生成快照与画布 metadata 不包含 Key。
 - 既有视频轮询失败/中断处理沿用，远端任务恢复细分属后续范围；画布持久化沿用原存储机制。
+
+## 发布记录
+
+- PR：https://github.com/kobingogo/dianran/pull/7（base `phase4-fixes`）。
+- 固定 production：https://dianran-next.vercel.app
+- 本次部署：https://dianran-next-g2o18zao7-kobingogos-projects.vercel.app
+- 实现提交：`cf7cac1`。后续提交仅补写本交付记录，不改部署代码。
+- Production 实际下载的主入口 + vendor：1,446,193 B，gzip 475,384 B（Python gzip，便于复核）；详见本地 `production-js-size.json`。
+- Production 验收证据：`production-smoke.json`、`production-*.png`；最终草稿数据库显式使用 infinite-canvas/app_state 的回归证据：`acceptance-final-draft.json`。
