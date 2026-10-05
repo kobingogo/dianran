@@ -148,4 +148,8 @@ P1：**1,295,870 B，gzip 425,969 B**；较 P0 减少 150,323 B（10.4%），约
 
 - PR：[ #7 ](https://github.com/kobingogo/dianran/pull/7)，继续更新同一 PR，base `phase4-fixes`；P1 顺接 P0，不拆 PR，不合并 main，不 force push。
 - Production 目标：[dianran-next](https://dianran-next.vercel.app)，独立目录 `/tmp/dr-next-phase6`，仅 link 项目 `dianran-next`。
-- 提交、部署状态与生产体积：待发布后回填。
+- 实现提交：`55e1ee4` 已普通 push 至 `phase6-composer`；后续提交只补交付记录，部署代码不变。
+- 本次 production：[dianran-next-evu3fd7jo-kobingogos-projects.vercel.app](https://dianran-next-evu3fd7jo-kobingogos-projects.vercel.app)，状态 **Ready**，固定 alias https://dianran-next.vercel.app 。`vercel inspect` 已核对项目与 production 状态。
+- Production 实际入口：**1,295,870 B，gzip 425,969 B**，主入口及 vendor 与本地构建逐字节一致；证据 `canvas-p1-production-js-size.json`。
+- Production 冒烟：1440 浅/390 深，新建→生成→继续编辑→转视频；保存关系为 6 节点/5 连线、原图保留、快照不含 Key、7 次创建请求，仅一个 Composer，HTTP 200、0 运行时错误。证据 `canvas-p1-production.json`，截图 `canvas-p1-production-1440-light.png` / `canvas-p1-production-390-dark.png`。
+- 发布工具问题：本机无 rsync，改用 Git 文件清单复制到独立部署目录；gh pr edit 的旧 Projects GraphQL 调用失败，改为 REST 更新 PR。生产验收改为读取持久化完整图，避免把视口裁剪后的 DOM 节点数误当完整项目。
