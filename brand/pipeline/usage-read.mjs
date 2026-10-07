@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// [dianran] Read anonymous prompt usage counts back from the dianran-next Vercel Blob store.
+// [dianran] Read anonymous prompt usage counts back from the Vercel Blob store used by /api/usage.
 // Raw batches written by /api/usage (usage/YYYY-MM-DD/batch-<rand>.json) are folded into one aggregate blob
 // (usage-agg/totals.json), the processed raw batches are deleted, and a copy of the aggregate is written to
 // brand/pipeline/data/usage.json for scoring. Needs BLOB_READ_WRITE_TOKEN (env, or the file named by
