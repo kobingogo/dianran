@@ -10,7 +10,9 @@ import { CANDIDATE_DIR, autoTitle, config, contentReject, detectModel, qualityRe
 
 const cfg = config("x-watchlist.json");
 const BIN = process.env.TWSCRAPE_BIN || "twscrape-x";
-const since = new Date(Date.now() - cfg.windowDays * 86_400_000).toISOString().slice(0, 10);
+// [dianran] X_WINDOW_DAYS overrides the config window for high-frequency runs (e.g. twice-daily fast path).
+const windowDays = Number(process.env.X_WINDOW_DAYS) || cfg.windowDays;
+const since = new Date(Date.now() - windowDays * 86_400_000).toISOString().slice(0, 10);
 
 function twscrape(args, timeoutMs = 20 * 60_000) {
     return new Promise((resolvePromise) => {
@@ -55,7 +57,16 @@ function collect(rows, tag) {
     }
 }
 
-log(`X fetch since ${since}: ${cfg.queries.length} keyword queries, ${cfg.authors.length} watchlist authors`);
+log(`X fetch since ${since}: ${cfg.queries.length} keyword queries`);
+// [dianran] Tiered watchlist: S = top prompt authorities (no fave gate), A = active sharers/educators,
+// B = Chinese image/video prompt creators. Falls back to the legacy flat `authors` list if authorTiers is absent.
+const tiers = Array.isArray(cfg.authorTiers) && cfg.authorTiers.length
+    ? cfg.authorTiers
+    : [{ tier: "default", minFaves: cfg.authorMinFaves ?? 0, authors: cfg.authors || [] }];
+const tierOfAuthor = new Map();
+for (const t of tiers) for (const a of t.authors || []) tierOfAuthor.set(String(a).toLowerCase(), t.tier);
+const totalAuthors = tiers.reduce((n, t) => n + (t.authors || []).length, 0);
+log(`watchlist: ${totalAuthors} authors in ${tiers.length} tiers (${tiers.map((t) => `${t.tier}:${(t.authors || []).length}`).join(", ")})`);
 for (const q of cfg.queries) {
     const res = await twscrape(["search", `${q.query} since:${since}`, "--limit", String(q.limit || cfg.limitPerQuery)]);
     stats.queries[q.tag] = res.rows.length;
@@ -63,15 +74,19 @@ for (const q of cfg.queries) {
     collect(res.rows, q.tag);
     log(`  query ${q.tag}: ${res.rows.length}`);
 }
-for (let i = 0; i < cfg.authors.length; i += cfg.authorBatchSize) {
-    const batch = cfg.authors.slice(i, i + cfg.authorBatchSize);
-    const query = `(${batch.map((a) => `from:${a}`).join(" OR ")}) min_faves:${cfg.authorMinFaves} -filter:replies since:${since}`;
-    const res = await twscrape(["search", query, "--limit", String(cfg.limitPerQuery)]);
-    stats.authorsSearched += batch.length;
-    stats.queries[`authors-${i / cfg.authorBatchSize + 1}`] = res.rows.length;
-    if (res.code !== 0 && !res.rows.length) stats.errors.push(`authors batch ${i}: exit ${res.code} ${res.err}`);
-    collect(res.rows, "watchlist");
-    log(`  watchlist batch ${i / cfg.authorBatchSize + 1}: ${res.rows.length}`);
+for (const t of tiers) {
+    const authors = t.authors || [];
+    for (let i = 0; i < authors.length; i += cfg.authorBatchSize) {
+        const batch = authors.slice(i, i + cfg.authorBatchSize);
+        const tag = `watchlist-${t.tier}-${i / cfg.authorBatchSize + 1}`;
+        const query = `(${batch.map((a) => `from:${a}`).join(" OR ")}) min_faves:${t.minFaves ?? 0} -filter:replies since:${since}`;
+        const res = await twscrape(["search", query, "--limit", String(cfg.limitPerQuery)]);
+        stats.authorsSearched += batch.length;
+        stats.queries[tag] = res.rows.length;
+        if (res.code !== 0 && !res.rows.length) stats.errors.push(`${tag}: exit ${res.code} ${res.err}`);
+        collect(res.rows, tag);
+        log(`  ${tag}: ${res.rows.length}`);
+    }
 }
 stats.unique = byId.size;
 
@@ -137,6 +152,7 @@ for (const { t, cover, photos, videos, prompt, where } of pending) {
         referenceImageUrls: [cover, ...photos.slice(1, 4).map((ph) => ph.url)],
         tags: [model, videos.length ? "视频" : "图像", `@${handle}`],
         author: `@${handle}`,
+        authorTier: tierOfAuthor.get(handle.toLowerCase()) || "",
         sourceUrl: `https://x.com/${handle}/status/${t.id_str}`,
         createdAt: postedAt.slice(0, 10),
         imageMode: "generate",
