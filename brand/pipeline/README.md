@@ -16,7 +16,7 @@ BASE_BRANCH=prompt-pipeline brand/pipeline/run-weekly.sh   # until this branch i
 | Usage counts (Vercel Blob, see below) | `usage-read.mjs` | `data/usage.json` |
 | Merge + metadata + checks + scoring + retire + caps | `merge.mjs` | libraries, `data/scores.json`, `data/retired.json` |
 | 点染精选 rebuild | `picks.mjs` | `dianran-picks.json`, `data/picks-archive.json` |
-| Prune covers, manifest counts, data version bump | `finalize.mjs` | `prompts.ts` `BUILT_IN_SNAPSHOT_VERSION` |
+| Prune covers, manifest counts, snapshot time | `finalize.mjs` | `manifest.json` `generatedAt` |
 | Chinese changelog / PR body | `changelog.mjs` | `reports/YYYY-MM-DD.md/.json` |
 
 `candidates/` is git-ignored scratch; `data/` and `reports/` are committed.
@@ -30,10 +30,10 @@ BASE_BRANCH=prompt-pipeline brand/pipeline/run-weekly.sh   # until this branch i
 | 频率 | 每天早晚各一次（cron `30 6,18 * * *`，Asia/Taipei） | 每周一次 |
 | X 抓取窗口 | `X_WINDOW_DAYS=1.5`（只看最近 36 小时，和上一轮重叠防漏） | `windowDays=8` |
 | merge 模式 | `--additive-only`：只新增候选，不删除任何条目 | 全量：上游移除、下架、限量都执行 |
-| 发布方式 | 直接 push 到 main（CI 在 push 时校验，通过后 Vercel 自动重部署） | 开 PR，人工合并才发布 |
+| 发布方式 | 推分支并开 PR，同时 `deploy.sh prompts` 更新线上快照。不重编网站，不推 main | 只开 PR。合并后手动 `deploy.sh prompts` |
 | 熔断 | 单轮新增超过 `MAX_NEW_ITEMS`（默认 60 条）则不提交，留待人工检查 | — |
 
-快速通道的破坏性操作为零，所以可以无人值守；每周的 PR 仍是人工复核下架与限量的闸门。
+快速通道的破坏性操作为零。它发布的是静态项目 `dianran-prompts`；网站 `dianran.vercel.app` 把 `/prompt-sources/*` 反代过去，浏览器仍用站内路径。`dianran-next` 不再部署。每周 PR 仍是下架与限量的人工闸门，合并后才执行 `brand/pipeline/deploy.sh prompts`。网站本身用 `brand/pipeline/deploy.sh app` 部署到项目 `dianran`。
 
 ## Unified metadata (every record)
 
@@ -80,15 +80,16 @@ are archived in `data/picks-archive.json`.
 
 `web/src/services/usage-stats.ts` counts prompt copy / use (insert into canvas, pick in the prompt picker, save as
 asset) per built-in prompt id in localStorage and flushes the batch to `POST /api/usage` about once a day
-(sendBeacon, no cookies, disabled for Do-Not-Track and dev builds). `api/usage.js` (Vercel function) validates the
-ids and stores one private blob per batch in the `dianran-usage` Vercel Blob store (Hobby free tier). No IP, user agent
-or identifier is stored. `usage-read.mjs` folds the batches into `usage-agg/totals.json`, deletes the processed raw
-blobs and writes `data/usage.json`. It needs `BLOB_READ_WRITE_TOKEN` (`vercel env pull` for dianran-next → stored in
-`~/.config/dianran/dianran-next.env`). Without it scoring falls back to engagement + freshness.
+(sendBeacon, no cookies, disabled for Do-Not-Track and dev builds). `api/usage.js` runs on the `dianran` project and
+stores one private blob per batch in the Vercel Blob store (Hobby free tier). No IP, user agent or identifier is
+stored. `usage-read.mjs` folds the batches into `usage-agg/totals.json`, deletes the processed raw blobs and writes
+`data/usage.json`. It needs `BLOB_READ_WRITE_TOKEN` in `~/.config/dianran/dianran-next.env` (`vercel env pull`). The
+same token must be set on the `dianran` project, because that is where `/api/usage` runs. Without it, scoring falls
+back to engagement + freshness.
 
 ## Requirements
 
-node ≥ 20, bun, `gh` and `vercel` logged in, `twscrape-x` with a logged-in account, `/tmp/dr-next` (or `DEPLOY_DIR`)
-linked to the Vercel project **dianran-next** (the script refuses any other project). Optional
+node ≥ 20, `gh` and `vercel` logged in, `twscrape-x` with a logged-in account. `deploy.sh` links a temporary
+directory and refuses any project other than `dianran` (app) or `dianran-prompts` (snapshot). Optional
 `~/.config/dianran/pipeline.env` with `CIVITAI_API_TOKEN` (Civitai ToS §11.4 asks automated API users to use their
 own credentials).

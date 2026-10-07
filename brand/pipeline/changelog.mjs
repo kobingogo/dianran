@@ -23,7 +23,7 @@ const link = (t, url) => (url ? `[${esc(t)}](${url})` : esc(t));
 md.push(`# 提示词库周更 ${date}`, "", "> 自动生成（brand/pipeline/run-weekly.sh）。只基于热度、新鲜度和站内使用数据，未做任何模型试跑。请人工审阅后再合并，流水线不会自动合并。", "");
 md.push("## 概览", "");
 md.push(`- 新增 **${merge.added.length}** 条，下架 **${merge.retired.length}** 条；点染精选 ${picks.picks.length} 条（新入选 ${picks.added.length}，移出 ${picks.dropped.length}）`);
-md.push(`- 内置数据版本：\`${fin.previousVersion || "?"}\` → \`${fin.version || "?"}\``);
+md.push(`- 提示词快照：\`${fin.previousVersion || "?"}\` → \`${fin.version || "?"}\``);
 md.push(`- 站内使用统计：${usage.status === "ok" ? `可读取（自 ${String(usage.since).slice(0, 10)} 起，本次合并 ${usage.lastRun?.events ?? 0} 次事件）` : `不可用（${usage.reason || usage.status}），得分仅用热度 + 新鲜度`}`);
 if (merge.wouldRetireStale) md.push(`- 「6 个月无使用」规则：使用统计累计 ${merge.usageTrackingDays} 天，不足 28 天，暂不执行（按规则将下架 ${merge.wouldRetireStale} 条）`);
 if (merge.note) md.push(`- 备注：${merge.note}`);

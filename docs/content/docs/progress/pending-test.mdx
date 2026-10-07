@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 线上入口是 https://dianran.vercel.app 。打开 `/prompt-sources/manifest.json` 应返回 JSON，封面从同域 `/prompt-sources/covers/` 加载。更新提示词后刷新，不必等整站重新构建；`dianran-next.vercel.app` 不再作为入口。
+
 - 提示词快照 `prompts-2026-10-07`：YouMind GPT Image 2、YouMind Nano Banana Pro、Civitai 热门有新增条目，X 热门条数不变。刷新后应看到新封面；点染精选轮换 6 条，手作「水墨远山」退出精选并进入归档。标题含「换脸」的「山顶观景台享用 Biryani」不应出现。
 
 - PR 整合修复：复制生成中的图片/视频、创建组副本后，副本不应继续转圈或查询原视频任务，原节点不受影响。Banana Prompt Quicker 的「拍照解题」「汽车发动机工作原理3D剖面图」「创意丝绸宇宙」「奇幻水下场景冰棒」具有独立 ID；刷新旧缓存后收藏、详情和使用统计应定位正确条目。
