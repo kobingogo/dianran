@@ -10,7 +10,7 @@ BASE_BRANCH=prompt-pipeline brand/pipeline/run-weekly.sh   # until this branch i
 
 | Step | Script | Output |
 | --- | --- | --- |
-| X fetch (keywords + author watchlist via `twscrape-x`) | `fetch-x.mjs` | `candidates/x.json` |
+| X fetch (keywords + tiered author watchlist via `twscrape-x`; S/A/B tiers in `config/x-watchlist.json`) | `fetch-x.mjs` | `candidates/x.json` |
 | GitHub upstream re-sync (yukkcat/image-prompts registry) | `fetch-github.mjs` | `candidates/github/*.json` |
 | Civitai fetch (images, Most Reactions / Week, `nsfw=None`, `withMeta=true`) | `fetch-civitai.mjs` | `candidates/civitai.json` |
 | Usage counts (Vercel Blob, see below) | `usage-read.mjs` | `data/usage.json` |
@@ -20,6 +20,20 @@ BASE_BRANCH=prompt-pipeline brand/pipeline/run-weekly.sh   # until this branch i
 | Chinese changelog / PR body | `changelog.mjs` | `reports/YYYY-MM-DD.md/.json` |
 
 `candidates/` is git-ignored scratch; `data/` and `reports/` are committed.
+
+## 运行节奏 / Cadence
+
+两档节奏，分工不同：
+
+| | 早晚快速更新 `run-twicedaily.sh` | 每周全量维护 `run-weekly.sh` |
+|---|---|---|
+| 频率 | 每天早晚各一次（cron `30 6,18 * * *`，Asia/Taipei） | 每周一次 |
+| X 抓取窗口 | `X_WINDOW_DAYS=1.5`（只看最近 36 小时，和上一轮重叠防漏） | `windowDays=8` |
+| merge 模式 | `--additive-only`：只新增候选，不删除任何条目 | 全量：上游移除、下架、限量都执行 |
+| 发布方式 | 直接 push 到 main（CI 在 push 时校验，通过后 Vercel 自动重部署） | 开 PR，人工合并才发布 |
+| 熔断 | 单轮新增超过 `MAX_NEW_ITEMS`（默认 60 条）则不提交，留待人工检查 | — |
+
+快速通道的破坏性操作为零，所以可以无人值守；每周的 PR 仍是人工复核下架与限量的闸门。
 
 ## Unified metadata (every record)
 
