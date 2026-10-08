@@ -1,9 +1,9 @@
-import { estimateCondition } from "@/lib/creation-estimates";
+import { estimateCondition, workflowStepEstimateCondition } from "@/lib/creation-estimates";
 import { useCreationEstimatesStore } from "@/stores/use-creation-estimates-store";
 import { CreationComparison, canvasComparisonItems, type ComparisonItem } from "@/components/composer/creation-comparison";
 import { flushSync } from "react-dom";
 import { CanvasWorkflowPanel } from "@/components/canvas/canvas-workflow-panel";
-import { workflowResults, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
+import { prepareWorkflowStep, workflowResults, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
 import { CanvasSaveStatus } from "@/components/canvas/canvas-save-status";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent as ReactChangeEvent, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
 import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
 import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, waitForVideoGenerationTask } from "@/services/api/video";
-import { defaultConfig, resolveModelRequestConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
+import { defaultConfig, modelMatchesCapability, resolveModelRequestConfig, resolveModelScript, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { ensureImagePreview, uploadImage } from "@/services/image-storage";
 import { uploadMediaFile, type UploadedFile } from "@/services/file-storage";
 import { nanoid } from "nanoid";
@@ -2679,7 +2679,7 @@ function InfiniteCanvasPage() {
                         position: isEmptyAudioNode ? sourceNode.position : { x: parent.x + (sourceNode?.width || spec.width) + 96, y: parent.y + ((sourceNode?.height || spec.height) - spec.height) / 2 },
                         width: isEmptyAudioNode ? sourceNode.width : spec.width,
                         height: isEmptyAudioNode ? sourceNode.height : spec.height,
-                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig) },
+                        metadata: { prompt: effectivePrompt, status: NODE_STATUS_LOADING, ...buildAudioGenerationMetadata(generationConfig), ...resultProvenance(sourceNode) },
                     };
                     pendingChildIds = [audioId];
                     setNodes((prev) =>
@@ -2687,7 +2687,7 @@ function InfiniteCanvasPage() {
                             ? prev.map((node) => (node.id === nodeId ? { ...node, ...audioNode } : node))
                             : [...prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS } } : node)), audioNode],
                     );
-                    if (!isEmptyAudioNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: audioId }]);
+                    if (!isEmptyAudioNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: audioId, kind: "generation" }]);
                     const controller = startGenerationRequest(audioId, nodeId, nodeId, runController);
                     try {
                         const audio = await storeGeneratedAudio(await requestAudioGeneration(generationConfig, effectivePrompt, { signal: controller.signal }), generationConfig.audioFormat);
@@ -2722,6 +2722,7 @@ function InfiniteCanvasPage() {
                         textCount,
                         texts: textIds.map((id) => ({ id, status: NODE_STATUS_LOADING, content: "" })),
                         primaryTextId: textIds[0],
+                        ...resultProvenance(sourceNode),
                     },
                 };
                 pendingChildIds = [rootId];
@@ -2730,7 +2731,7 @@ function InfiniteCanvasPage() {
                         ? prev.map((node) => (node.id === nodeId ? { ...node, ...rootNode } : node))
                         : [...prev.map((node) => (node.id === nodeId && isConfigNode ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_LOADING, errorDetails: undefined } } : node)), rootNode],
                 );
-                if (!isEmptyTextNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: rootId }]);
+                if (!isEmptyTextNode) setConnections((prev) => [...prev, { id: nanoid(), fromNodeId: nodeId, toNodeId: rootId, kind: "generation" }]);
                 setSelectedNodeIds(new Set([nodeId]));
                 setSelectedConnectionId(null);
                 setDialogNodeId(nodeId);
@@ -2803,10 +2804,10 @@ function InfiniteCanvasPage() {
                                 metadata: {
                                     ...node.metadata,
                                     content: primaryText?.content || "",
-                                    texts: completedTexts,
+                                    texts: sourceNode?.metadata?.workflowStep ? results.flatMap((item) => item ? [item] : []) : completedTexts,
                                     primaryTextId: primaryText?.id,
-                                    status: primaryText ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR,
-                                    errorDetails: primaryText ? undefined : t("canvas.projectPage.generationFailed"),
+                                    status: primaryText && !(sourceNode?.metadata?.workflowStep && failedTexts.length) ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR,
+                                    errorDetails: sourceNode?.metadata?.workflowStep && failedTexts.length ? "部分文本未成功，请逐次重试失败结果后恢复工作流" : primaryText ? undefined : t("canvas.projectPage.generationFailed"),
                                 },
                             };
                         }
@@ -2854,7 +2855,7 @@ function InfiniteCanvasPage() {
             }
             const sourceNode = findRetrySourceNode(node.id, nodesRef.current, connectionsRef.current) || node;
             const snapshot = node.metadata?.inputSnapshot;
-            const retrySource = node.metadata?.creation ? node : sourceNode;
+            const retrySource = node.metadata?.creation || node.metadata?.workflowStep ? node : sourceNode;
             const savedImageMetadata = node.type === CanvasNodeType.Image ? node.metadata : undefined;
             const hasSavedImageMetadata = Boolean(savedImageMetadata?.generationType);
             const generationConfig =
@@ -2868,6 +2869,14 @@ function InfiniteCanvasPage() {
                           count: "1",
                       }
                     : { ...buildGenerationConfig(effectiveConfig, retrySource, node.type === CanvasNodeType.Text ? "text" : node.type === CanvasNodeType.Video ? "video" : node.type === CanvasNodeType.Audio ? "audio" : "image"), count: "1" };
+            const workflowStep = node.metadata?.workflowStep;
+            if (workflowStep) {
+                const channel = resolveModelRequestConfig(generationConfig, generationConfig.model);
+                if (channel.baseUrl !== workflowStep.endpoint || channel.apiFormat !== workflowStep.apiFormat || resolveModelScript(generationConfig, generationConfig.model) || !modelMatchesCapability(generationConfig, generationConfig.model, workflowStep.mode)) {
+                    message.error("原工作流渠道或模型能力已改变，请重新预览计划");
+                    return;
+                }
+            }
             if (!isAiConfigReady(generationConfig, generationConfig.model)) {
                 openConfigDialog(true);
                 return;
@@ -2910,7 +2919,17 @@ function InfiniteCanvasPage() {
                         },
                         { signal: controller.signal },
                     );
-                    setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: answer || streamed, prompt, status: NODE_STATUS_SUCCESS } } : item)));
+                    setNodes((prev) => prev.map((item) => {
+                        if (item.id !== node.id) return item;
+                        if (!workflowStep) return { ...item, type: CanvasNodeType.Text, metadata: { ...item.metadata, content: answer || streamed, prompt, status: NODE_STATUS_SUCCESS } };
+                        const previous = node.metadata?.texts || [];
+                        const retryId = previous.find((text) => text.status !== NODE_STATUS_SUCCESS || !text.content)?.id || (previous.filter((text) => text.status === NODE_STATUS_SUCCESS && text.content).length < workflowStep.calls ? nanoid() : node.metadata?.primaryTextId || nanoid());
+                        const replacement: CanvasNodeText = { id: retryId, content: answer || streamed, status: NODE_STATUS_SUCCESS };
+                        const texts = previous.some((text) => text.id === retryId) ? previous.map((text) => text.id === retryId ? replacement : text) : [...previous, replacement];
+                        const complete = texts.filter((text) => text.status === NODE_STATUS_SUCCESS && text.content).length >= workflowStep.calls;
+                        const primary = texts.find((text) => text.id === node.metadata?.primaryTextId && text.status === NODE_STATUS_SUCCESS) || replacement;
+                        return { ...item, metadata: { ...item.metadata, content: primary.content, prompt, texts, primaryTextId: primary.id, status: complete ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: complete ? undefined : "仍有未成功文本，请继续重试后恢复工作流" } };
+                    }));
                     return;
                 }
                 if (node.type === CanvasNodeType.Video) {
@@ -2988,8 +3007,8 @@ function InfiniteCanvasPage() {
                                   ...item,
                                   metadata: {
                                       ...item.metadata,
-                                      status: item.metadata?.content ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR,
-                                      errorDetails: item.metadata?.content ? undefined : errorDetails,
+                                      status: workflowStep && node.type === CanvasNodeType.Text ? NODE_STATUS_ERROR : item.metadata?.content ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR,
+                                      errorDetails: workflowStep && node.type === CanvasNodeType.Text ? errorDetails : item.metadata?.content ? undefined : errorDetails,
                                       images: item.metadata?.images?.map((image) => (image.id === imageId ? { ...image, status: NODE_STATUS_ERROR, errorDetails } : image)),
                                       ...(isVideoTaskFailed(error) && item.type === CanvasNodeType.Video ? { videoTaskId: undefined } : {}),
                                   },
@@ -3144,7 +3163,7 @@ function InfiniteCanvasPage() {
     }, []);
     const handleNodeRetry = useCallback(
         (node: CanvasNodeData) => {
-            if (node.type === CanvasNodeType.Text && (node.metadata?.textCount || 1) > 1) {
+            if (node.type === CanvasNodeType.Text && !node.metadata?.workflowStep && (node.metadata?.textCount || 1) > 1) {
                 void generateNodeRef.current?.(node.id, "text", node.metadata?.prompt || "");
                 return;
             }
@@ -3305,26 +3324,19 @@ function InfiniteCanvasPage() {
     const executeWorkflowStep = async (step: WorkflowStep, inputIds: string[], state: WorkflowStepRun, checkpoint: () => Promise<void>, frozenInputs: CanvasNodeData[]) => {
         if (generationRequestsRef.current.size) throw new Error("当前有生成任务，请待其结束后执行工作流");
         const config = { ...effectiveConfig, ...step.parameters };
-        const model = step.parameters[step.mode === "image" ? "imageModel" : "videoModel"];
-        if (resolveModelRequestConfig(config, model).baseUrl !== step.endpoint) throw new Error("渠道地址已改变，请重新预览计划");
-        const prompt = step.prompt;
-        const approvedNodes = nodesRef.current.map((node) => frozenInputs.find((input) => input.id === node.id) || node);
-        const submission = prepareCanvasSubmission(step.mode, prompt, [], config, approvedNodes, inputIds);
-        if (JSON.stringify(submission.actual) !== JSON.stringify(step.actual)) throw new Error("实际参数已改变，请重新预览计划");
-        await hydrateNodeGenerationContext(submission.input);
         const x = nodesRef.current.length ? Math.max(...nodesRef.current.map((node) => node.position.x + node.width)) + 96 : 80;
-        const graph = createCanvasSubmissionGraph(submission, nodesRef.current, connectionsRef.current, { x, y: 160 });
-        graph.config.metadata = { ...graph.config.metadata, agentSource: step.agentSource };
+        const graph = prepareWorkflowStep(step, inputIds, config, nodesRef.current, connectionsRef.current, { x, y: 160 }, frozenInputs);
+        await hydrateNodeGenerationContext(graph.input);
         state.configId = graph.config.id;
         commitWorkflowGraph(graph.nodes, graph.connections);
         await checkpoint();
         const startedAt = performance.now();
-        await handleGenerateNode(graph.config.id, step.mode, submission.prompt);
+        await handleGenerateNode(graph.config.id, step.mode, graph.input.prompt);
         flushSync(() => { setNodes((value) => { nodesRef.current = value; return value; }); setConnections((value) => { connectionsRef.current = value; return value; }); });
         updateProject(projectId, { nodes: nodesRef.current, connections: connectionsRef.current });
         await flushCanvasSave();
         const resultIds = workflowResults(step, state, nodesRef.current, connectionsRef.current);
-        void useCreationEstimatesStore.getState().record(graph.config.id, estimateCondition(config, submission), performance.now() - startedAt).catch((error) => showErrorToast(message, error, "结果已生成，耗时记录保存失败"));
+        void useCreationEstimatesStore.getState().record(graph.config.id, workflowStepEstimateCondition(step, config, graph.input), performance.now() - startedAt).catch((error) => showErrorToast(message, error, "结果已生成，耗时记录保存失败"));
         state.resultNodes = resultIds.map((id) => structuredClone(nodesRef.current.find((node) => node.id === id)!));
         return resultIds;
     };

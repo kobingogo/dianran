@@ -71,6 +71,7 @@ export function CreationEstimate({ submission, config, approvedCondition }: { su
                         </p>
                         <pre className="overflow-auto text-xs">{JSON.stringify(condition.actual, null, 2)}</pre>
                         <p>报价仅用于此渠道、模型、实际参数和参考数量。参数变化后重新匹配；金额不包括失败重试、端点回退等额外计费。</p>
+                        {condition.mode === "text" && <p>文本报价只用于每次完成的固定报价；按 token 计费的渠道请以实际用量为准。</p>}
                         <Input aria-label="渠道单价" placeholder="渠道单价" value={amount} onChange={(event) => setAmount(event.target.value)} />
                         <Input aria-label="报价币种" placeholder="币种，如 CNY / USD" value={currency} onChange={(event) => setCurrency(event.target.value)} />
                         <label>

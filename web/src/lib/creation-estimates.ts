@@ -1,7 +1,8 @@
-import type { WorkflowPlan, WorkflowStep } from "@/lib/canvas/workflow";
+import { workflowModel, type WorkflowPlan, type WorkflowStep } from "@/lib/canvas/workflow";
 import { resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
-import type { ComposerSubmission, ComposerMode } from "@/lib/composer";
-export type EstimateCondition = { mode: ComposerMode; model: string; endpoint: string; apiFormat: string; actual: Record<string, string | number>; references: number; videos: number; audios: number; calls: number };
+import type { ComposerSubmission } from "@/lib/composer";
+import type { CanvasGenerationMode } from "@/types/canvas";
+export type EstimateCondition = { mode: CanvasGenerationMode; model: string; endpoint: string; apiFormat: string; actual: Record<string, string | number>; references: number; videos: number; audios: number; calls: number };
 export type CreationQuote = { id: string; condition: EstimateCondition; amount: number; currency: string; unit: "output" | "second"; source: string; recordedAt: number };
 export type TimingSample = { id: string; condition: EstimateCondition; durationMs: number; recordedAt: number };
 export function estimateCondition(config: AiConfig, submission: ComposerSubmission): EstimateCondition {
@@ -21,25 +22,30 @@ export function estimateCondition(config: AiConfig, submission: ComposerSubmissi
     };
 }
 export function workflowEstimateCondition(step: WorkflowStep, plan: WorkflowPlan, config: AiConfig): EstimateCondition {
-    const model = step.parameters[step.mode === "image" ? "imageModel" : "videoModel"];
     const inputs = new Map(
         step.inputs.map((input) => {
             const node = plan.resources.find((node) => node.id === input.nodeId);
             const type = input.stepId ? plan.steps.find((producer) => producer.id === input.stepId)?.mode : node?.type;
-            return [`${type}:${input.stepId || node?.metadata?.storageKey || input.nodeId}`, type];
+            return [`${type}:${input.stepId || node?.metadata?.storageKey || node?.metadata?.content || input.nodeId}`, type];
         }),
     );
     const types = [...inputs.values()];
+    return workflowStepEstimateCondition(step, config, {
+        referenceImages: types.filter((type) => type === "image"), referenceVideos: types.filter((type) => type === "video"), referenceAudios: types.filter((type) => type === "audio"),
+    });
+}
+export function workflowStepEstimateCondition(step: WorkflowStep, config: AiConfig, input: { referenceImages: unknown[]; referenceVideos: unknown[]; referenceAudios: unknown[] }): EstimateCondition {
+    const model = workflowModel(step);
     return {
         mode: step.mode,
         model,
         endpoint: step.endpoint,
-        apiFormat: resolveModelRequestConfig(config, model).apiFormat,
+        apiFormat: step.apiFormat || resolveModelRequestConfig(config, model).apiFormat,
         actual: step.actual,
         calls: step.calls,
-        references: types.filter((type) => type === "image").length,
-        videos: types.filter((type) => type === "video").length,
-        audios: 0,
+        references: input.referenceImages.length,
+        videos: input.referenceVideos.length,
+        audios: input.referenceAudios.length,
     };
 }
 export function conditionKey(condition: EstimateCondition, includeCalls = false) {
@@ -70,5 +76,5 @@ export function estimateCreation(condition: EstimateCondition, quotes: CreationQ
 }
 export function validateQuote(amount: number, currency: string, source: string, unit: CreationQuote["unit"], condition: EstimateCondition) {
     if (!Number.isFinite(amount) || amount < 0 || !currency.trim() || !source.trim()) throw new Error("请填写有效非负单价、币种和报价来源");
-    if (unit === "second" && condition.mode !== "video") throw new Error("生图报价按张计费");
+    if (unit === "second" && condition.mode !== "video") throw new Error("当前模式报价按次计费");
 }

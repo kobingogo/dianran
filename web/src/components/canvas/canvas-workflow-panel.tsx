@@ -8,7 +8,7 @@ import { useParams } from "react-router-dom";
 import { useCanvasStore, flushCanvasSave } from "@/stores/canvas/use-canvas-store";
 import { useWorkflowStore } from "@/stores/canvas/use-workflow-store";
 import { useEffectiveConfig } from "@/stores/use-config-store";
-import { createWorkflowRun, executeWorkflow, instantiateWorkflow, planWorkflow, reconcileWorkflow, workflowScope, type WorkflowPlan, type WorkflowRun, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
+import { createWorkflowRun, executeWorkflow, instantiateWorkflow, planWorkflow, reconcileWorkflow, workflowModel, workflowModeLabels, workflowScope, type WorkflowPlan, type WorkflowRun, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
 import { hydrateCanvasImages } from "@/lib/canvas/canvas-generation-helpers";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -133,7 +133,7 @@ export function CanvasWorkflowPanel({
     return (
         <>
             <Modal title="工作流 · 预览后执行" open={open} onCancel={() => setOpen(false)} footer={null} width={720}>
-                <p>生图/视频 MVP。配置修改与连线不触发调用；每次运行创建独立配置与结果，保留原作品。依赖步骤使用上游结果的主图。</p>
+                <p>支持文本、图片、视频和音频生成。配置修改与连线不触发调用；每次运行创建独立配置与结果，保留原作品。依赖步骤使用上游结果的主图或主文本；分组与插件素材按预览时的内容固定。</p>
                 <div className="my-3 flex flex-wrap gap-3">
                     <button disabled={busy} onClick={() => void inspect()}>
                         预览选定节点
@@ -163,12 +163,12 @@ export function CanvasWorkflowPanel({
                         {plan.steps.map((step, index) => (
                             <div key={step.id} className="border-b py-2" style={{ borderColor: theme.node.stroke }}>
                                 <p>
-                                    {index + 1}. {step.title} · {step.mode === "image" ? "图片" : "视频"} · {step.calls} 次
+                                    {index + 1}. {step.title} · {workflowModeLabels[step.mode]} · {step.calls} 次
                                 </p>
                                 <p className="break-all text-xs">{step.prompt}</p>
                                 <p className="text-xs">
-                                    模型：{step.parameters[step.mode === "image" ? "imageModel" : "videoModel"]} · 输入：
-                                    {step.inputs.map((input) => (input.stepId ? `步骤 ${plan.steps.findIndex((item) => item.id === input.stepId) + 1}` : input.nodeId)).join("、") || "无"}
+                                    模型：{workflowModel(step)} · 输入：
+                                    {step.inputs.map((input) => (input.stepId ? `步骤 ${plan.steps.findIndex((item) => item.id === input.stepId) + 1}` : plan.resources.find((node) => node.id === input.nodeId)?.title || input.nodeId)).join("、") || "无"}
                                 </p>
                                 <pre className="overflow-auto text-xs">{JSON.stringify(step.actual, null, 2)}</pre>
                                 <CreationEstimate config={config} approvedCondition={workflowEstimateCondition(step, plan, config)} />

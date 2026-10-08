@@ -1,11 +1,10 @@
 import { nanoid } from "nanoid";
 import { saveAs } from "file-saver";
 import { createZip, readZip } from "@/lib/zip";
-import { parameterKeys } from "@/lib/creation-preferences";
 import { getImageBlob, setImageBlob, deleteStoredImages } from "@/services/image-storage";
 import { getMediaBlob, setMediaBlob, deleteStoredMedia } from "@/services/file-storage";
 import { useWorkflowStore, workflowTemplate, type WorkflowTemplate } from "@/stores/canvas/use-workflow-store";
-import type { WorkflowPlan } from "./workflow";
+import { workflowParameterKeys, type WorkflowPlan } from "./workflow";
 import type { CanvasNodeData } from "@/types/canvas";
 
 // Imported plans are data only. Credentials, scripts, task state and message identities are never accepted.
@@ -20,7 +19,7 @@ export function archivePlan(value: unknown): WorkflowPlan {
     };
     const resources = raw.resources.map((node): CanvasNodeData => {
         identify(node.id);
-        if (!["image", "video", "text"].includes(node.type) || typeof node.title !== "string" || !node.metadata || typeof node.metadata.content !== "string") throw new Error("模板素材格式不正确");
+        if (!["image", "video", "text", "audio"].includes(node.type) || typeof node.title !== "string" || !node.metadata || typeof node.metadata.content !== "string") throw new Error("模板素材格式不正确");
         if (node.type !== "text" && (typeof node.metadata.storageKey !== "string" || !node.metadata.storageKey.includes(":"))) throw new Error("模板媒体必须包含原始文件");
         if (!Number.isFinite(node.width) || node.width <= 0 || !Number.isFinite(node.height) || node.height <= 0) throw new Error("模板素材尺寸不正确");
         const m = node.metadata;
@@ -36,9 +35,9 @@ export function archivePlan(value: unknown): WorkflowPlan {
     });
     const steps = raw.steps.map((step) => {
         identify(step.id);
-        if (!["image", "video"].includes(step.mode) || typeof step.title !== "string" || typeof step.prompt !== "string" || !step.prompt.trim() || !step.parameters || !Array.isArray(step.inputs)) throw new Error("模板步骤格式不正确");
+        if (!["image", "video", "text", "audio"].includes(step.mode) || typeof step.title !== "string" || typeof step.prompt !== "string" || !step.prompt.trim() || !step.parameters || !Array.isArray(step.inputs)) throw new Error("模板步骤格式不正确");
         const parameters = Object.fromEntries(
-            [...parameterKeys.image, ...parameterKeys.video].map((key) => {
+            workflowParameterKeys[step.mode].map((key) => {
                 const value = step.parameters[key];
                 if (typeof value !== "string") throw new Error("模板参数格式不正确");
                 return [key, value];
@@ -48,7 +47,7 @@ export function archivePlan(value: unknown): WorkflowPlan {
             if (typeof input.nodeId !== "string" || (input.stepId !== undefined && typeof input.stepId !== "string")) throw new Error("模板输入格式不正确");
             return { nodeId: input.nodeId, stepId: input.stepId };
         });
-        return { id: step.id, title: step.title, mode: step.mode, prompt: step.prompt, parameters, inputs, actual: {}, calls: step.mode === "image" ? Number(parameters.count) : 1, endpoint: "" };
+        return { id: step.id, title: step.title, mode: step.mode, prompt: step.prompt, parameters, inputs, actual: {}, calls: step.mode === "image" || step.mode === "text" ? Number(parameters.count) : 1, endpoint: "" };
     });
     const visiting = new Set<string>(),
         done = new Set<string>();
@@ -109,7 +108,7 @@ export async function importWorkflowTemplate(file: Blob) {
             if (!oldKey) continue;
             if (!keys.has(oldKey)) {
                 const asset = data.assets.find((asset: { key: string }) => asset.key === oldKey);
-                const key = `${node.type === "image" ? "image" : "video"}:${nanoid()}`;
+                const key = `${node.type}:${nanoid()}`;
                 keys.set(oldKey, key);
                 const blob = new Blob([entries.get(asset.path)!], { type: asset.mimeType });
                 if (node.type === "image") await setImageBlob(key, blob);

@@ -21,7 +21,7 @@ while ! curl --fail --silent http://127.0.0.1:4317/ >/dev/null; do
     kill -0 "$server_pid" 2>/dev/null || { cat .playwright-cli/vite.log; exit 1; }
     sleep 1
 done
-for test in copy reliability workflow video-recovery delivery agent-plan retry creation-tools; do
+for test in copy reliability workflow workflow-nodes video-recovery delivery agent-plan retry creation-tools; do
     active_session="dianran-ci-$test"
     "${CLI[@]}" -s="$active_session" open http://127.0.0.1:4317/ >/dev/null
     if ! "${CLI[@]}" -s="$active_session" run-code --filename "output/playwright/$test-regression.js" --raw >".playwright-cli/$test.result.json"; then

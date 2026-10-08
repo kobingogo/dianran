@@ -1,27 +1,72 @@
 import { nanoid } from "nanoid";
-import { CanvasNodeType, type CanvasNodeData, type CanvasConnection } from "@/types/canvas";
+import { CanvasNodeType, type CanvasNodeData, type CanvasConnection, type CanvasGenerationMode, type Position } from "@/types/canvas";
 import { buildGenerationConfig, getGenerationCount } from "./canvas-generation-helpers";
-import { isAiConfigReady, resolveModelRequestConfig, resolveModelScript, type AiConfig } from "@/stores/use-config-store";
-import { createComposerSubmission, type ComposerMode, type ComposerParameters } from "@/lib/composer";
+import { isAiConfigReady, modelMatchesCapability, resolveModelRequestConfig, resolveModelScript, type AiConfig } from "@/stores/use-config-store";
+import { createComposerSubmission, type ComposerParameters } from "@/lib/composer";
+import { parameterKeys } from "@/lib/creation-preferences";
+import { normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
+import { buildNodeGenerationContext, type NodeGenerationContext } from "@/components/canvas/canvas-node-generation";
+import { createCanvasSubmissionGraph, freezeCanvasInput, prepareCanvasSubmission } from "./canvas-composer";
+import { getGroupResourceNodes, isCanvasReferenceNode } from "./canvas-resource-references";
+import { getNodeDefinition } from "./node-registry";
 import { createCanvasNode } from "./canvas-node-factory";
 import { canvasReferenceIds } from "./canvas-composer-references";
 
 export type WorkflowInput = { nodeId: string; stepId?: string };
+export type WorkflowParameters = Partial<ComposerParameters & Pick<AiConfig, "textModel" | "audioModel" | "reasoningEffort" | "systemPrompt" | "audioVoice" | "audioFormat" | "audioSpeed" | "audioInstructions">>;
+export const workflowModelKeys = { image: "imageModel", video: "videoModel", text: "textModel", audio: "audioModel" } as const;
+export const workflowParameterKeys: Record<CanvasGenerationMode, (keyof WorkflowParameters)[]> = {
+    image: parameterKeys.image,
+    video: parameterKeys.video,
+    text: ["textModel", "reasoningEffort", "systemPrompt", "count"],
+    audio: ["audioModel", "audioVoice", "audioFormat", "audioSpeed", "audioInstructions"],
+};
+export const workflowModeLabels = { image: "图片", video: "视频", text: "文本", audio: "音频" };
+export const workflowModel = (step: WorkflowStep) => step.parameters[workflowModelKeys[step.mode]] || "";
 export type WorkflowStep = {
     id: string;
     title: string;
-    mode: ComposerMode;
+    mode: CanvasGenerationMode;
     prompt: string;
-    parameters: ComposerParameters;
+    parameters: WorkflowParameters;
     actual: Record<string, string | number>;
     calls: number;
     endpoint: string;
+    apiFormat?: AiConfig["apiFormat"];
     inputs: WorkflowInput[];
     agentSource?: NonNullable<CanvasNodeData["metadata"]>["agentSource"];
 };
 export type WorkflowPlan = { id: string; title: string; steps: WorkflowStep[]; resources: CanvasNodeData[] };
 export type WorkflowStepRun = { stepId: string; status: "pending" | "running" | "succeeded" | "failed" | "interrupted"; configId?: string; resultIds: string[]; resultNodes?: CanvasNodeData[]; error?: string };
 export type WorkflowRun = { id: string; plan: WorkflowPlan; steps: WorkflowStepRun[]; prepared?: boolean };
+
+function workflowParameters(request: AiConfig, mode: "text" | "audio", textCount = 1): { parameters: WorkflowParameters; actual: WorkflowStep["actual"] } {
+    if (mode === "text") {
+        const apiFormat = resolveModelRequestConfig(request, request.model).apiFormat;
+        const parameters: WorkflowParameters = { textModel: request.model, count: String(textCount), systemPrompt: request.systemPrompt.trim(), reasoningEffort: apiFormat === "gemini" ? "auto" : request.reasoningEffort };
+        return { parameters, actual: { systemPrompt: parameters.systemPrompt!, ...(parameters.reasoningEffort === "auto" ? {} : { reasoningEffort: parameters.reasoningEffort! }) } };
+    }
+    const parameters: WorkflowParameters = {
+        audioModel: request.model, audioVoice: normalizeAudioVoiceValue(request.audioVoice), audioFormat: normalizeAudioFormatValue(request.audioFormat),
+        audioSpeed: normalizeAudioSpeedValue(request.audioSpeed), audioInstructions: request.audioInstructions.trim(),
+    };
+    return { parameters, actual: { voice: parameters.audioVoice!, response_format: parameters.audioFormat!, speed: Number(parameters.audioSpeed), ...(parameters.audioInstructions ? { instructions: parameters.audioInstructions } : {}) } };
+}
+
+function validateWorkflowInputs(mode: CanvasGenerationMode, types: string[], title: string) {
+    const allowed = mode === "video" ? ["text", "image", "video", "audio"] : mode === "audio" ? ["text"] : ["text", "image"];
+    if (types.some((type) => !allowed.includes(type))) throw new Error(`${title}：${workflowModeLabels[mode]}生成不支持此输入类型，请移除未发送的引用`);
+}
+
+/** Plugin resources become ordinary frozen materials; generation never invokes plugin actions. */
+function workflowResource(node: CanvasNodeData): CanvasNodeData {
+    const builtin = [CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Audio, CanvasNodeType.Text].includes(node.type as CanvasNodeType);
+    const resource = builtin ? undefined : getNodeDefinition(node.type)?.resource?.(node);
+    const type = builtin ? node.type : resource?.kind;
+    const content = builtin ? node.metadata?.content || (type === "text" ? node.metadata?.prompt : "") : type === "text" ? resource?.text : resource?.url;
+    if (!type || !content || node.metadata?.status === "loading") throw new Error(`输入 ${node.title} 尚无可用内容`);
+    return { ...structuredClone(node), type, metadata: { content, storageKey: type === "text" ? undefined : node.metadata?.storageKey, naturalWidth: node.metadata?.naturalWidth, naturalHeight: node.metadata?.naturalHeight, mimeType: node.metadata?.mimeType, bytes: node.metadata?.bytes, status: "success" } };
+}
 
 export function workflowScope(nodes: CanvasNodeData[], connections: CanvasConnection[], selected: string[], downstream = false) {
     const ids = new Set(selected);
@@ -42,55 +87,60 @@ export function workflowScope(nodes: CanvasNodeData[], connections: CanvasConnec
 
 export function planWorkflow(nodes: CanvasNodeData[], connections: CanvasConnection[], selected: string[], config: AiConfig, title = "画布工作流"): WorkflowPlan {
     const selectedNodes = nodes.filter((node) => selected.includes(node.id));
-    if (selectedNodes.some((node) => ![CanvasNodeType.Config, CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Text].includes(node.type as CanvasNodeType))) throw new Error("工作流当前只支持生图/视频配置及图片、视频、文字输入");
+    if (selectedNodes.some((node) => node.type !== CanvasNodeType.Config && !isCanvasReferenceNode(node, nodes))) throw new Error("工作流支持生成配置和可引用的素材节点");
     const configs = selectedNodes.filter((node) => node.type === CanvasNodeType.Config);
     if (!configs.length) throw new Error("请先选择要执行的配置节点");
     const configIds = new Set(configs.map((node) => node.id));
     const resources = new Map<string, CanvasNodeData>();
     const steps = configs.map((node): WorkflowStep => {
         const mode = node.metadata?.generationMode || "image";
-        if (mode !== "image" && mode !== "video") throw new Error("工作流尚不支持文本或音频生成");
-        const prompt = node.metadata?.composerContent ?? node.metadata?.prompt ?? "";
+        if (!workflowModelKeys[mode]) throw new Error(`${node.title}：生成模式无效`);
+        let prompt = node.metadata?.composerContent ?? node.metadata?.prompt ?? "";
         if (!prompt.trim()) throw new Error(`${node.title}：请先填写提示词`);
+        if (node.metadata?.model && !modelMatchesCapability(config, node.metadata.model, mode)) throw new Error(`${node.title}：所选模型不存在或不支持此模式，请重新选择`);
         const request = buildGenerationConfig(config, node, mode);
-        if (resolveModelScript(request, request.model)) throw new Error(`${node.title}：工作流 MVP 暂不支持自定义调用脚本`);
+        request[workflowModelKeys[mode]] = request.model;
+        if (!modelMatchesCapability(request, request.model, mode)) throw new Error(`${node.title}：请配置此模式的可用模型`);
+        if (resolveModelScript(request, request.model)) throw new Error(`${node.title}：工作流暂不支持自定义调用脚本`);
         if (!isAiConfigReady(request, request.model)) throw new Error(`${node.title}：模型或渠道未配置`);
-        const inputs = [...new Set([...connections.filter((edge) => edge.toNodeId === node.id && edge.kind === "input").map((edge) => edge.fromNodeId), ...canvasReferenceIds(prompt), ...(node.metadata?.draftReferenceIds || [])])].map(
-            (id): WorkflowInput => {
-                const input = nodes.find((item) => item.id === id);
-                if (!input) throw new Error(`${node.title}：输入 ${id} 已不存在`);
-                const producer = connections.find((edge) => edge.kind === "generation" && edge.toNodeId === id && configIds.has(edge.fromNodeId));
-                const stepId = configIds.has(id) ? id : producer?.fromNodeId;
-                if (stepId) return { nodeId: id, stepId };
-                if (![CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Text].includes(input.type as CanvasNodeType) || !input.metadata?.content) throw new Error(`${node.title}：输入 ${input.title} 尚无可用内容`);
-                if (mode === "image" && input.type === CanvasNodeType.Video) throw new Error(`${node.title}：生图不支持视频输入`);
-                resources.set(id, structuredClone(input));
-                return { nodeId: id };
-            },
-        );
-        // A dependency will materialize an image or video; preview validates its declared media kind now.
-        const imageInputs = inputs.filter((input) => (input.stepId ? configs.find((node) => node.id === input.stepId)?.metadata?.generationMode !== "video" : resources.get(input.nodeId)?.type === CanvasNodeType.Image));
-        if (mode === "image" && inputs.some((input) => input.stepId && configs.find((node) => node.id === input.stepId)?.metadata?.generationMode === "video")) throw new Error(`${node.title}：生图不能依赖视频结果`);
-        const submission = createComposerSubmission(
-            mode,
-            prompt.replace(/@\[node:[^\]]+\]/g, "参考输入"),
-            imageInputs.map((input) => ({ id: input.nodeId, name: input.nodeId, type: "image/png", dataUrl: "", storageKey: input.nodeId })),
-            { ...request, [mode === "image" ? "imageModel" : "videoModel"]: request.model },
-            false,
-            15,
-        );
-        if (mode === "image" && getGenerationCount(request.count) !== Number(submission.parameters.count)) throw new Error(`${node.title}：参数需要调整，请先在配置中确认`);
+        const channel = resolveModelRequestConfig(request, request.model);
+        if (mode === "audio" && channel.apiFormat === "gemini") throw new Error(`${node.title}：当前 Gemini 适配器不支持音频生成`);
+        const ids = [...new Set([...connections.filter((edge) => edge.toNodeId === node.id && edge.kind === "input").map((edge) => edge.fromNodeId), ...canvasReferenceIds(prompt), ...(node.metadata?.draftReferenceIds || [])])];
+        const expanded = ids.flatMap((id) => {
+            const input = nodes.find((item) => item.id === id);
+            if (!input) throw new Error(`${node.title}：输入 ${id} 已不存在`);
+            if (input.type !== CanvasNodeType.Group) return [id];
+            const children = getGroupResourceNodes(id, nodes);
+            if (!children.length) throw new Error(`${node.title}：分组 ${input.title} 没有可用素材`);
+            prompt = prompt.replaceAll(`@[node:${id}]`, children.map((child) => `@[node:${child.id}]`).join(" "));
+            return children.map((child) => child.id);
+        });
+        const inputs = [...new Set(expanded)].map((id): WorkflowInput => {
+            const input = nodes.find((item) => item.id === id)!;
+            const producer = connections.find((edge) => edge.kind === "generation" && edge.toNodeId === id && configIds.has(edge.fromNodeId));
+            const stepId = configIds.has(id) ? id : producer?.fromNodeId;
+            if (stepId) return { nodeId: id, stepId };
+            resources.set(id, workflowResource(input));
+            return { nodeId: id };
+        });
+        const types = inputs.map((input) => input.stepId ? configs.find((node) => node.id === input.stepId)?.metadata?.generationMode || "image" : resources.get(input.nodeId)!.type);
+        validateWorkflowInputs(mode, types, node.title);
+        // Deduplicate real file identities, but keep each future output as a distinct reference.
+        const imageInputs = [...new Map(inputs.filter((_input, index) => types[index] === "image").map((input) => [input.stepId || resources.get(input.nodeId)?.metadata?.storageKey || resources.get(input.nodeId)?.metadata?.content || input.nodeId, input])).values()];
+        const preview = mode === "image" || mode === "video"
+            ? createComposerSubmission(mode, prompt.replace(/@\[node:[^\]]+\]/g, "参考输入"), imageInputs.map((input) => ({ id: input.nodeId, name: input.nodeId, type: "image/png", dataUrl: "", storageKey: input.nodeId })), request, false, 15)
+            : workflowParameters(request, mode, getGenerationCount(String(node.metadata?.textCount || 1)));
+        if (mode === "image" && getGenerationCount(request.count) !== Number(preview.parameters.count)) throw new Error(`${node.title}：参数需要调整，请先在配置中确认`);
+        if (mode === "video" && channel.apiFormat === "gemini") {
+            const count = (type: string) => new Set(inputs.filter((_input, index) => types[index] === type).map((input) => input.stepId || resources.get(input.nodeId)?.metadata?.storageKey || resources.get(input.nodeId)?.metadata?.content || input.nodeId)).size;
+            if (count("video") > 1 || count("audio") > 1) throw new Error(`${node.title}：当前 Gemini 视频适配器仅发送一个视频和一个音频，请移除多余引用`);
+        }
         return {
-            id: node.id,
-            title: node.title,
-            mode,
-            prompt,
-            parameters: submission.parameters,
-            actual: submission.actual,
-            calls: mode === "image" ? getGenerationCount(request.count) : 1,
-            endpoint: resolveModelRequestConfig(request, request.model).baseUrl,
-            inputs,
-            agentSource: node.metadata?.agentSource,
+            id: node.id, title: node.title, mode, prompt,
+            parameters: Object.fromEntries(workflowParameterKeys[mode].map((key) => [key, (preview.parameters as WorkflowParameters)[key]])),
+            actual: preview.actual,
+            calls: mode === "image" || mode === "text" ? Number(preview.parameters.count) : 1,
+            endpoint: channel.baseUrl, apiFormat: channel.apiFormat, inputs, agentSource: node.metadata?.agentSource,
         };
     });
     const sorted: WorkflowStep[] = [];
@@ -152,6 +202,53 @@ export async function executeWorkflow(
     }
 }
 
+function workflowConfigNode(step: WorkflowStep, position: Position) {
+    const p = step.parameters;
+    const node = createCanvasNode(CanvasNodeType.Config, position, {
+        generationMode: step.mode, model: workflowModel(step),
+        size: step.mode === "image" ? p.size : p.videoSize, quality: p.quality, background: p.background, count: Number(p.count || 1),
+        seconds: p.videoSeconds, vquality: p.vquality, generateAudio: p.videoGenerateAudio, watermark: p.videoWatermark, videoMode: p.videoMode,
+        textCount: step.mode === "text" ? Number(p.count) : undefined, reasoningEffort: p.reasoningEffort, systemPrompt: p.systemPrompt,
+        audioVoice: p.audioVoice, audioFormat: p.audioFormat, audioSpeed: p.audioSpeed, audioInstructions: p.audioInstructions,
+        status: "idle", agentSource: step.agentSource,
+    });
+    node.title = step.title;
+    return node;
+}
+
+/** Prepare a fresh graph using the approved parameters and frozen inputs before any paid request. */
+export function prepareWorkflowStep(step: WorkflowStep, inputIds: string[], config: AiConfig, nodes: CanvasNodeData[], connections: CanvasConnection[], position: Position, frozenInputs = nodes) {
+    const request = { ...config, ...step.parameters, model: workflowModel(step) };
+    const channel = resolveModelRequestConfig(request, request.model);
+    if (channel.baseUrl !== step.endpoint || channel.apiFormat !== step.apiFormat) throw new Error("渠道地址或接口格式已改变，请重新预览计划");
+    if (resolveModelScript(request, request.model)) throw new Error("调用脚本已改变，请重新预览计划");
+    if (!modelMatchesCapability(request, request.model, step.mode)) throw new Error("模型已移除或能力已改变，请重新预览计划");
+    if (!isAiConfigReady(request, request.model)) throw new Error("模型或渠道未配置，请重新预览计划");
+    let graph;
+    let input: NodeGenerationContext;
+    let actual: WorkflowStep["actual"];
+    if (step.mode === "image" || step.mode === "video") {
+        const submission = prepareCanvasSubmission(step.mode, step.prompt, [], request, frozenInputs, inputIds);
+        graph = createCanvasSubmissionGraph(submission, nodes, connections, position);
+        input = submission.input;
+        actual = submission.actual;
+    } else {
+        const source = workflowConfigNode(step, position);
+        let prompt = step.prompt;
+        for (const id of inputIds) if (!prompt.includes(`@[node:${id}]`)) prompt += ` @[node:${id}]`;
+        source.metadata = { ...source.metadata, composerContent: prompt, prompt, inputNodeIds: inputIds, draftReferenceIds: inputIds };
+        const links = inputIds.map((fromNodeId) => ({ id: nanoid(), fromNodeId, toNodeId: source.id, kind: "input" as const }));
+        input = buildNodeGenerationContext(source.id, [...frozenInputs, source], links, prompt);
+        validateWorkflowInputs(step.mode, [...input.referenceImages.map(() => "image"), ...input.referenceVideos.map(() => "video"), ...input.referenceAudios.map(() => "audio")], step.title);
+        actual = workflowParameters(request, step.mode, step.calls).actual;
+        source.metadata.inputSnapshot = freezeCanvasInput(input);
+        graph = { nodes: [...nodes, source], connections: [...connections, ...links], config: source };
+    }
+    if (JSON.stringify(actual) !== JSON.stringify(step.actual)) throw new Error("实际参数已改变，请重新预览计划");
+    graph.config.metadata = { ...graph.config.metadata, workflowStep: structuredClone(step), agentSource: step.agentSource };
+    return { ...graph, input };
+}
+
 export function instantiateWorkflow(plan: WorkflowPlan, position = { x: 80, y: 80 }) {
     const ids = new Map<string, string>();
     const nodes = plan.resources.map((source, index) => {
@@ -160,26 +257,7 @@ export function instantiateWorkflow(plan: WorkflowPlan, position = { x: 80, y: 8
         return node;
     });
     const configs = plan.steps.map((step, index) => {
-        const p = step.parameters;
-        const node = createCanvasNode(
-            CanvasNodeType.Config,
-            { x: position.x + 456 + index * 456, y: position.y + 160 },
-            {
-                generationMode: step.mode,
-                model: p[step.mode === "image" ? "imageModel" : "videoModel"],
-                size: step.mode === "image" ? p.size : p.videoSize,
-                quality: p.quality,
-                background: p.background,
-                count: Number(p.count),
-                seconds: p.videoSeconds,
-                vquality: p.vquality,
-                generateAudio: p.videoGenerateAudio,
-                watermark: p.videoWatermark,
-                videoMode: p.videoMode,
-                status: "idle",
-                agentSource: step.agentSource,
-            },
-        );
+        const node = workflowConfigNode(step, { x: position.x + 456 + index * 456, y: position.y + 160 });
         node.title = step.title;
         ids.set(step.id, node.id);
         return node;
@@ -205,7 +283,7 @@ export function workflowResults(step: WorkflowStep, state: WorkflowStepRun, node
         .filter(Boolean);
     if (
         !results.length ||
-        results.some((node) => node.type !== step.mode || node.metadata?.status !== "success" || !node.metadata.content || (step.mode === "image" && (node.metadata.images?.filter((image) => image.status === "success").length || 0) < step.calls))
+        results.some((node) => node.type !== step.mode || node.metadata?.status !== "success" || !node.metadata.content || ((step.mode === "image" ? node.metadata.images : step.mode === "text" ? node.metadata.texts : undefined)?.filter((item) => item.status === "success" && item.content).length ?? (step.mode === "image" || step.mode === "text" ? 0 : 1)) < step.calls)
     )
         throw new Error("步骤未完整成功，下游已停止；请在结果节点重试或取任务状态");
     return results.map((node) => node.id);

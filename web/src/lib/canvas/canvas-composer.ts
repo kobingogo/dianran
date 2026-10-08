@@ -72,8 +72,9 @@ export function createCanvasSubmissionGraph(submission: CanvasSubmission, nodes:
 }
 
 export function resultProvenance(source: CanvasNodeData | undefined) {
-    return source?.metadata?.creation ? {
+    return source?.metadata?.creation || source?.metadata?.workflowStep ? {
         creation: source.metadata.creation,
+        workflowStep: source.metadata.workflowStep,
         inputSnapshot: source.metadata.inputSnapshot,
         composerContent: source.metadata.composerContent,
         inputNodeIds: source.metadata.inputNodeIds,

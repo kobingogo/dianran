@@ -46,6 +46,7 @@ export type CanvasNodeText = {
 
 export type CanvasNodeMetadata = {
     creation?: import("@/lib/composer").CreationSnapshot;
+    workflowStep?: import("@/lib/canvas/workflow").WorkflowStep;
     sourceResultId?: string;
     inputSnapshot?: import("@/components/canvas/canvas-node-generation").NodeGenerationContext;
     inputNodeIds?: string[];
@@ -67,6 +68,7 @@ export type CanvasNodeMetadata = {
     generationType?: CanvasImageGenerationType;
     model?: string;
     reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh";
+    systemPrompt?: string;
     size?: string;
     quality?: string;
     background?: string;

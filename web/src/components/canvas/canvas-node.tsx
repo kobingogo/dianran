@@ -533,7 +533,7 @@ function MissingPluginContent({ theme, type }: Pick<NodeContentRendererProps, "t
     );
 }
 
-function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, batchExpanded, onContentChange, onStopEditing, onToggleBatch, onSetBatchPrimary }: NodeContentRendererProps) {
+function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, batchExpanded, onContentChange, onStopEditing, onToggleBatch, onSetBatchPrimary, onRetry }: NodeContentRendererProps) {
     const { t } = useTranslation();
     const fontSize = node.metadata?.fontSize || 14;
     const textStyle = { fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px`, color: theme.node.text, boxSizing: "border-box" } as React.CSSProperties;
@@ -599,6 +599,11 @@ function TextContent({ node, theme, isEditingContent, textareaRef, mentionRefere
                     <ChevronRight className={`size-3.5 opacity-80 transition-transform ${batchExpanded ? "rotate-90" : ""}`} />
                 </button>
             ) : null}
+            {node.metadata?.workflowStep && node.metadata.status === "error" && onRetry && (
+                <button type="button" className="absolute bottom-2 right-2 z-30 px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} onClick={(event) => (event.stopPropagation(), onRetry(node))} onPointerDown={(event) => event.stopPropagation()}>
+                    重试未成功文本
+                </button>
+            )}
         </BatchFrame>
     );
 }
