@@ -486,5 +486,13 @@
     "library": "x-trending",
     "title": "巨型抹茶松饼摩天楼",
     "sourceUrl": "https://x.com/wiliam_web3/status/2084951678726341076"
+  },
+  "youmind-gpt-image-2:fa76d65ecaf0829d": {
+    "reason": "content-filter",
+    "detail": "face-swap：标题与正文要求面部与参考照片一致",
+    "retiredAt": "2026-10-07T13:54:25.439Z",
+    "library": "youmind-gpt-image-2",
+    "title": "个人资料 / 头像 - 山顶观景台享用 Biryani 的女性（换脸）",
+    "sourceUrl": "https://x.com/Kiran_AI1/status/2107016759597478129"
   }
 }

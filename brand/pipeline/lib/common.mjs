@@ -167,7 +167,9 @@ export function scoreEntry(entry, libraryId, usage, cfg, now = Date.now()) {
     else {
         const followers = Math.max(s.followerFloor, typeof entry.authorFollowers === "number" ? entry.authorFollowers : s.assumedFollowers);
         const rate = eng / followers;
-        engagementScore = (s.absWeight * Math.log10(1 + eng) + s.rateWeight * Math.log10(1 + 100 * rate)) * (s.sourceMultiplier[entry.source] ?? 1);
+        // [dianran] Watchlist author tiers (S/A/B from x-watchlist.json) multiply the engagement score.
+        const tierMult = s.tierMultiplier?.[entry.authorTier] ?? 1;
+        engagementScore = (s.absWeight * Math.log10(1 + eng) + s.rateWeight * Math.log10(1 + 100 * rate)) * (s.sourceMultiplier[entry.source] ?? 1) * tierMult;
     }
     const age = ageDays(entry.postedAt, now);
     const freshness = age === null ? s.unknownDateFreshness : Math.pow(0.5, age / s.freshnessHalfLifeDays);

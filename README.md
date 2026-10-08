@@ -5,7 +5,7 @@
 <h1 align="center">点染 Dianran</h1>
 <p align="center"><b>一点灵感，染成画面。</b><br />本地优先的 AI 创作工作台，让生成、参考与迭代连成一条创作流程。</p>
 <p align="center">
-  <a href="https://dianran-next.vercel.app/">在线体验 · 开发版</a> ·
+  <a href="https://dianran.vercel.app/">在线体验</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="docs/content/docs/">使用文档</a> ·
   <a href="CHANGELOG.md">更新日志</a> ·

@@ -58,13 +58,31 @@ function cacheKey(sourceId: string) {
     return `prompt-source:${sourceId}`;
 }
 
-// [dianran] Bump when the bundled snapshots change so old caches refetch
-// (v2: covers served from /prompt-sources/covers; v3: X/forum covers bundled + x-trending library; v4: cover-less entries removed;
-// since v5 the weekly prompt pipeline rewrites this line as "prompts-YYYY-MM-DD", see brand/pipeline/bump-version.mjs).
-const BUILT_IN_SNAPSHOT_VERSION = "prompts-2026-10-04.3";
+// Fallback when /prompt-sources/manifest.json cannot be read. Live updates use manifest.generatedAt,
+// which the static prompt host can publish without rebuilding this bundle.
+const BUILT_IN_SNAPSHOT_VERSION = "prompts-2026-10-07";
+const manifestUrl = `${import.meta.env.BASE_URL || "/"}prompt-sources/manifest.json`;
+let publishedSnapshot = BUILT_IN_SNAPSHOT_VERSION;
+let publishedSnapshotCheckedAt = 0;
 
-function sourceSignature(source: PromptSource) {
-    const value = `${source.name}\n${source.url}\n${source.homepage}${source.builtIn ? `\n${BUILT_IN_SNAPSHOT_VERSION}` : ""}`;
+async function publishedSnapshotVersion() {
+    if (Date.now() - publishedSnapshotCheckedAt < 60_000) return publishedSnapshot;
+    publishedSnapshotCheckedAt = Date.now();
+    try {
+        const response = await fetch(manifestUrl, { cache: "no-store" });
+        if (response.ok) {
+            const manifest = await response.json();
+            if (typeof manifest?.generatedAt === "string" && manifest.generatedAt) publishedSnapshot = manifest.generatedAt;
+        }
+    } catch {
+        // The hourly cache TTL still refreshes library files when the manifest is unreachable.
+    }
+    return publishedSnapshot;
+}
+
+async function sourceSignature(source: PromptSource) {
+    const snapshot = source.builtIn ? await publishedSnapshotVersion() : "";
+    const value = `${source.name}\n${source.url}\n${source.homepage}${snapshot ? `\n${snapshot}` : ""}`;
     let hash = 0;
     for (let i = 0; i < value.length; i += 1) hash = (hash * 31 + value.charCodeAt(i)) | 0;
     return `${value.length}:${hash}`;
@@ -95,7 +113,7 @@ async function refreshSourceRecord(source: PromptSource): Promise<PromptSourceRe
     try {
         const items = withSourceMeta(source, await runPromptSource(source));
         const lastSuccessAt = new Date().toISOString();
-        const cache: SourceCache = { sourceId: source.id, items, count: items.length, fetchedAt: Date.now(), lastSuccessAt, lastError: "", signature: sourceSignature(source) };
+        const cache: SourceCache = { sourceId: source.id, items, count: items.length, fetchedAt: Date.now(), lastSuccessAt, lastError: "", signature: await sourceSignature(source) };
         await promptCacheStore.setItem(cacheKey(source.id), cache);
         return { sourceId: source.id, sourceName: source.name, count: items.length, lastSuccessAt, lastError: "", success: true };
     } catch (error) {
@@ -107,7 +125,7 @@ async function refreshSourceRecord(source: PromptSource): Promise<PromptSourceRe
             fetchedAt: previous?.fetchedAt || 0,
             lastSuccessAt: previous?.lastSuccessAt || "",
             lastError,
-            signature: previous?.signature || sourceSignature(source),
+            signature: previous?.signature || await sourceSignature(source),
         };
         await promptCacheStore.setItem(cacheKey(source.id), cache);
         return { sourceId: source.id, sourceName: source.name, count: cache.count, lastSuccessAt: cache.lastSuccessAt, lastError, success: false };
@@ -124,10 +142,11 @@ function getOrStartRefresh(source: PromptSource) {
 
 async function getSourcePrompts(source: PromptSource): Promise<Prompt[]> {
     const cached = await readSourceCache(source.id);
+    const signature = await sourceSignature(source);
     if (cached) {
-        const stale = cached.signature !== sourceSignature(source) || Date.now() - cached.fetchedAt >= cacheTtlMs;
+        const stale = cached.signature !== signature || Date.now() - cached.fetchedAt >= cacheTtlMs;
         // A changed signature means the cached items are from an older snapshot: wait for the fresh copy (fall back to cache on failure).
-        if (cached.signature !== sourceSignature(source)) {
+        if (cached.signature !== signature) {
             const result = await getOrStartRefresh(source);
             if (result.success) return withSourceMeta(source, (await readSourceCache(source.id))?.items || []);
         } else if (stale) void getOrStartRefresh(source).catch(() => undefined);
@@ -195,7 +214,7 @@ export async function refreshDueSources(maxAgeMs: number): Promise<PromptSourceR
         enabledSources().map(async (source) => {
             const cached = await readSourceCache(source.id);
             const lastSuccess = cached?.lastSuccessAt ? new Date(cached.lastSuccessAt).getTime() : 0;
-            return !lastSuccess || Boolean(cached?.lastError) || Date.now() - lastSuccess >= maxAgeMs || cached?.signature !== sourceSignature(source) ? source : null;
+            return !lastSuccess || Boolean(cached?.lastError) || Date.now() - lastSuccess >= maxAgeMs || cached?.signature !== (await sourceSignature(source)) ? source : null;
         }),
     );
     const results = await Promise.all(sources.filter((source): source is PromptSource => Boolean(source)).map(getOrStartRefresh));

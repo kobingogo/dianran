@@ -1,0 +1,3 @@
+# Prompt snapshots publish separately to the dianran-prompts project.
+# The app rewrites /prompt-sources/* onto that host, so they must not ship inside the app build.
+web/public/prompt-sources

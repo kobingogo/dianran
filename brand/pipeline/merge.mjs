@@ -4,7 +4,10 @@
 // brand/pipeline/data/{scores,retired,cover-failures}.json and the run report candidates/merge-report.json.
 // Unified metadata (added to every record, old fields untouched so the app stays backward compatible):
 //   source, sourceUrl, author, postedAt, fetchedAt, engagement {likes, bookmarks, reposts}, authorFollowers, model, status
-// Usage: node brand/pipeline/merge.mjs [--no-network-checks]
+// Usage: node brand/pipeline/merge.mjs [--no-network-checks] [--additive-only]
+// --additive-only: only add new candidates and refresh engagement; skip all destructive steps
+// (upstream removals, retirement rules, caps). Used by the twice-daily fast path; the weekly run
+// still does full maintenance.
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -15,7 +18,8 @@ import { coverFileOf, createLocalizer, pool } from "./lib/covers.mjs";
 
 const cfg = config("pipeline.json");
 const deprecated = config("deprecated-models.json").models;
-const networkChecks = !process.argv.includes("--no-network-checks") && cfg.cleanup.checkXPosts;
+const additiveOnly = process.argv.includes("--additive-only");
+const networkChecks = !additiveOnly && !process.argv.includes("--no-network-checks") && cfg.cleanup.checkXPosts;
 const now = Date.now();
 const runAt = nowIso();
 const usage = readJson(resolve(DATA_DIR, "usage.json"), { status: "unavailable", totals: {}, days: {} });
@@ -142,7 +146,13 @@ for (const lib of libs.filter((l) => l.source === "github")) {
             report.added.push({ id: item.id, library: lib.id, title: item.title, model: item.model, sourceUrl: item.sourceUrl });
         }
     });
-    for (const item of current) if (!matched.has(item.id)) retire(lib, item, "upstream-removed", `上游 ${lib.repo} 已移除`);
+    // [dianran] In --additive-only mode unmatched items are kept (the weekly run decides their fate);
+    // otherwise they are retired as removed upstream.
+    for (const item of current) {
+        if (matched.has(item.id)) continue;
+        if (additiveOnly) next.push(item);
+        else retire(lib, item, "upstream-removed", `上游 ${lib.repo} 已移除`);
+    }
     data[lib.id] = next;
 }
 
@@ -207,10 +217,10 @@ if (networkChecks) {
     log(`X checks: ${JSON.stringify(report.xChecks)}`);
 }
 
-// ---------- retirement rules ----------
+// ---------- retirement rules (skipped in --additive-only: destructive maintenance stays in the weekly run) ----------
 const isDeprecated = (item) => deprecated.find((d) => [item.model, item.imageModel].some((v) => v && String(v).toLowerCase() === d.match.toLowerCase()));
 const trackingMature = report.usageTrackingDays >= cfg.cleanup.minUsageTrackingDays;
-for (const lib of libs) {
+if (!additiveOnly) for (const lib of libs) {
     const keep = [];
     for (const item of data[lib.id]) {
         const coverFile = coverFileOf(item.coverUrl);
@@ -241,8 +251,8 @@ for (const lib of libs) for (const item of data[lib.id]) {
     scores[item.id] = { ...s, library: lib.id, model: item.model, hasCover: Boolean(item.coverUrl) };
 }
 
-// ---------- caps ----------
-for (const [libId, cap] of Object.entries(cfg.cleanup.caps)) {
+// ---------- caps (skipped in --additive-only) ----------
+if (!additiveOnly) for (const [libId, cap] of Object.entries(cfg.cleanup.caps)) {
     const lib = libs.find((l) => l.id === libId);
     const sorted = [...data[libId]].sort((a, b) => scores[b.id].total - scores[a.id].total);
     for (const item of sorted.slice(cap)) { retire(lib, item, "cap", `超出 ${lib.name} 上限 ${cap} 条（得分 ${scores[item.id].total}）`); delete scores[item.id]; }
