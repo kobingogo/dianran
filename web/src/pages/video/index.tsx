@@ -1,3 +1,5 @@
+import { estimateCondition } from "@/lib/creation-estimates";
+import { useCreationEstimatesStore } from "@/stores/use-creation-estimates-store";
 import { CreationDetails } from "@/components/composer/creation-details";
 import { Composer } from "@/components/composer/composer";
 import { CanvasDeliveryButton, deliverToCanvas, prepareCanvasSubmission } from "@/components/composer/canvas-delivery";
@@ -301,6 +303,7 @@ export default function VideoPage() {
                     setResults([{ id: nextVideo.id, status: "success", video: nextVideo }]);
                     if (agentTaskId) updateAgentTask(agentTaskId, { status: "succeeded", successCount: 1, failCount: 0, error: undefined });
                     await saveLog({ ...log, status: "success", durationMs: nextVideo.durationMs, video: nextVideo, error: undefined });
+                    if (log.creation) { const condition = estimateCondition(configOverride || taskConfig, { ...log.creation, references: log.references, canvas: false }); if (log.task.endpoint) condition.endpoint = log.task.endpoint; void useCreationEstimatesStore.getState().record(log.id, condition, nextVideo.durationMs).catch((error) => showErrorToast(message, error, "结果已生成，耗时记录保存失败")); }
                     message.success(t("videoWorkbench.generated"));
                     if (log.canvasProjectId) {
                         try {

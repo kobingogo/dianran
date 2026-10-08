@@ -9,6 +9,7 @@ export type WorkflowTemplate = { id: string; title: string; plan: WorkflowPlan }
 const key = storageKey("workflow_templates");
 export function workflowTemplate(plan: WorkflowPlan, title: string): WorkflowTemplate {
     const clean = structuredClone(plan);
+    clean.steps.forEach((step) => { delete step.agentSource; });
     clean.resources = clean.resources.map((node) => {
         const m = node.metadata || {};
         if (!m.storageKey && m.content?.startsWith("blob:")) throw new Error("临时素材尚未保存，无法创建模板");

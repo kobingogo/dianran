@@ -1,7 +1,7 @@
-import type { CanvasNodeData, CanvasConnection } from "@/types/canvas";
+import type { CanvasNodeData, CanvasConnection, CanvasGenerationMode } from "@/types/canvas";
 import { CanvasNodeType } from "@/types/canvas";
 import { createCanvasNode } from "./canvas-node-factory";
-import { planWorkflow } from "./workflow";
+import { planWorkflow, workflowModelKeys } from "./workflow";
 import type { AiConfig } from "@/stores/use-config-store";
 
 export function agentWorkflowBlock(text: string) {
@@ -24,19 +24,27 @@ export function agentWorkflowPlan(text: string, nodes: CanvasNodeData[], config:
     const ids = new Map<string, string>();
     const configs: CanvasNodeData[] = data.steps.map((step: { id: string; mode: string; prompt: string; model?: string; parameters?: Record<string, string> }, index: number) => {
         keys(step, ["id", "mode", "prompt", "model", "parameters", "referenceNodeIds", "dependsOn"]);
-        if (typeof step.id !== "string" || !step.id || ids.has(step.id) || !["image", "video"].includes(step.mode) || typeof step.prompt !== "string" || !step.prompt.trim() || (step.model !== undefined && typeof step.model !== "string"))
+        if (typeof step.id !== "string" || !step.id || ids.has(step.id) || !["image", "video", "text", "audio"].includes(step.mode) || typeof step.prompt !== "string" || !step.prompt.trim() || (step.model !== undefined && typeof step.model !== "string"))
             throw new Error("步骤 ID、模式或提示词无效");
         const p = step.parameters || {};
-        keys(p, ["size", "quality", "background", "count", "seconds", "vquality", "generateAudio", "watermark", "videoMode"]);
+        const mode = step.mode as CanvasGenerationMode;
+        const allowed = {
+            image: ["size", "quality", "background", "count"], video: ["size", "seconds", "vquality", "generateAudio", "watermark", "videoMode"],
+            text: ["textCount", "reasoningEffort", "systemPrompt"], audio: ["audioVoice", "audioFormat", "audioSpeed", "audioInstructions"],
+        };
+        keys(p, allowed[mode]);
         if (Object.values(p).some((value) => typeof value !== "string")) throw new Error("参数值必须是字符串");
+        if (p.reasoningEffort && !["auto", "low", "medium", "high", "xhigh"].includes(p.reasoningEffort)) throw new Error("推理强度无效");
         const node = createCanvasNode(
             CanvasNodeType.Config,
             { x: 456 + index * 456, y: 160 },
             {
                 ...p,
                 count: p.count === undefined ? 1 : Number(p.count),
-                generationMode: step.mode as "image" | "video",
-                model: step.model || config[step.mode === "image" ? "imageModel" : "videoModel"],
+                textCount: p.textCount === undefined ? 1 : Number(p.textCount),
+                reasoningEffort: p.reasoningEffort as AiConfig["reasoningEffort"] | undefined,
+                generationMode: mode,
+                model: step.model || config[workflowModelKeys[mode]],
                 prompt: step.prompt,
                 composerContent: step.prompt,
                 agentSource: source,

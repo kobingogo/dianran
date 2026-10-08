@@ -30,7 +30,7 @@ async (page) => {
   if (copies.some(n => n.task || n.status === 'loading')) throw new Error('Copy inherited a running task');
   if (!nodes.some(n => n.id === 'video-test' && n.task === 'test-task')) throw new Error('Original task changed');
   if (copies.find(n => n.type === 'video').group !== copies.find(n => n.type === 'group').id) throw new Error('Copy group identity mismatch');
-  await page.locator('[data-node-id="group-test"]').click({button:'right',position:{x:10,y:10}});
+  await page.locator('[data-node-id="group-test"]').click({button:'right',position:{x:10,y:100}});
   await page.getByRole('button', {name:'复制',exact:true}).click();
   await page.waitForTimeout(800);
   const duplicate = await page.evaluate(async (id) => {

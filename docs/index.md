@@ -45,3 +45,5 @@
 - The AI API key is stored in the browser, which sends requests directly to OpenAI-compatible endpoints.
 
 - [可靠性与工作流验收记录](WORKFLOW-RELIABILITY-VALIDATION.md)：保存失败、快照重试、过程投递、工作流/模板/Agent 计划的实现边界与可复现命令。
+
+- [创作辅助验收记录](CREATION-TOOLS-VALIDATION.md)：参数预设、模板 ZIP、批次比较、报价／耗时匹配，以及文本／音频工作流与素材快照恢复。

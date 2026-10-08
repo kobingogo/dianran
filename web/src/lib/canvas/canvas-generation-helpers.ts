@@ -103,11 +103,12 @@ export function getInputSummary(inputs: NodeGenerationInput[]) {
 }
 
 export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefined, mode: CanvasNodeGenerationMode): AiConfig {
-    config = { ...config, ...node?.metadata?.creation?.parameters };
+    config = { ...config, ...node?.metadata?.workflowStep?.parameters, ...node?.metadata?.creation?.parameters };
     return {
         ...config,
         model: resolveModelForCapability(config, node?.metadata?.model, mode),
         reasoningEffort: node?.metadata?.reasoningEffort || config.reasoningEffort || defaultConfig.reasoningEffort,
+        systemPrompt: node?.metadata?.systemPrompt ?? config.systemPrompt,
         quality: node?.metadata?.quality || config.quality || defaultConfig.quality,
         size: mode === "video" ? config.size || defaultConfig.size : node?.metadata?.size || config.size || defaultConfig.size,
         videoSize: mode === "video" ? node?.metadata?.size || resolveVideoSize(config) : config.videoSize || defaultConfig.videoSize,
