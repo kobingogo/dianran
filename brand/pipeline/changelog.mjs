@@ -25,6 +25,7 @@ md.push("## 概览", "");
 md.push(`- 新增 **${merge.added.length}** 条，下架 **${merge.retired.length}** 条；点染精选 ${picks.picks.length} 条（新入选 ${picks.added.length}，移出 ${picks.dropped.length}）`);
 md.push(`- 提示词快照：\`${fin.previousVersion || "?"}\` → \`${fin.version || "?"}\``);
 md.push(`- 站内使用统计：${usage.status === "ok" ? `可读取（自 ${String(usage.since).slice(0, 10)} 起，本次合并 ${usage.lastRun?.events ?? 0} 次事件）` : `不可用（${usage.reason || usage.status}），得分仅用热度 + 新鲜度`}`);
+if (merge.contentRejected?.length) md.push(`- 内容关拦截 **${merge.contentRejected.length}** 条新条目（未写入库）：${merge.contentRejected.slice(0, 20).map((r) => `${esc(r.title || r.id)}（${r.reason}）`).join("、")}${merge.contentRejected.length > 20 ? `，另有 ${merge.contentRejected.length - 20} 条` : ""}`);
 if (merge.wouldRetireStale) md.push(`- 「6 个月无使用」规则：使用统计累计 ${merge.usageTrackingDays} 天，不足 28 天，暂不执行（按规则将下架 ${merge.wouldRetireStale} 条）`);
 if (merge.note) md.push(`- 备注：${merge.note}`);
 if (seconds) md.push(`- 运行耗时：${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`);

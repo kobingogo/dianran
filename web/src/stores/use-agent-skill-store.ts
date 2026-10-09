@@ -45,7 +45,7 @@ export const useAgentSkillStore = create<AgentSkillStore>((set, get) => ({
             const skills = response.data || [];
             const current = get();
             const selected = current.selectedSkill;
-            const selectedSkill = selected ? skills.find((item) => item.name === selected.name && item.path === selected.path && item.enabled) || null : null;
+            const selectedSkill = selected ? skills.find((item) => item.name === selected.name && item.path === selected.path && item.enabled && item.readiness?.status !== "missing") || null : null;
             const selectionChanged = Boolean(selected && !selectedSkill);
             if (selectionChanged) clearSelectedSkillPrompt(current);
             const autoPrompt = selectedSkill

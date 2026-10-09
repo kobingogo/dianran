@@ -5,10 +5,46 @@ description: Planned follow-up work
 
 # TODO
 
-- Replace the Claude Code CLI adapter with a Claude Agent SDK adapter and improve the tool queue, following the [Local Agent Integration Plan](/docs/progress/local-agent-integration-plan).
-- Add Skill installation from web search, Skill resource-file management, and controlled local-memory persistence.
+## 当前实施顺序
 
-- Phase6 P2 后续：跨运行参数偏好、模板独立导入导出、更多节点与插件工作流；接入有来源的渠道报价及同渠道同模型耗时历史。
+按 [产品改进实施计划](../../../IMPLEMENTATION-PLAN.md) 的任务编号推进，以下均为待实施，不代表功能已完成：
+
+- [ ] R0 / T00：已核对主线、草稿 PR 和用户改动，三个确认缺陷均有针对性回归；多页面原子保存与冲突保全已进入待测试，继续补真实双页、跨设备场景，核对 Agent 与 Cloudflare 前置条件。
+- R1 / T01–T04：作品保全实现已移入待测试；隔离回归和双页浏览器检查已通过，继续用户实机验收并准备可审阅改动。
+- R2 / T05：调用配对与目标绑定实现已移入待测试；代理 0.2.0 已打包，仍需真实渠道、正式站点本地网络权限验收及前端/代理成对发布。
+- R2 / T06、R3 / T07–T09、R4 / T10–T11/T13、R5 / T15–T16：本轮可本地落地的实现已移入待测试，见 [多 Agent 交付汇总](../../../MULTI-AGENT-DELIVERY.md)；保留真实环境与发布依赖，不等于已用户验收。
+- T11：五种首页模板均可填写、建图并预览；四模式工作流、参数预设、比较与模板 ZIP 已在当前工作区整合，待真实渠道与用户实机验收，见 [T11 整合记录](../../../T11-INTEGRATION-VALIDATION.md)。
+- [ ] T12：22 场景验收矩阵与脱敏工具已准备；待选定常用渠道/模型、费用范围、真实设备和专用 Agent 环境，完成真实结果及 Docker/Worker 生产资源验收。
+- [ ] T14：自愿本地诊断和研究提纲已准备；待真实参与者同意、观察记录与样本，形成实际最高频阻碍和定位判断。
+- [ ] T17：五候选的暂定取舍与下一切片已整理；待 T12/T14/T15 真实证据后复审并选定一项范围，不一起启动全部扩展。
+- [ ] T05/T16：前端、配对代理和统计协议成对发布；当前 npm 软件包已准备，线上统计 API 仍旧版，未部署。
+
+## 本地 Agent 接入专项
+
+AG01–AG10 的实现已完成并形成专项验收记录。真实项目保存、用户侧图片入口恢复、外部 MCP 环境和真实第二 Agent 仍按 [T12 矩阵](../../../T12-ACCEPTANCE-MATRIX.md)保留在 Pending Tests。Grok Build 等未来具体适配须先核实其官方接口，再单独估算。
+
+## Cloudflare 迁移与正式域名上线
+
+按实施计划的 CF01–CF06 推进，官方资源迁到 R2，主站采用 Workers Static Assets；过渡期保留 Vercel 预览和回退。个人作品仍主要保存在浏览器，本专项不自动变成用户云同步。已完成代码侧盘点、离线资源清单/打包及静态站点准备脚本；尚未创建 R2/Worker 资源、购买域名或部署。新增投入与 T03/T09/T12/T16 合并核对后重估，见 [Cloudflare 本地准备说明](../../../cloudflare/README.md)。
+
+- [ ] CF01：代码侧公开资源盘点和离线发布包准备已完成；待账号、授权、域名、DNS/HTTPS 方案及费用预算确认。
+- [ ] CF02：R2 资源上传、真实绑定、缓存与快照切换待完成。
+- [ ] CF03：Worker/静态资源配置模板已准备；真实预览、CI、部署与回退验收待完成。
+- [ ] CF04：绑定正式域名、更新链接与插件指引；旧域名备份后在新域名导入，重新授权本地 Agent 来源。
+- [ ] CF05：与 T16 一起迁移统计确认、去重和汇总；首发停用时明确状态并保留后续任务。
+- [ ] CF06：正式入口、素材发布、数据转移及本地 Codex 验收和生产切换待完成；保留旧站和素材回退。
+
+## 既有计划与验收衔接
+
+- 创作输入与讨论首轮实现已移入 pending-test；云端/本机真实多轮讨论、方案生成、付费媒体结果与画布版本落图仍需用户验收，见[实施与验收说明](../../../CREATION-CONVERSATION-IMPLEMENTATION.md)。
+
+- Replace the Claude Code CLI adapter with a Claude Agent SDK adapter and improve the tool queue, following the [Local Agent Integration Plan](/docs/progress/local-agent-integration-plan).
+- Agent 统一入口的实际 Skill 执行、审批与产物回填验收已列入 pending-test，见 [统一入口与验收](../../../AGENT-CREATION-ENTRY.md)。
+- Skill 后续：跨平台网络搜索与推荐、真实高频创作技能适配、经确认且可查看/编辑/删除的本地品牌与创作偏好记忆。公开 GitHub 完整目录安装、资源管理和更新回退已移入待测试。
+
+- Phase6 P2：参数预设、模板 ZIP、比较、有来源报价/历史耗时、四模式工作流与分组/插件素材输入已在草稿 [PR #1](https://github.com/kobingogo/dianran/pull/1) 开发，尚未合并，按实施计划整合与验收，不重复开发。本机 Codex 生图步骤已接入当前工作区并移入待测试；图片处理插件动作与 Codex 插件工作流审阅已移入待测试；模型调用脚本进入工作流和非图片动作仍待 T17 单独设计协议。
 
 - 实机验收：Docker 静态资源路径、真实模型输出与渠道计费、手机软键盘，以及真实 Agent 跨会话恢复和多步骤计划。自动化检查通过的改动仍需用户验收。
-- 提示词周更：使用统计缺少响应确认时可能丢失，评分需明确该信号不完整；明确匿名统计与部署方式，避免把站点描述为完全无服务端。
+- 提示词周更：T16 的统计回执与去重实现已移入待测试，待线上配套发布与真实聚合验收；评分仍需明确该信号不完整，避免把站点描述为完全无服务端。
+
+- [ ] 跨页面创作验收：按统一规则核验真实本机图片、已配置视频渠道、画布新建/配置编辑与本机 Codex 图片参考、批量部分失败及跨页刷新；手机软键盘、屏幕阅读器与断网/存储故障仍需实机确认，见 [本轮实施与验收](../../../CREATION-INTERACTION-IMPLEMENTATION.md)。

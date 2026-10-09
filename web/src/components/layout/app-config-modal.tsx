@@ -11,7 +11,7 @@ import { ConfigPromptSources } from "@/components/layout/config-prompt-sources";
 import { ConfigLocalStorage } from "@/components/layout/config-local-storage";
 import type { AppLocale } from "@/i18n";
 import { exportAppConfig, importAppConfig } from "@/services/config-file";
-import { syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
+import { restoreLatestSyncBackup, syncAppDataToWebdav, type AppSyncDomainKey, type AppSyncProgressEvent } from "@/services/app-sync";
 import { testWebdavConnection, WEBDAV_MANIFEST_FILE_NAME } from "@/services/webdav-sync";
 import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
 import { createModelChannel, modelOptionsFromChannels, normalizeModelOptionValue, selectableModelsByCapability, useConfigStore, type AiConfig, type ApiCallFormat, type ConfigTabKey, type ModelCapability, type ModelChannel } from "@/stores/use-config-store";
@@ -54,7 +54,7 @@ function createWebdavDomainProgress(): Record<AppSyncDomainKey, WebdavDomainProg
 }
 
 export function AppConfigPanel({ showDoneButton = false, initialTab = "channels" }: { showDoneButton?: boolean; initialTab?: ConfigTabKey }) {
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const { i18n, t } = useTranslation();
     const configInputRef = useRef<HTMLInputElement>(null);
     const [activeTab, setActiveTab] = useState<ConfigTabKey>(initialTab);
@@ -160,8 +160,13 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
         setWebdavSyncStatus(t("config.webdav.preparing"));
         try {
             const result = await syncAppDataToWebdav(webdav, updateWebdavProgress);
-            updateWebdavConfig("lastSyncedAt", result.syncedAt);
-            message.success(t("config.webdav.completed", { projects: result.projects, assets: result.assets, records: result.imageLogs + result.videoLogs, files: result.uploadedFiles, bytes: formatBytes(result.uploadedBytes) }));
+            if (!result.failed.length) updateWebdavConfig("lastSyncedAt", result.syncedAt);
+            const labels: Record<AppSyncDomainKey, string> = { canvas: "画布", assets: "我的资产", "image-workbench": "生图工作台", "video-workbench": "视频创作台" };
+            if (result.failed.length || result.conflicts.length) modal.info({
+                title: result.failed.length ? "同步部分未完成" : "同步已完成，冲突双方已保留",
+                content: <div className="space-y-2"><p>已可靠完成：{result.completed.map((domain) => labels[domain]).join("、") || "无"}</p>{result.failed.map((item) => <p key={item.domain}>{labels[item.domain]}：{item.error}</p>)}{result.conflicts.map((item, index) => <p key={index}>{item}</p>)}<p>已保留同步前备份（含本地媒体），可在此页恢复。</p></div>,
+            });
+            else message.success(t("config.webdav.completed", { projects: result.projects, assets: result.assets, records: result.imageLogs + result.videoLogs, files: result.uploadedFiles, bytes: formatBytes(result.uploadedBytes) }));
         } catch (error) {
             setWebdavSyncStatus(error instanceof Error ? error.message : t("config.webdav.failed"));
             showErrorToast(message, error, t("config.webdav.failed"));
@@ -341,6 +346,7 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                                         </Button>
                                         {webdavSyncStatus ? <span className="text-xs text-stone-500">{syncStageLabel(webdavSyncStatus, t)}</span> : null}
                                     </div>
+                                    <Button type="text" disabled={syncingWebdav} onClick={() => modal.confirm({ title: "恢复上次同步前的本地数据？", content: "将恢复画布、我的资产与生成记录；当前状态也会先备份。远端数据不会更改。", okText: "恢复本地备份", cancelText: "取消", onOk: async () => { await restoreLatestSyncBackup(); window.location.reload(); } })}>恢复同步前备份</Button>
                                     {syncingWebdav || webdavSyncStatus ? <WebdavProgressGrid progress={webdavDomainProgress} t={t} /> : null}
                                 </section>
                             </Form>

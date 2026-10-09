@@ -1,31 +1,43 @@
+import { canvasTargetSchema } from "../canvas/schemas.js";
+import { z } from "zod";
+import { discussCodexCreation } from "../agent/codex.js";
 import { spawn } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import express, { type NextFunction, type Request, type Response } from "express";
 
 import { runClaudeTurn } from "../agent/claude.js";
-import { archiveCodexThread, CodexSkillLookupError, configureCodexSkill, generateCodexSkillDraft, interruptCodexTurn, isRecoverableThreadError, listCodexModels, listCodexSkills, listCodexThreads, readCodexThread, resolveCodexApproval, resolveCodexSkill, resumeCodexThread, runCodexTurn, startCodexThread, summarizeCodexThread } from "../agent/codex.js";
+import { archiveCodexThread, CodexSkillLookupError, configureCodexSkill, generateCodexSkillDraft, interruptCodexTurn, isRecoverableThreadError, listCodexModels, listCodexSkills, listCodexThreads, readCodexThread, resolveCodexApproval, resolveCodexInteraction, pendingCodexInteractions, resolveCodexSkill, resumeCodexThread, runCodexTurn, startCodexThread, summarizeCodexThread } from "../agent/codex.js";
 import type { CodexReasoningEffort, CodexSkillSelector } from "../agent/codex-protocol.js";
 import { messageMetadataStore } from "../agent/message-metadata.js";
 import type { AgentAttachment, AgentPermissionMode } from "../agent/types.js";
 import { AGENT_PROTOCOL_VERSION, CanvasSession } from "../canvas/session.js";
-import { DEFAULT_PORT, ensureSiteWorkspace, LEGACY_MCP_SERVER_NAME, loadConfig, MCP_SERVER_NAME, saveConfig, updateSiteWorkspace, type CanvasAgentConfig } from "../config.js";
+import { DEFAULT_PORT, ensureSiteWorkspace as ensurePersistedWorkspace, LEGACY_MCP_SERVER_NAME, loadConfig, MCP_SERVER_NAME, saveConfig, updateSiteWorkspace as updatePersistedWorkspace, type CanvasAgentConfig } from "../config.js";
 import { logger } from "../utils/logger.js";
 import { checkVersions } from "../version-check.js";
+import { installMediaRoutes } from "./media-routes.js";
+import { installPromptPipelineRoutes } from "./prompt-pipeline-routes.js";
 import { SkillStore, SkillStoreError } from "../skills/store.js";
+import { SkillPackages, SkillPackageError } from "../skills/packages.js";
 
 /** 启动仅监听本机的 Canvas Agent HTTP 服务。 */
-export function startHttpServer() {
-    const config = loadConfig(true);
-    const port = Number(process.env.PORT) || Number(new URL(config.url).port) || DEFAULT_PORT;
+export function startHttpServer(options: { config?: CanvasAgentConfig; persist?: boolean; port?: number; quiet?: boolean } = {}) {
+    const persist = options.persist !== false;
+    const config = options.config ? structuredClone(options.config) : loadConfig(persist);
+    const ensureSiteWorkspace = (value: CanvasAgentConfig) => { if(persist)return ensurePersistedWorkspace(value);if(!value.workspace?.workspacePath)throw new Error("隔离服务必须显式提供 workspacePath");return value.workspace; };
+    const updateSiteWorkspace = (value: CanvasAgentConfig, patch: Partial<NonNullable<CanvasAgentConfig["workspace"]>>) => { if(persist)return updatePersistedWorkspace(value,patch);value.workspace={...ensureSiteWorkspace(value),...patch};return value.workspace; };
+    const port = options.port ?? (Number(process.env.PORT) || Number(new URL(config.url).port) || DEFAULT_PORT);
     config.url = `http://127.0.0.1:${port}`;
-    saveConfig(config);
+    if(persist)saveConfig(config);
 
     const initialWorkspace = ensureSiteWorkspace(config);
     const session = new CanvasSession(initialWorkspace.activeThreadId || "");
     const skillStore = new SkillStore(initialWorkspace.workspacePath);
+    const skillPackages = new SkillPackages(initialWorkspace.workspacePath, operation => skillStore.packageMutation(operation), fetch, (name, directory) => skillStore.validatePackage(name, directory));
+    let mediaRuntime: ReturnType<typeof installMediaRoutes> | undefined;
     /** 将 Agent 事件广播到所属线程或全部网页。 */
     const emit = (type: string, payload: unknown) => {
+        mediaRuntime?.capture(type,payload);
         const value = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : { value: payload };
         if (type === "skills_changed") {
             session.emitAll(type, value);
@@ -128,7 +140,9 @@ export function startHttpServer() {
     });
     app.get("/events", (req, res) => {
         session.openEvents(requestUrl(req, config), res, ensureSiteWorkspace(config).activeThreadId || "");
+        for(const pending of pendingCodexInteractions())res.write(`event: codex_interaction\ndata: ${JSON.stringify(pending)}\n\n`);
     });
+    installPromptPipelineRoutes(app);
     app.post("/canvas/state", (req, res) => {
         session.updateState(req.body, String(req.query.clientId || "") || undefined);
         res.json({ ok: true });
@@ -137,6 +151,9 @@ export function startHttpServer() {
         session.activateClient(String(req.query.clientId || ""));
         res.json({ ok: true });
     });
+    app.post("/canvas/request/claim", route(async(req,res)=>{res.json({ok:true,...session.claimRequest(String(req.query.clientId||req.body?.clientId||""),String(req.body?.requestId||""))});}));
+    app.post("/canvas/request/validate", route(async(req,res)=>{res.json({ok:true,...session.validateRequest(String(req.query.clientId||req.body?.clientId||""),String(req.body?.requestId||""))});}));
+    app.get("/canvas/request/status", route(async(req,res)=>{res.json({ok:true,...session.requestStatus(String(req.query.clientId||""),String(req.query.requestId||""))});}));
     app.post("/canvas/result", (req, res) => {
         const ok = session.resolveResult(String(req.query.clientId || ""), req.body);
         res.status(ok ? 200 : 409).json({ ok });
@@ -161,14 +178,7 @@ export function startHttpServer() {
         await revealLocalFile(filePath, file.isDirectory());
         res.json({ ok: true });
     }));
-    app.post("/agent/local-image", route(async (req, res) => {
-        const filePath = String(req.body?.path || "");
-        if (!path.isAbsolute(filePath) || !/\.(?:avif|gif|jpe?g|png|webp)$/i.test(filePath)) return res.status(400).json({ ok: false, error: "图片路径无效" });
-        const file = await stat(filePath);
-        if (!file.isFile()) return res.status(400).json({ ok: false, error: "图片文件无效" });
-        res.setHeader("Cache-Control", "no-store");
-        res.type(path.extname(filePath)).send(await readFile(filePath));
-    }));
+    app.post("/agent/local-image",(_req,res)=>res.status(410).json({ok:false,error:"请使用已登记任务与产物身份读取；不再接受任意本机图片路径"}));
     app.post("/api/tools", route(async (req, res) => res.json({ ok: true, result: await session.callTool(req.body?.name, req.body?.input || {}) })));
     app.get("/agent/codex/workspace", (_req, res) => {
         const workspace = ensureSiteWorkspace(config);
@@ -178,7 +188,21 @@ export function startHttpServer() {
     app.get("/agent/codex/skills", route(async (req, res) => {
         const workspace = ensureSiteWorkspace(config);
         const result = await listCodexSkills(emit, workspace.workspacePath, String(req.query.forceReload || "") === "1");
-        res.json({ ok: true, data: result.skills.map((skill) => ({ ...skill, managed: skillStore.isManagedPath(skill.path) })), errors: result.errors });
+        res.json({ ok: true, data: await Promise.all(result.skills.map(async (skill) => {
+            const managed = skillStore.isManagedPath(skill.path);
+            if (!managed) return { ...skill, managed };
+            try { return { ...skill, managed, ...(await skillStore.health(skill.name)) }; }
+            catch (error) { return { ...skill, managed, readiness: { status: "missing", missing: [error instanceof Error ? error.message : String(error)] } }; }
+        })), errors: result.errors });
+    }));
+    app.post("/agent/codex/creation-discussion", codexMutation(async (req, res) => {
+        const input = z.object({ prompt: z.string().trim().min(1), model: z.string().trim().min(1), images: z.array(z.string().startsWith("data:image/")).default([]) }).safeParse(req.body);
+        if (!input.success) return res.status(400).json({ ok: false, error: "讨论内容或本机模型未配置" });
+        const previous = session.codexStateSnapshot;
+        skillDraftRunning = true;
+        session.setCodexState({ busy: true, threadId: previous.threadId, turnId: "" }, { preserveReplay: true });
+        try { return res.json({ ok: true, data: await discussCodexCreation(emit, ensureSiteWorkspace(config).workspacePath, input.data) }); }
+        finally { skillDraftRunning = false; session.setCodexState(previous, { preserveReplay: true }); }
     }));
     app.post("/agent/codex/skills/draft", codexMutation(async (req, res) => {
         const workspace = ensureSiteWorkspace(config);
@@ -212,6 +236,25 @@ export function startHttpServer() {
             skillDraftRunning = false;
             session.setCodexState(previousCodexState, { preserveReplay: true });
         }
+    }));
+    app.post("/agent/codex/skills/packages/review", route(async (req, res) => res.json({ ok: true, ...(await skillPackages.review(req.body)) })));
+    app.post("/agent/codex/skills/packages/cancel", route(async (req, res) => { skillPackages.cancel(String(req.body?.id || "")); res.json({ ok: true }); }));
+    app.post("/agent/codex/skills/packages/install", codexMutation(async (req, res) => {
+        const installed = await skillPackages.install(String(req.body?.id || ""), String(req.body?.digest || ""));
+        session.emitAll("skills_changed", { forceReload: true });
+        res.json({ ok: true, data: await skillStore.get(installed.name) });
+    }));
+    app.get("/agent/codex/skills/:name/versions", route(async (req, res) => { const name = routeParam(req.params.name); await skillStore.get(name); res.json({ ok: true, data: await skillPackages.versions(name) }); }));
+    app.post("/agent/codex/skills/:name/rollback", codexMutation(async (req, res) => {
+        const name = routeParam(req.params.name);
+        await skillPackages.rollback(name, String(req.body?.revision || ""), String(req.body?.expectedRevision || ""));
+        session.emitAll("skills_changed", { forceReload: true });
+        res.json({ ok: true, data: await skillStore.get(name) });
+    }));
+    app.post("/agent/codex/skills/:name/resource", codexMutation(async (req, res) => {
+        const data = await skillStore.resource(routeParam(req.params.name), req.body);
+        session.emitAll("skills_changed", { forceReload: true });
+        res.json({ ok: true, data });
     }));
     app.get("/agent/codex/skills/:name", route(async (req, res) => {
         res.json({ ok: true, data: await skillStore.get(routeParam(req.params.name)) });
@@ -310,6 +353,15 @@ export function startHttpServer() {
         const model = String(req.body?.model || "") || undefined;
         const effort = reasoningEffort(req.body?.effort);
         const skill = req.body?.skill === undefined ? undefined : await resolveCodexSkill(emit, workspace.workspacePath, skillSelector(req.body.skill), true);
+        if (skill && skillStore.isManagedPath(skill.path)) {
+            const readiness = (await skillStore.health(skill.name)).readiness;
+            if (readiness?.status === "missing") throw new SkillStoreError(`Skill 缺少依赖：${readiness.missing.join("、")}`, 409);
+        }
+        const suppliedTarget = req.body?.mediaTarget === undefined ? undefined : canvasTargetSchema.pick({ projectId: true, revision: true }).safeParse(req.body.mediaTarget);
+        if (suppliedTarget && !suppliedTarget.success) return res.status(400).json({ ok: false, error: "会话结果画布目标无效，未提交任务" });
+        const canvasTarget = session.canvasStateForClient(clientId);
+        if (canvasTarget && suppliedTarget?.success && (canvasTarget.projectId !== suppliedTarget.data.projectId || canvasTarget.revision !== suppliedTarget.data.revision)) return res.status(409).json({ ok: false, error: "会话结果目标与当前画布不一致，请重新审阅" });
+        const mediaTarget = canvasTarget || (suppliedTarget?.success ? suppliedTarget.data : undefined);
         const messageId = String(req.body?.messageId || Date.now());
         const messageText = String(req.body?.messageText || prompt || `发送了 ${attachments.length} 张图片`);
         const messageMetadata = await messageMetadataStore.recordPending(messageId, req.body?.messageMetadata);
@@ -368,6 +420,7 @@ export function startHttpServer() {
                 },
                 onTurn: (actualTurnId) => {
                     turnId = actualTurnId;
+                    if(mediaTarget?.projectId && mediaTarget.revision)void mediaRuntime?.bindNativeTurn(threadId,turnId,{requestId:`native:${threadId}:${turnId}`,projectId:mediaTarget.projectId,revision:mediaTarget.revision,prompt:messageText,cwd:workspace.workspacePath}).catch((error)=>logger.warn("Failed to bind native media turn",{error}));
                     void messageMetadataStore.bindTurn(messageId, threadId, turnId).catch((error) => logger.warn("Failed to bind message metadata to turn", { clientMessageId: messageId, threadId, turnId, error }));
                     if (chatTurnId !== turnId) {
                         chatTurnId = turnId;
@@ -410,13 +463,20 @@ export function startHttpServer() {
             }
         });
     }
+    mediaRuntime=installMediaRoutes(app,{config,session,emit,codexMutation,...(!persist?{recordsDirectory:path.join(ensureSiteWorkspace(config).workspacePath,"media-tasks")}: {})});
+    app.get("/agent/codex/interactions",(_req,res)=>res.json({ok:true,data:pendingCodexInteractions()}));
+    app.post("/agent/codex/interaction",route(async(req,res)=>{
+        const ok=resolveCodexInteraction(String(req.body?.requestId||""),String(req.body?.threadId||""),String(req.body?.turnId||""),req.body?.response || {});
+        res.status(ok?200:409).json({ok,...(ok?{}:{error:"交互请求已失效或不属于当前任务"})});
+    }));
     app.post("/agent/codex/approval", route(async (req, res) => {
         const decision = String(req.body?.decision || "");
         if (!["accept", "acceptForSession", "decline", "cancel"].includes(decision)) return res.status(400).json({ ok: false, error: "无效的审批决定" });
-        const ok = await resolveCodexApproval(String(req.body?.requestId || ""), decision);
+        const ok = await resolveCodexApproval(String(req.body?.requestId || ""), decision, String(req.body?.threadId||""),String(req.body?.turnId||""));
         res.status(ok ? 200 : 409).json({ ok, ...(ok ? {} : { error: "审批请求已失效" }) });
     }));
     app.post("/agent/codex/interrupt", route(async (req, res) => {
+        session.cancelRequests(undefined,"任务已停止，待处理变更已取消");
         const ok = await interruptCodexTurn(skillDraftRunning ? undefined : String(req.body?.threadId || ""));
         res.status(ok ? 200 : 409).json({ ok, ...(ok ? {} : { error: "当前没有可停止的任务" }) });
     }));
@@ -427,11 +487,13 @@ export function startHttpServer() {
     app.use((_req, res) => res.status(404).json({ ok: false, error: "not found" }));
     app.use((error: Error, req: Request, res: Response, _next: NextFunction) => {
         logger.error("HTTP request failed", { method: req.method, path: req.path, error });
-        if (error instanceof SkillStoreError || error instanceof CodexSkillLookupError) return void res.status(error.statusCode).json({ ok: false, error: error.message });
+        if (error instanceof SkillStoreError || error instanceof SkillPackageError || error instanceof CodexSkillLookupError) return void res.status(error.statusCode).json({ ok: false, error: error.message });
         res.status(500).json({ ok: false, error: error.message });
     });
 
-    app.listen(port, "127.0.0.1", () => {
+    const server=app.listen(port, "127.0.0.1", () => {
+        const address=server.address();if(address && typeof address!=="string")config.url=`http://127.0.0.1:${address.port}`;
+        if(options.quiet)return;
         console.log("Dianran Canvas Agent");
         checkVersions();
         console.log(`Local URL: ${config.url}`);
@@ -451,6 +513,7 @@ export function startHttpServer() {
             }).finally(() => session.endCodexMutation()).catch(() => undefined);
         }
     });
+    return {server,app,config,session,mediaRuntime};
 }
 
 /** 将异步 Express 路由异常交给统一错误处理中间件。 */

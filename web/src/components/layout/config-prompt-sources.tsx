@@ -10,6 +10,7 @@ import { fetchPromptSourceStatuses, refreshAllSources, refreshSource } from "@/s
 import { PROMPT_SOURCE_INTERVALS, usePromptSourceStore } from "@/stores/use-prompt-source-store";
 import type { PromptSource } from "@/services/api/prompt-source-presets";
 import { showErrorToast } from "@/features/errors/error-toast";
+import { usePromptPipelineStore } from "@/stores/use-prompt-pipeline-store";
 
 const STATUS_QUERY_KEY = ["prompt-source-statuses"];
 
@@ -25,6 +26,7 @@ export function ConfigPromptSources() {
     const toggleSource = usePromptSourceStore((state) => state.toggleSource);
     const updateSchedule = usePromptSourceStore((state) => state.updateSchedule);
     const statusQuery = useQuery({ queryKey: STATUS_QUERY_KEY, queryFn: fetchPromptSourceStatuses });
+    const pipeline = usePromptPipelineStore();
 
     const [editingSource, setEditingSource] = useState<PromptSource | null>(null);
     const [viewingId, setViewingId] = useState("");
@@ -63,9 +65,12 @@ export function ConfigPromptSources() {
     const handleRefreshOne = async (source: PromptSource) => {
         setRefreshingId(source.id);
         try {
-            const result = await refreshSource(source.id);
+            const job = source.builtIn ? await pipeline.collect() : null;
+            const summary = job ? await refreshAllSources() : null;
+            const result = !job || !source.enabled ? await refreshSource(source.id) : null;
             await invalidatePrompts();
-            message.success(t("config.promptSources.refreshed", { name: source.name, count: result.count }));
+            if (summary?.failureCount) message.warning(t("config.promptSources.refreshPartial", { success: summary.successCount, failed: summary.failureCount }));
+            else message.success(job ? t(`config.promptSources.pipeline${job.status}`, { count: job.added }) : t("config.promptSources.refreshed", { name: source.name, count: result?.count }));
         } catch (error) {
             await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
             showErrorToast(message, error, t("config.promptSources.refreshFailedCached"));
@@ -77,11 +82,12 @@ export function ConfigPromptSources() {
     const handleRefreshAll = async () => {
         setRefreshingAll(true);
         try {
+            const job = sources.some(source => source.enabled && source.builtIn) ? await pipeline.collect() : null;
             const result = await refreshAllSources();
             updateSchedule("lastFetchedAt", new Date().toISOString());
             await invalidatePrompts();
             if (result.failureCount) message.warning(t("config.promptSources.refreshPartial", { success: result.successCount, failed: result.failureCount }));
-            else message.success(t("config.promptSources.refreshAllSuccess", { sources: result.successCount, total: result.total }));
+            else message.success(job ? t(`config.promptSources.pipeline${job.status}`, { count: job.added }) : t("config.promptSources.refreshAllSuccess", { sources: result.successCount, total: result.total }));
         } catch (error) {
             showErrorToast(message, error, t("config.promptSources.refreshFailed"));
         } finally {
@@ -91,6 +97,11 @@ export function ConfigPromptSources() {
 
     return (
         <div>
+            <div className="mb-4 text-xs text-stone-500">{t("config.promptSources.pipelineDescription")}</div>
+            {pipeline.job || pipeline.error ? <div className="mb-4 text-xs" role="status">
+                {pipeline.error || (pipeline.running ? pipeline.job?.phase : t(`config.promptSources.pipeline${pipeline.job?.status}`, { count: pipeline.job?.added }))}
+                {pipeline.job?.sources ? <div className="mt-1 text-stone-500">{pipeline.job.sources}</div> : null}
+            </div> : null}
             <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
                 <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setEditingSource(addSource())}>
                     {t("config.promptSources.add")}
@@ -121,8 +132,8 @@ export function ConfigPromptSources() {
                                 <Button size="small" icon={<Eye className="size-3.5" />} onClick={() => setViewingId(source.id)}>
                                     {t("config.promptSources.view")}
                                 </Button>
-                                <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={refreshingId === source.id} onClick={() => void handleRefreshOne(source)}>
-                                    {t("config.promptSources.refresh")}
+                                <Button size="small" icon={<RefreshCw className="size-3.5" />} loading={refreshingId === source.id} disabled={pipeline.running || refreshingAll || Boolean(refreshingId)} onClick={() => void handleRefreshOne(source)}>
+                                    {t(source.builtIn ? "config.promptSources.collect" : "config.promptSources.refresh")}
                                 </Button>
                                 {!source.builtIn ? <Button size="small" icon={<Pencil className="size-3.5" />} onClick={() => setEditingSource(source)}>{t("config.promptSources.edit")}</Button> : null}
                                 {!source.builtIn ? <Button size="small" danger icon={<Trash2 className="size-3.5" />} onClick={() => handleDelete(source)}>{t("common.delete")}</Button> : null}
@@ -139,7 +150,7 @@ export function ConfigPromptSources() {
                         <span className="text-xs text-stone-500">{t("config.promptSources.interval")}</span>
                         <Select size="small" className="w-36" value={schedule.intervalMinutes} options={intervalOptions} onChange={(value) => updateSchedule("intervalMinutes", value)} />
                     </div>
-                    <Button size="small" type="primary" icon={<RefreshCw className="size-3.5" />} loading={refreshingAll} onClick={() => void handleRefreshAll()}>
+                    <Button size="small" type="primary" icon={<RefreshCw className="size-3.5" />} loading={refreshingAll} disabled={pipeline.running || Boolean(refreshingId)} onClick={() => void handleRefreshAll()}>
                         {t("config.promptSources.refreshAll")}
                     </Button>
                     <span className="text-xs text-stone-500">{schedule.lastFetchedAt ? t("config.promptSources.lastFetched", { time: formatTime(schedule.lastFetchedAt, i18n.resolvedLanguage) }) : t("config.promptSources.neverScheduled")}</span>

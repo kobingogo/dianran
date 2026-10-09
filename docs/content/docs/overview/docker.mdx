@@ -37,7 +37,7 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The main application container only runs Next.js. Canvases, My Assets, generation history, and API keys are stored in the browser by default, while prompt repositories are fetched directly by the frontend. No persistent data volume is required for this data.
+当前主应用镜像由 Bun 构建 Vite 前端，运行时使用 Nginx 提供静态页面；文档应用单独使用 Next.js。画布、素材和生成记录主要保存在浏览器，API Key 也在浏览器保存，调用时发往所选渠道或经配对本地代理转发。WebDAV 仅同步配置的范围，不是内置云账户。更换域名、端口、浏览器或设备前先导出备份；浏览器持久化许可不代替备份。静态部署不包含可选提示词统计 API，不能把上报入队当成服务端接收；生产资源路径及 Worker 打包仍按待验收清单核对。
 
 ## Optional analytics
 

@@ -3,7 +3,7 @@ import type { ServerResponse } from "node:http";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CanvasSession } from "./session.js";
+import { AGENT_PROTOCOL_VERSION, CanvasSession } from "./session.js";
 
 test("MCP 读取当前激活网页的画布", async (t) => {
     const session = new CanvasSession();
@@ -54,10 +54,11 @@ test("画布写操作只发送给当前激活网页", async (t) => {
     session.updateState(snapshot("canvas-second"), "second");
     session.activateClient("second");
 
-    const result = session.callTool("canvas_create_text_node", { text: "只写入第二个画布" });
+    const result = session.callTool("canvas_create_text_node", { target: session.targetForClient("second"), text: "只写入第二个画布" });
     const call = second.event("tool_call");
     assert.equal(first.event("tool_call"), undefined);
     assert.equal(field(call, "name"), "canvas_apply_ops");
+    execute(session, "second", String(field(call, "requestId")));
     session.resolveResult("second", { requestId: String(field(call, "requestId")), result: { ok: true } });
     assert.deepEqual(await result, { ok: true });
 });
@@ -84,6 +85,7 @@ test("当前 turn 的图片附件可在发起标签页画布创建图片节点",
     assert.equal("dataUrl" in nodes[0], false);
     assert.equal(session.getTurnAttachment("first", "attachment-1").dataUrl, dataUrl);
 
+    execute(session, "first", String(field(call, "requestId")));
     session.resolveResult("first", { requestId: String(field(call, "requestId")), result: { ok: true } });
     const created = (await result) as { nodes: Array<{ id: string; attachmentId: string; title: string }> };
     assert.equal(created.nodes[0].id, nodes[0].id);
@@ -119,10 +121,11 @@ test("tool result is accepted only from the request client", async (t) => {
     });
     session.activateClient("first");
 
-    const result = session.callTool("canvas_create_text_node", { text: "first only" });
+    const result = session.callTool("canvas_create_text_node", { target: session.targetForClient("first"), text: "first only" });
     const call = first.event("tool_call");
     const requestId = String(field(call, "requestId"));
 
+    execute(session, "first", requestId);
     assert.equal(session.resolveResult("second", { requestId, result: { client: "second" } }), false);
     assert.equal(session.resolveResult("first", { requestId, result: { client: "first" } }), true);
     assert.deepEqual(await result, { client: "first" });
@@ -142,6 +145,7 @@ test("生成状态查询由当前激活网页返回", async (t) => {
     const call = second.event("tool_call");
     assert.equal(first.event("tool_call"), undefined);
     assert.equal(field(call, "name"), "generation_get_status");
+    execute(session, "second", String(field(call, "requestId")));
     session.resolveResult("second", { requestId: String(field(call, "requestId")), result: { total: 1, tasks: [{ id: "image-1", status: "running" }] } });
     assert.deepEqual(await result, { total: 1, tasks: [{ id: "image-1", status: "running" }] });
 });
@@ -185,7 +189,7 @@ test("closing the active client falls back to the most recently focused client",
 test("closing a client rejects its pending tool requests", async () => {
     const session = new CanvasSession();
     const first = connect(session, "first");
-    const result = session.callTool("canvas_create_text_node", { text: "pending" });
+    const result = session.callTool("canvas_create_text_node", { target: session.targetForClient("first"), text: "pending" });
     const call = first.event("tool_call");
     const requestId = String(field(call, "requestId"));
     first.close();
@@ -221,7 +225,7 @@ test("new clients receive the current Codex state and later updates", (t) => {
     t.after(() => client.close());
 
     const hello = client.event("hello");
-    assert.equal(field(hello, "protocolVersion"), 6);
+    assert.equal(field(hello, "protocolVersion"), AGENT_PROTOCOL_VERSION);
     assert.deepEqual(field(hello, "workspace"), { activeThreadId: "thread-2" });
     assert.deepEqual(field(hello, "conversation"), { revision: 1, conversationId: "thread-2", threadId: "thread-2", status: "ready", mcpStatuses: {} });
     assert.deepEqual(field(hello, "codex"), { busy: true, threadId: "thread-2", turnId: "turn-1" });
@@ -355,6 +359,7 @@ test("a bound client remains the tool target while focus changes", async (t) => 
     const result = session.callTool("canvas_create_text_node", { text: "bound" });
     const call = first.event("tool_call");
     assert.equal(second.event("tool_call"), undefined);
+    execute(session, "first", String(field(call, "requestId")));
     session.resolveResult("first", { requestId: String(field(call, "requestId")), result: { ok: true } });
     assert.deepEqual(await result, { ok: true });
 
@@ -376,17 +381,18 @@ test("a disconnected bound client never falls back and can resume with the same 
     session.activateClient("second");
     first.close();
 
-    await assert.rejects(session.callTool("canvas_get_state", {}), /当前没有已连接画布/);
+    await assert.rejects(session.callTool("canvas_get_state", {}), /已切换|当前没有已连接画布/);
     assert.equal(second.event("tool_call"), undefined);
 
     const reconnected = connect(session, "first");
     t.after(() => reconnected.close());
-    session.updateState(snapshot("canvas-first-reconnected"), "first");
-    assert.equal(field(await session.callTool("canvas_get_state", {}), "projectId"), "canvas-first-reconnected");
+    session.updateState(snapshot("canvas-first"), "first");
+    assert.equal(field(await session.callTool("canvas_get_state", {}), "projectId"), "canvas-first");
 
     const result = session.callTool("canvas_create_text_node", { text: "reconnected" });
     const call = reconnected.event("tool_call");
     assert.equal(second.event("tool_call"), undefined);
+    execute(session, "first", String(field(call, "requestId")));
     session.resolveResult("first", { requestId: String(field(call, "requestId")), result: { ok: true } });
     assert.deepEqual(await result, { ok: true });
 });
@@ -540,12 +546,13 @@ test("切换活动线程会清除上一线程的实时快照", (t) => {
 function connect(session: CanvasSession, clientId: string, activeThreadId = "") {
     const response = new FakeSseResponse();
     session.openEvents(new URL(`http://127.0.0.1/events?clientId=${clientId}`), response as unknown as ServerResponse, activeThreadId);
+    session.updateState(snapshot(`canvas-${clientId}`), clientId);
     return response;
 }
 
 /** 创建最小画布快照。 */
 function snapshot(projectId: string) {
-    return { projectId, title: projectId, nodes: [], connections: [], selectedNodeIds: [], viewport: { x: 0, y: 0, k: 1 } };
+    return { projectId, revision: `revision-${projectId}`, title: projectId, nodes: [], connections: [], selectedNodeIds: [], viewport: { x: 0, y: 0, k: 1 } };
 }
 
 /** 安全读取测试对象字段。 */
@@ -587,3 +594,213 @@ class FakeSseResponse extends EventEmitter {
         this.emit("close");
     }
 }
+
+function execute(session: CanvasSession, clientId: string, requestId: string) {
+    session.claimRequest(clientId, requestId);
+    session.validateRequest(clientId, requestId);
+}
+
+test("外部写入必须携带读取目标，切换焦点不会重定向", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    const second = connect(session, "second");
+    t.after(() => { first.close(); second.close(); });
+    const target = session.targetForClient("first");
+    await assert.rejects(session.callTool("canvas_create_text_node", { text: "无目标" }), /必须携带/);
+    session.activateClient("second");
+    const result = session.callTool("canvas_create_text_node", { text: "明确目标", target });
+    const id = String(field(first.event("tool_call"), "requestId"));
+    execute(session, "first", id);
+    session.resolveResult("first", { requestId: id, result: { saved: true } });
+    assert.deepEqual(await result, { saved: true });
+    assert.equal(second.event("tool_call"), undefined);
+});
+
+test("等待确认期间 A→B→A 和手动编辑使旧修订不可执行", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    session.bindClient("first");
+    const target = session.targetForClient("first");
+    const pending = session.callTool("canvas_create_text_node", { text: "旧计划" });
+    const outcome = pending.catch((error) => error.message);
+    const id = String(field(first.event("tool_call"), "requestId"));
+    session.updateState(snapshot("canvas-other"), "first");
+    session.updateState({ ...snapshot("canvas-first"), revision: "remounted-first" }, "first");
+    assert.match(await outcome, /修订已变化/);
+    assert.equal(session.requestStatus("first", id).status, "cancelled");
+    assert.throws(() => session.claimRequest("first", id), /过期或取消/);
+    await assert.rejects(session.callTool("canvas_create_text_node", { target, text: "旧目标" }), /修订已变化/);
+    session.updateState({ ...snapshot("canvas-first"), revision: "manual-edit" }, "first");
+    await assert.rejects(session.callTool("canvas_create_text_node", { target: { ...target, revision: "remounted-first" }, text: "不能覆盖" }), /修订已变化/);
+});
+
+test("绑定任务读取不会跟随同页项目切换", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    session.bindClient("first");
+    session.updateState(snapshot("canvas-other"), "first");
+    await assert.rejects(session.callTool("canvas_get_state", {}), /绑定|已切换/);
+});
+
+test("请求只能领取和执行一次，终态回执可以查询而不能重复落图", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    const result = session.callTool("canvas_create_text_node", { target: session.targetForClient("first"), text: "一次" });
+    const id = String(field(first.event("tool_call"), "requestId"));
+    assert.equal(session.claimRequest("first", id).status, "claimed");
+    assert.throws(() => session.claimRequest("first", id), /领取/);
+    assert.equal(session.validateRequest("first", id).status, "executing");
+    assert.throws(() => session.validateRequest("first", id), /不可执行/);
+    assert.equal(session.resolveResult("first", { requestId: id, result: { saved: true }, state: { ...snapshot("canvas-first"), revision: "saved-revision" } }), true);
+    assert.deepEqual(await result, { saved: true });
+    assert.equal(field(field(await session.callTool("canvas_get_state", {}), "target"), "revision"), "saved-revision");
+    assert.equal(session.requestStatus("first", id).status, "succeeded");
+    assert.equal(session.resolveResult("first", { requestId: id, result: {} }), false);
+    assert.throws(() => session.validateRequest("first", id), /不可执行/);
+});
+
+test("取消与 30 秒到期会清除执行入口，执行中到期如实标记未知", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    const target = session.targetForClient("first");
+    const pending = session.callTool("canvas_create_text_node", { target, text: "过期" }).catch((error) => error.message);
+    const expiredId = String(field(first.event("tool_call"), "requestId"));
+    t.mock.timers.tick(30000);
+    assert.match(await pending, /超时/);
+    assert.equal(session.requestStatus("first", expiredId).status, "expired");
+    assert.equal(field(first.event("tool_resolved"), "status"), "expired");
+    assert.throws(() => session.claimRequest("first", expiredId), /过期/);
+    const running = session.callTool("canvas_create_text_node", { target, text: "回执丢失" }).catch((error) => error.message);
+    const runningId = String(field(first.events("tool_call").at(-1), "requestId"));
+    execute(session, "first", runningId);
+    t.mock.timers.tick(30000);
+    assert.match(await running, /超时/);
+    assert.equal(session.requestStatus("first", runningId).status, "unknown");
+    assert.equal(session.resolveResult("first", { requestId: runningId, result: {} }), false);
+    const cancelled = session.callTool("canvas_create_text_node", { target, text: "取消" }).catch((error) => error.message);
+    const cancelledId = String(field(first.events("tool_call").at(-1), "requestId"));
+    session.cancelRequests("first", "任务停止");
+    assert.equal(await cancelled, "任务停止");
+    assert.equal(session.requestStatus("first", cancelledId).status, "cancelled");
+    assert.throws(() => session.validateRequest("first", cancelledId), /不可执行/);
+});
+
+test("完整正文与快照保留长文本末尾，摘要明确说明截断", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    const text = `${"长正文".repeat(1000)}末尾验证码`;
+    session.updateState({ ...snapshot("canvas-first"), nodes: [{ id: "long", type: "text", position: { x: 0, y: 0 }, width: 100, height: 100, metadata: { content: text } }] }, "first");
+    const summary = await session.callTool("canvas_get_state", {}) as any;
+    assert.equal(summary.contentScope, "summary");
+    assert.equal(summary.nodes[0].metadata.contentTruncated, true);
+    const content = await session.callTool("canvas_get_node_content", { nodeId: "long" }) as any;
+    assert.equal(content.node.metadata.content, text);
+    const exported = await session.callTool("canvas_export_snapshot", {}) as any;
+    assert.equal(exported.nodes[0].metadata.content, text);
+    await assert.rejects(session.callTool("canvas_get_node_content", { nodeId: "long", includeMedia: true }), /视频\/音频/);
+});
+
+test("图片原文件读取必须经独立网页授权请求", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    session.updateState({ ...snapshot("canvas-first"), nodes: [{ id: "image", type: "image", position: { x: 0, y: 0 }, width: 100, height: 100, metadata: { storageKey: "saved-file" } }] }, "first");
+    const result = session.callTool("canvas_get_node_content", { nodeId: "image", includeMedia: true }).catch((error) => error.message);
+    const call = first.event("tool_call");
+    assert.equal(field(call, "name"), "canvas_get_node_content");
+    const id = String(field(call, "requestId"));
+    assert.equal(session.requestStatus("first", id).status, "awaiting");
+    session.resolveResult("first", { requestId: id, error: "用户拒绝原图读取" });
+    assert.equal(await result, "用户拒绝原图读取");
+});
+
+test("完整读取不给出未授权媒体数据和渠道 Key", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    session.updateState({ ...snapshot("canvas-first"), nodes: [{ id: "image", type: "image", position: { x: 0, y: 0 }, width: 100, height: 100, metadata: { content: "data:image/png;base64,SECRETIMAGE", apiKey: "SECRETKEY", images: [{ id: "original", content: "https://private.example/image" }] } }] }, "first");
+    const exported = JSON.stringify(await session.callTool("canvas_export_snapshot", {}));
+    assert.equal(exported.includes("SECRET"), false);
+    assert.equal(exported.includes("private.example"), false);
+    const original = await session.callTool("canvas_get_node_content", { nodeId: "image" }) as any;
+    assert.equal(original.node.metadata.mediaReadScope, "user-authorization-required");
+});
+
+test("执行中超时后的原回执可确认结果，但不能覆盖后续画布快照", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    const pending = session.callTool("canvas_create_text_node", { target: session.targetForClient("first"), text: "保存回执" }).catch((error) => error.message);
+    const id = String(field(first.event("tool_call"), "requestId"));
+    execute(session, "first", id);
+    t.mock.timers.tick(30000);
+    assert.match(await pending, /requestId=/);
+    session.updateState({ ...snapshot("canvas-first"), revision: "later-manual-edit" }, "first");
+    assert.equal(session.resolveResult("first", { requestId: id, result: { saved: true }, state: { ...snapshot("canvas-other"), revision: "wrong-project" } }), false);
+    assert.equal(session.resolveResult("first", { requestId: id, result: { saved: true }, state: { ...snapshot("canvas-first"), revision: "old-saved-result" } }), true);
+    const receipt = await session.callTool("canvas_get_request_status", { clientId: "first", requestId: id }) as any;
+    assert.equal(receipt.status, "succeeded");
+    assert.deepEqual(receipt.result, { saved: true });
+    assert.equal(session.canvasStateForClient("first")?.revision, "later-manual-edit");
+    assert.equal(session.resolveResult("first", { requestId: id, result: { saved: true } }), false);
+});
+
+test("画布能力按精确模式向网页请求，不借用工作台连接结论", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    const pending = session.callTool("canvas_get_capabilities", { mode: "video" });
+    const call = first.event("tool_call");
+    assert.equal(field(call, "name"), "canvas_get_capabilities");
+    assert.equal(field(field(call, "input"), "mode"), "video");
+    assert.deepEqual(field(call, "target"), session.targetForClient("first"));
+    const id = String(field(call, "requestId"));
+    execute(session, "first", id);
+    session.resolveResult("first", { requestId: id, result: { mode: "video", status: "not-configured", models: [] } });
+    assert.deepEqual(await pending, { mode: "video", status: "not-configured", models: [] });
+});
+
+test("明确导航建立新绑定，从首页仍可返回指定画布", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    session.bindClient("first");
+    const navigation = session.callTool("site_navigate", { path: "/canvas/canvas-other" });
+    const id = String(field(first.event("tool_call"), "requestId"));
+    execute(session, "first", id);
+    session.resolveResult("first", { requestId: id, result: { navigated: true }, state: snapshot("canvas-other") });
+    await navigation;
+    assert.equal(field(await session.callTool("canvas_get_state", {}), "projectId"), "canvas-other");
+    session.updateState(null, "first");
+    const returnToCanvas = session.callTool("site_navigate", { path: "/canvas/canvas-first" });
+    const returnId = String(field(first.events("tool_call").at(-1), "requestId"));
+    execute(session, "first", returnId);
+    session.resolveResult("first", { requestId: returnId, result: { navigated: true }, state: snapshot("canvas-first") });
+    await returnToCanvas;
+    assert.equal(field(await session.callTool("canvas_get_state", {}), "projectId"), "canvas-first");
+});
+
+
+test("插件工作流审阅固定目标且不提交生成", async (t) => {
+    const session = new CanvasSession();
+    const first = connect(session, "first");
+    t.after(() => first.close());
+    const target = session.targetForClient("first");
+    const pending = session.callTool("canvas_preview_workflow", { target, nodeIds: ["processing-node"], includeDownstream: true });
+    const call = first.event("tool_call");
+    assert.equal(field(call, "name"), "canvas_preview_workflow");
+    assert.deepEqual(field(call, "target"), target);
+    assert.equal(field(field(call, "input"), "includeDownstream"), true);
+    const id = String(field(call, "requestId"));
+    execute(session, "first", id);
+    session.resolveResult("first", { requestId: id, result: { submitted: false, completed: false, steps: [{ source: "plugin" }] } });
+    assert.deepEqual(await pending, { submitted: false, completed: false, steps: [{ source: "plugin" }] });
+    assert.equal(first.events("tool_call").length, 1);
+});

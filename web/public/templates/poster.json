@@ -2,8 +2,8 @@
   "id": "poster",
   "title": "活动海报",
   "titleEn": "Event poster",
-  "description": "一份文案 + 风格说明，一键出竖版主视觉、方形社媒图和横幅三种尺寸。",
-  "descriptionEn": "One brief, three poster formats: portrait key visual, square social post and banner.",
+  "description": "先修改活动文案，创建独立画布，再预览竖版、方图、横幅的参数与调用数并确认执行。",
+  "descriptionEn": "Edit the brief, create an independent canvas, then review parameters and confirm execution.",
   "tags": [
     "海报",
     "营销"

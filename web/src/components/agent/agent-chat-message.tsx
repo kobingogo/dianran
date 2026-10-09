@@ -420,7 +420,8 @@ export function AgentWorkingMessage({ text, detail, status = "running", mcpStatu
             </div>
             {detail ? <div className="ml-5.5 mt-1 text-xs leading-5 opacity-65" style={{ color: theme.node.muted }}>{detail}</div> : null}
             {mcpStatuses.length ? (
-                <div className="ml-5.5 mt-3 space-y-2">
+                <details className="ml-5.5 mt-2 space-y-2">
+                    <summary className="cursor-pointer text-xs opacity-65" style={{ color: theme.node.muted }}>查看服务状态 · {mcpStatuses.filter((item) => item.status === "error").length ? "部分服务异常" : `${mcpStatuses.length} 项服务`}</summary>
                     {mcpStatuses.map((item) => (
                         <div key={item.name} className="flex min-w-0 items-start gap-2 text-xs leading-5" style={{ color: theme.node.muted }}>
                             {item.status === "running" ? <LoaderCircle className="mt-0.5 size-3.5 shrink-0 animate-spin" /> : item.status === "ready" ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" /> : <XCircle className="mt-0.5 size-3.5 shrink-0 text-red-600" />}
@@ -430,7 +431,7 @@ export function AgentWorkingMessage({ text, detail, status = "running", mcpStatu
                             </div>
                         </div>
                     ))}
-                </div>
+                </details>
             ) : null}
             {status === "running" && elapsed >= 30 ? <div className="mt-1 text-xs leading-5 opacity-65" style={{ color: theme.node.muted }}>{t("agent.message.slowResponse")}</div> : null}
         </div>

@@ -9,6 +9,7 @@ import { logger } from "../utils/logger.js";
 import { field, type JsonRecord } from "../utils/value.js";
 import { codexEventHistory, type CodexEventHistory } from "./codex-event-history.js";
 import type { CodexNotificationParams, CodexPlanUpdate, CodexReasoningEffort, CodexRequestMethod, CodexRequestParams, CodexRequestResult, CodexSkillSelector, CodexTurnInput } from "./codex-protocol.js";
+import { ELICITATION_METHOD, USER_INPUT_METHOD, interactionCancellation, supportedInteraction, validateInteractionResponse, type CodexInteraction } from "./codex-interaction.js";
 import type { AgentEmit, AgentPermissionMode } from "./types.js";
 
 type AgentEvent = JsonRecord & { type: string; usage?: unknown };
@@ -16,7 +17,7 @@ type PendingRequest = { resolve: (value: unknown) => void; reject: (error: Error
 type ActiveTurn = PendingRequest & { threadId: string; turnId: string; prompt: string; messageText?: string };
 type ItemDeltaParams = { threadId: string; turnId: string; itemId: string; delta: string; summaryIndex?: number };
 type PendingDelta = { delta: string; itemType: string; params: ItemDeltaParams; timer: ReturnType<typeof setTimeout> };
-type ApprovalRequest = { id: number; method: string; params: JsonRecord; decision?: string };
+type ApprovalRequest = { id: number | string; method: string; params: JsonRecord; decision?: string };
 type PendingTurnStart = { threadId: string; prompt: string; messageText?: string; turnId?: string; onTurn?: (turnId: string) => void };
 
 const canvasAgentMcp = canvasAgentMcpCommand();
@@ -50,10 +51,13 @@ export class CodexAppClient {
     private itemSequences = new Map<string, number>();
     private nextItemSequences = new Map<string, number>();
     private plansByTurn = new Map<string, CodexPlanUpdate>();
+    private settledInteractionTurns = new Set<string>();
+    private interactionRequests = new Map<string, { id: number | string; params: JsonRecord; method: string; threadId: string; turnId: string; submitted?: boolean }>();
     private approvalRequests = new Map<string, ApprovalRequest>();
     private finalizingTurns = new Map<string, Promise<void>>();
     private skillReloads = new Map<string, Promise<CodexRequestResult<"skills/list">>>();
     private silentThreadIds = new Set<string>();
+    private discussionItemIds = new Map<string, string>();
     private structuredOutputByTurn = new Map<string, string>();
     private pendingSilentThreadStarts = new Set<symbol>();
     private pendingThreadStartedNotifications: JsonRecord[] = [];
@@ -124,8 +128,8 @@ export class CodexAppClient {
     }
 
     /** 创建不会持久化或向网页广播的草稿线程。 */
-    async startSkillDraftThread(cwd: string) {
-        return await this.startSilentThread("thread/start", { ...skillDraftThreadSettings(cwd), threadSource: "user" });
+    async startSkillDraftThread(cwd: string, developerInstructions = SKILL_DRAFT_INSTRUCTIONS) {
+        return await this.startSilentThread("thread/start", { ...skillDraftThreadSettings(cwd), developerInstructions, threadSource: "user" });
     }
 
     /** 从指定对话派生不会持久化或向网页广播的草稿线程。 */
@@ -177,6 +181,7 @@ export class CodexAppClient {
             this.silentThreadIds.delete(threadId);
             const prefix = `${threadId}\0`;
             [...this.structuredOutputByTurn.keys()].filter((key) => key.startsWith(prefix)).forEach((key) => this.structuredOutputByTurn.delete(key));
+            [...this.discussionItemIds.keys()].filter((key) => key.startsWith(prefix)).forEach((key) => this.discussionItemIds.delete(key));
         }
     }
 
@@ -254,9 +259,9 @@ export class CodexAppClient {
     }
 
     /** 在静默线程中生成结构化输出。 */
-    async generateSkillDraft(threadId: string, prompt: string, outputSchema: JsonRecord, model?: string, effort?: CodexReasoningEffort) {
+    async generateSkillDraft(threadId: string, prompt: string, outputSchema: JsonRecord, model?: string, effort?: CodexReasoningEffort, images: string[] = []) {
         this.silentThreadIds.add(threadId);
-        const result = await this.startTurn(threadId, prompt, [], "request", model, effort, undefined, undefined, undefined, outputSchema);
+        const result = await this.startTurn(threadId, prompt, images, "request", model, effort, undefined, undefined, undefined, outputSchema);
         const output = String(field(result, "output") || "").trim();
         if (!output) throw new Error("Codex 没有返回 Skill 草稿");
         return output;
@@ -270,6 +275,7 @@ export class CodexAppClient {
         try {
             logger.warn("Interrupting active Codex turn", { threadId, turnId });
             await this.request("turn/interrupt", { threadId, turnId });
+            this.clearInteractions(threadId, turnId, "interrupted");
             return true;
         } catch (error) {
             logger.warn("Failed to interrupt Codex turn", { error, threadId, turnId });
@@ -278,9 +284,9 @@ export class CodexAppClient {
     }
 
     /** 回复网页端已经确认的 Codex 权限请求。 */
-    resolveApproval(requestId: string, decision: string) {
+    resolveApproval(requestId: string, decision: string, threadId?: string, turnId?: string) {
         const request = this.approvalRequests.get(requestId);
-        if (!request) return false;
+        if (!request || (threadId !== undefined && request.params.threadId !== threadId) || (turnId !== undefined && request.params.turnId !== turnId)) return false;
         if (request.decision) return true;
         request.decision = decision;
         const permissions = field(request.params, "permissions") || field(request.params, "requestedPermissions");
@@ -290,6 +296,34 @@ export class CodexAppClient {
             : { decision };
         this.write({ id: request.id, result });
         return true;
+    }
+
+    pendingInteractions(): CodexInteraction[] {
+        return [...this.interactionRequests.entries()].map(([requestId, request]) => ({ ...request.params, requestId, method: request.method, threadId: request.threadId, turnId: request.turnId, submitted: request.submitted }));
+    }
+
+    resolveInteraction(requestId: string, threadId: string, turnId: string, response: JsonRecord) {
+        const request = this.interactionRequests.get(requestId);
+        if (!request || request.threadId !== threadId || request.turnId !== turnId || request.submitted) return false;
+        const result = response.action === "cancel" ? interactionCancellation(request.method) : validateInteractionResponse(request.method, request.params, response);
+        request.submitted = true;
+        this.write({ id: request.id, result });
+        this.emit("codex_interaction", { ...request.params, requestId, method: request.method, threadId, turnId, submitted: true });
+        return true;
+    }
+
+    private clearInteractions(threadId?: string, turnId?: string, reason = "cancelled") {
+        if (threadId && turnId) this.settledInteractionTurns.add(turnCacheKey(threadId, turnId));
+        for (const [requestId, request] of this.interactionRequests) {
+            if (threadId && (request.threadId !== threadId || (turnId && request.turnId !== turnId))) continue;
+            this.interactionRequests.delete(requestId);
+            this.emit("codex_interaction_resolved", { requestId, threadId: request.threadId, turnId: request.turnId, reason });
+        }
+        for (const [requestId, request] of this.approvalRequests) {
+            if (threadId && (request.params.threadId !== threadId || (turnId && request.params.turnId !== turnId))) continue;
+            this.approvalRequests.delete(requestId);
+            this.emit("codex_approval_resolved", { ...request.params, requestId, decision: "cancel", reason });
+        }
     }
 
     /** 标记下一次临时线程创建，使早于请求响应到达的通知也不会外泄。 */
@@ -370,7 +404,12 @@ export class CodexAppClient {
             return;
         }
         if (method === "serverRequest/resolved") {
-            const requestId = String(field(params, "requestId") || "");
+            const requestId = String(field(params, "requestId") ?? "");
+            const interaction = this.interactionRequests.get(requestId);
+            if (interaction && (!params.threadId || params.threadId === interaction.threadId)) {
+                this.interactionRequests.delete(requestId);
+                this.emit("codex_interaction_resolved", { requestId, threadId: interaction.threadId, turnId: interaction.turnId, reason: "resolved" });
+            }
             const request = requestId ? this.approvalRequests.get(requestId) : undefined;
             if (request) {
                 this.approvalRequests.delete(requestId);
@@ -478,6 +517,7 @@ export class CodexAppClient {
                 turnPersistence = this.eventHistory.recordTurn({ threadId, turnId, turn: turnRecord }).catch((error) => logger.warn("Failed to persist Codex turn history", { threadId, turnId, error }));
                 this.finalizingTurns.set(planKey, turnPersistence);
             }
+            this.clearInteractions(threadId, turnId, "turn-completed");
             this.finishTurnDeltas(threadId, turnId);
         }
         if (event.type === "turn.completed") {
@@ -530,7 +570,7 @@ export class CodexAppClient {
             const key = itemCacheKey({ threadId, turnId, itemId });
             if (item.type === "agent_message" && turnId) {
                 const text = String(item.text || this.textByItem.get(key) || "").trim();
-                if (text) this.structuredOutputByTurn.set(turnCacheKey(threadId, turnId), text);
+                if (text) { this.structuredOutputByTurn.set(turnCacheKey(threadId, turnId), text); this.discussionItemIds.set(turnCacheKey(threadId, turnId), itemId); }
             }
             if (itemId) this.textByItem.delete(key);
             return true;
@@ -544,7 +584,8 @@ export class CodexAppClient {
         this.finishTurnDeltas(threadId, completedTurnId);
         const failure = turn.error ? new CodexReportedError(turn.error.message || "Codex turn failed") : null;
         const pending = this.activeTurns.get(turnKey);
-        const result = { output };
+        const result = { output, threadId, turnId: completedTurnId, itemId: this.discussionItemIds.get(turnKey) || "" };
+        this.discussionItemIds.delete(turnKey);
         if (pending) {
             this.activeTurns.delete(turnKey);
             failure ? pending.reject(failure) : pending.resolve(result);
@@ -665,6 +706,18 @@ export class CodexAppClient {
         const method = String(message.method);
         const params = (field(message, "params") as JsonRecord) || {};
         const threadId = String(field(params, "threadId") || this.currentThreadId);
+        if ([USER_INPUT_METHOD, ELICITATION_METHOD].includes(method)) {
+            const turnId = String(params.turnId || (threadId === this.currentThreadId ? this.currentTurnId : ""));
+            if (this.silentThreadIds.has(threadId) || !params.threadId || !threadId || !turnId || this.settledInteractionTurns.has(turnCacheKey(threadId, turnId)) || !supportedInteraction(method, params)) {
+                this.write({ id: message.id, result: interactionCancellation(method) });
+                if (!this.silentThreadIds.has(threadId)) this.emit("agent_event", { agent: "codex", type: "server.request.unsupported", method, thread_id: threadId, turn_id: turnId, message: "无法安全绑定任务或尚不支持此交互，已取消，未自动接受" });
+                return;
+            }
+            const requestId = String(message.id);
+            this.interactionRequests.set(requestId, { id: message.id as number | string, method, params, threadId, turnId });
+            this.emit("codex_interaction", { ...params, requestId, method, threadId, turnId });
+            return;
+        }
         if (this.silentThreadIds.has(threadId)) {
             const result = method === "item/permissions/requestApproval" ? { permissions: {}, scope: "turn" } : { decision: "decline" };
             this.write({ id: message.id, result });
@@ -672,12 +725,12 @@ export class CodexAppClient {
         }
         if (["item/commandExecution/requestApproval", "item/fileChange/requestApproval", "item/permissions/requestApproval"].includes(method)) {
             const requestId = String(message.id);
-            this.approvalRequests.set(requestId, { id: Number(message.id), method, params });
+            this.approvalRequests.set(requestId, { id: message.id as number | string, method, params });
             this.emit("codex_approval", { requestId, method, ...params });
             return;
         }
-        const result = method === "mcpServer/elicitation/request" ? { action: "accept", content: {}, _meta: null } : { decision: "decline" };
-        this.write({ id: message.id, result });
+        const result = { error: { code: -32601, message: "Unsupported server request" } };
+        this.write({ id: message.id, ...result });
         this.emit("agent_event", { agent: "codex", type: "server.request", method, params, result });
     }
 
@@ -697,6 +750,7 @@ export class CodexAppClient {
     private failAll(message: string, reported = false) {
         if (this.failing) return;
         this.failing = true;
+        this.clearInteractions(undefined, undefined, "process-exited");
         this.failureMessage = message;
         this.approvalRequests.forEach((request, requestId) => this.emit("codex_approval_resolved", { ...request.params, requestId, decision: request.decision || "cancel" }));
         const failedTurns = new Map<string, { threadId: string; turnId: string; prompt: string; messageText?: string }>();

@@ -1,73 +1,84 @@
-// [dianran] Anonymous prompt usage counter. Counts "copy" (prompt copied) and "use" (prompt inserted / applied) per
-// built-in prompt id in localStorage and sends the batch to /api/usage at most about once a day (or when the
-// batch gets large). No cookies, no user identifiers: the payload is only { events: { "<promptId>": { copy, use } } }.
-// Disabled in development builds, for custom (non built-in) sources, and when the browser sends Do Not Track.
+// Anonymous built-in prompt counters. Copy/use indicates interaction, never generation success or quality.
+import localforage from "localforage";
 import { STORAGE_NS } from "@/constant/brand";
+import { assertBusinessWriter, writeOwnership } from "@/lib/write-ownership";
 
 type Counts = Record<string, { copy: number; use: number }>;
-const QUEUE_KEY = `${STORAGE_NS}:usage-queue`;
-const FLUSHED_KEY = `${STORAGE_NS}:usage-flushed-at`;
+type Batch = { batchId: string; day: string; events: Counts };
+type Queue = { events: Counts; pending?: Batch; attemptedAt: number };
+const QUEUE_KEY = `${STORAGE_NS}:usage-batches`;
 const FLUSH_EVERY_MS = 20 * 60 * 60 * 1000;
 const FLUSH_AT_EVENTS = 40;
-// Built-in library ids (custom sources use random ids and are never reported).
+// Existing API boundaries; splitting preserves excess counts rather than silently clipping them.
+const MAX_IDS = 60, MAX_COUNT = 30;
 const BUILT_IN = /^(dianran-picks|x-trending|civitai-trending|youmind-gpt-image-2|youmind-nano-banana-pro|awesome-gpt4o-image-prompts|banana-prompt-quicker|freestylefly-gpt-image-2|awesome-gpt-image):/;
-
+let chain: Promise<unknown> = Promise.resolve();
+let availability: "unknown" | "available" | "unavailable" = "unknown";
+const statusListeners = new Set<() => void>();
+export function subscribePromptUsageStatus(listener: () => void) { statusListeners.add(listener); return () => { statusListeners.delete(listener); }; }
+function setAvailability(status: typeof availability) { availability = status; statusListeners.forEach((listener) => listener()); }
+export function getPromptUsageStatus() { return availability; }
 function enabled() {
-    if (!import.meta.env.PROD || typeof window === "undefined") return false;
-    if (navigator.doNotTrack === "1" || (window as unknown as { doNotTrack?: string }).doNotTrack === "1") return false;
-    return true;
+    return import.meta.env.PROD && typeof window !== "undefined" && writeOwnership.canWrite() && navigator.doNotTrack !== "1" && (window as unknown as { doNotTrack?: string }).doNotTrack !== "1";
 }
-
-function readQueue(): Counts {
-    try {
-        return JSON.parse(localStorage.getItem(QUEUE_KEY) || "{}") as Counts;
-    } catch {
-        return {};
+function serial(action: () => Promise<void>) {
+    const task = chain.catch(() => undefined).then(action);
+    chain = task;
+    return task.catch(() => undefined); // Optional anonymous counters cannot interrupt creation.
+}
+async function readQueue(): Promise<Queue> {
+    return await localforage.getItem<Queue>(QUEUE_KEY) || { events: {}, attemptedAt: 0 };
+}
+function total(counts: Counts) { return Object.values(counts).reduce((sum, entry) => sum + entry.copy + entry.use, 0); }
+async function flush(queue: Queue, force: boolean) {
+    if (!enabled() || availability === "unavailable") return;
+    if (!queue.pending && !total(queue.events)) return;
+    if (!force && Date.now() - queue.attemptedAt < FLUSH_EVERY_MS && total(queue.events) < FLUSH_AT_EVENTS) return;
+    if (availability === "unknown") {
+        const response = await fetch("/api/usage", { credentials: "omit", cache: "no-store" });
+        const info = response.ok && response.headers.get("content-type")?.includes("application/json") ? await response.json() : null;
+        if (info?.enabled !== true || info?.protocol !== 2) { setAvailability("unavailable"); return; }
+        setAvailability("available");
     }
+    if (!queue.pending) {
+        const events: Counts = {};
+        for (const [id, counts] of Object.entries(queue.events).slice(0, MAX_IDS)) {
+            const sent = { copy: Math.min(MAX_COUNT, counts.copy), use: Math.min(MAX_COUNT, counts.use) };
+            events[id] = sent;
+            counts.copy -= sent.copy; counts.use -= sent.use;
+            if (!counts.copy && !counts.use) delete queue.events[id];
+        }
+        queue.pending = { batchId: crypto.randomUUID(), day: new Date().toISOString().slice(0, 10), events };
+    }
+    queue.attemptedAt = Date.now();
+    assertBusinessWriter();
+    await localforage.setItem(QUEUE_KEY, queue); // Identity persisted before a possibly uncertain network request.
+    const batch = queue.pending;
+    const response = await fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(batch), keepalive: true, credentials: "omit" });
+    const receipt = response.ok && response.headers.get("content-type")?.includes("application/json") ? await response.json() : null;
+    if (receipt?.accepted !== true || receipt?.batchId !== batch.batchId) return;
+    assertBusinessWriter();
+    delete queue.pending;
+    await localforage.setItem(QUEUE_KEY, queue);
 }
-
-function total(counts: Counts) {
-    return Object.values(counts).reduce((sum, value) => sum + value.copy + value.use, 0);
-}
-
 export function flushPromptUsage(force = false) {
-    if (!enabled()) return;
-    const queue = readQueue();
-    if (!Object.keys(queue).length) return;
-    const last = Number(localStorage.getItem(FLUSHED_KEY) || 0);
-    if (!force && Date.now() - last < FLUSH_EVERY_MS && total(queue) < FLUSH_AT_EVENTS) return;
-    const body = JSON.stringify({ events: queue });
-    localStorage.setItem(FLUSHED_KEY, String(Date.now()));
-    localStorage.removeItem(QUEUE_KEY);
-    try {
-        const sent = navigator.sendBeacon?.("/api/usage", new Blob([body], { type: "application/json" }));
-        if (!sent) void fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true, credentials: "omit" }).catch(() => undefined);
-    } catch {
-        /* best effort only */
-    }
+    if (!enabled()) return Promise.resolve();
+    return serial(async () => flush(await readQueue(), force));
 }
-
-/** Record one anonymous copy/use of a built-in prompt (id like "x-trending:123"). */
 export function trackPromptUsage(promptId: string | undefined, kind: "copy" | "use" = "copy") {
-    if (!promptId || !BUILT_IN.test(promptId) || !enabled()) return;
-    try {
-        const queue = readQueue();
-        const entry = queue[promptId] || { copy: 0, use: 0 };
+    if (!promptId || !BUILT_IN.test(promptId) || !enabled() || availability === "unavailable") return;
+    void serial(async () => {
+        const queue = await readQueue();
+        const entry = queue.events[promptId] ||= { copy: 0, use: 0 };
         entry[kind] += 1;
-        queue[promptId] = entry;
-        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-        flushPromptUsage();
-    } catch {
-        /* storage full or blocked: ignore */
-    }
+        assertBusinessWriter();
+        await localforage.setItem(QUEUE_KEY, queue);
+        await flush(queue, false);
+    });
 }
-
 let installed = false;
-/** Flush pending counts when the tab is hidden (once the daily interval has passed). */
 export function installPromptUsageFlush() {
     if (installed || typeof document === "undefined") return;
     installed = true;
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "hidden") flushPromptUsage();
-    });
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") void flushPromptUsage(); });
 }

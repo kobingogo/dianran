@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { App, Button, Input, Modal } from "antd";
 import { X } from "lucide-react";
 import { Composer } from "@/components/composer/composer";
 import { createComposerSubmission, type ComposerMode, type ComposerParameters } from "@/lib/composer";
-import { canvasReferenceIds, prepareCanvasSubmission, type CanvasSubmission } from "@/lib/canvas/canvas-composer";
+import { canvasReferenceIds, prepareCanvasInput, prepareCanvasSubmission, type CanvasSubmission } from "@/lib/canvas/canvas-composer";
 import { buildGenerationConfig, hasResumableVideoTask } from "@/lib/canvas/canvas-generation-helpers";
 import { getGroupResourceNodes, isCanvasReferenceNode } from "@/lib/canvas/canvas-resource-references";
 import { EMPTY_COMPOSER_DRAFT, useComposerStore } from "@/stores/use-composer-store";
+import { useAgentMediaStore } from "@/stores/use-agent-media-store";
 import { useConfigStore } from "@/stores/use-config-store";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 import type { ReferenceImage } from "@/types/image";
 import { CreationDetails } from "@/components/composer/creation-details";
+import { useAgentStore } from "@/stores/use-agent-store";
 
 export function CanvasDockedComposer({ projectId, nodes, target, availableInputs, runningId, onSubmit, onSelect, onStop, onGetStatus, onDraftChange }: {
     projectId: string; nodes: CanvasNodeData[]; availableInputs: CanvasNodeData[]; target?: CanvasNodeData; runningId: string | null;
@@ -19,6 +22,12 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
     onDraftChange: (id: string, prompt: string, parameters?: ComposerParameters, nodeIds?: string[]) => void;
 }) {
     const { message } = App.useApp();
+    const creation = useAgentStore((state) => state.creationContext);
+    const panelOpen = useAgentStore((state) => state.panelOpen);
+    const activeTab = useAgentStore((state) => state.activeTab);
+    const pinned = creation?.projectId === projectId ? creation : null;
+    if (pinned) target = pinned.targetId ? nodes.find((node) => node.id === pinned.targetId) : undefined;
+    const [portal, setPortal] = useState<HTMLElement | null>(null);
     const [mode, setMode] = useState<ComposerMode>("image");
     const [branch, setBranch] = useState<"edit" | "video">();
     const [picker, setPicker] = useState(false);
@@ -26,17 +35,62 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
     const [active, setActive] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const hydrated = useComposerStore((state) => state.hydrated);
-    const scope = projectId + ":" + (target?.id || "new") + ":" + mode;
+    const scope = pinned?.scope || projectId + ":" + (target?.id || "new") + ":" + mode;
     const draft = useComposerStore((state) => state.scoped[scope] || EMPTY_COMPOSER_DRAFT);
+    const source = useAgentMediaStore((state) => state.source);
     const hasResult = Boolean(target?.metadata?.content);
     const referenceIds = [...new Set([...(draft.nodeIds || []), ...canvasReferenceIds(draft.prompt)])];
     let error = "";
+    if (pinned?.targetId && !target) error = "原创作节点已删除，请新建创作或恢复原节点；不会改用当前选区";
     try {
-        if (draft.prompt.trim()) prepareCanvasSubmission(mode, draft.prompt, draft.references, { ...useConfigStore.getState().config, ...draft.parameters }, nodes, draft.nodeIds);
+        if (draft.prompt.trim()) (mode === "image" && source === "agent" ? prepareCanvasInput : prepareCanvasSubmission)(mode, draft.prompt, draft.references, { ...useConfigStore.getState().config, ...draft.parameters }, nodes, draft.nodeIds);
     } catch (e) { error = e instanceof Error ? e.message : "引用无法读取"; }
 
     useEffect(() => {
-        setMode(target?.type === CanvasNodeType.Video || target?.metadata?.generationMode === "video" ? "video" : "image");
+        if (!hydrated || useAgentStore.getState().creationContext) return;
+        const state = useComposerStore.getState();
+        const saved = state.canvasContexts[projectId];
+        if (!saved || state.conversations[state.activeConversations[saved.scope]]?.purpose !== "discuss") return;
+        setMode(saved.mode);
+        useAgentStore.getState().setAgentState({ creationContext: { ...saved, projectId }, activeTab: "chat" });
+        useAgentStore.getState().openPanel();
+    }, [hydrated, projectId]);
+    useEffect(() => {
+        const open = (event: Event) => {
+            if ((event as CustomEvent).detail !== scope) return;
+            useComposerStore.getState().rememberCanvasContext(projectId, { scope, targetId: target?.id, mode });
+            useAgentStore.getState().setAgentState({ creationContext: { scope, projectId, targetId: target?.id, mode }, activeTab: "chat" });
+            useAgentStore.getState().openPanel();
+        };
+        window.addEventListener("creation-open-discussion", open);
+        const fresh = (event: Event) => {
+            if ((event as CustomEvent).detail !== scope) return;
+            useAgentStore.getState().setAgentState({ creationContext: null });
+            useAgentStore.getState().closePanel();
+            useComposerStore.getState().rememberCanvasContext(projectId);
+            useComposerStore.getState().ensureConversation(`${projectId}:new:${mode}`, mode, true);
+            onSelect(null);
+        };
+        window.addEventListener("creation-new", fresh);
+        return () => { window.removeEventListener("creation-open-discussion", open); window.removeEventListener("creation-new", fresh); };
+    }, [scope, projectId, target?.id, mode]);
+    useEffect(() => {
+        if (!pinned || !panelOpen || activeTab !== "chat") { setPortal(null); return; }
+        const locate = () => { const target = document.getElementById("creation-panel-composer"); if (target) setPortal(target); };
+        locate();
+        const observer = new MutationObserver(locate);
+        observer.observe(document.body, { childList: true, subtree: true });
+        return () => observer.disconnect();
+    }, [pinned?.scope, panelOpen, activeTab]);
+    useEffect(() => () => {
+        if (useAgentStore.getState().creationContext?.projectId === projectId) {
+            useAgentStore.getState().setAgentState({ creationContext: null });
+            useAgentStore.getState().closePanel();
+        }
+    }, [projectId]);
+
+    useEffect(() => {
+        if (target) setMode(target.type === CanvasNodeType.Video || target.metadata?.generationMode === "video" ? "video" : "image");
         setBranch(undefined);
         setPicker(false);
     }, [target?.id]);
@@ -59,6 +113,15 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
         useComposerStore.getState().patch(mode, { prompt: prompt.includes("@[node:" + id + "]") ? prompt : prompt + " @[node:" + id + "] "  , nodeIds: [...new Set([...(draft.nodeIds || []), id])] }, scope);
         setPicker(false);
     };
+    const changeMode = (next: ComposerMode) => {
+        if (next === mode) return;
+        if (pinned) {
+            const context = { projectId, targetId: pinned.targetId, mode: next, scope: `${projectId}:${pinned.targetId || "new"}:${next}` };
+            useComposerStore.getState().rememberCanvasContext(projectId, context);
+            useAgentStore.getState().setAgentState({ creationContext: context });
+        }
+        setMode(next);
+    };
     const continueEditing = (nextMode: ComposerMode) => {
         if (!target?.metadata?.content) return;
         const nextScope = projectId + ":" + target.id + ":" + nextMode;
@@ -67,7 +130,7 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
         if (!prompt.includes("@[node:" + target.id + "]")) prompt += " @[node:" + target.id + "]";
         useComposerStore.getState().patch(nextMode, { prompt, nodeIds: [...new Set([...(existing?.nodeIds || []), target.id])] }, nextScope);
         setBranch(nextMode === "video" ? "video" : "edit");
-        setMode(nextMode);
+        changeMode(nextMode);
     };
     const submit = async (submission: CanvasSubmission, kind: "regenerate" | "edit" | "video" | undefined = branch) => {
         if (submitting) return;
@@ -84,9 +147,15 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
         void submit({ ...submission, input: { ...input, prompt: submission.prompt }, composerContent: target.metadata?.composerContent || creation.composerContent || creation.prompt, inputNodeIds: target.metadata?.inputNodeIds || [], materials: [] }, "regenerate");
     };
     const candidates = nodes.filter((node) => node.id !== target?.id && isCanvasReferenceNode(node, nodes) && (node.title + " " + node.type).toLowerCase().includes(search.toLowerCase()));
-    const header = <div data-testid="canvas-composer-target" className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--ink-500)]">
+    const header = <div data-testid="canvas-composer-target" data-target-id={target?.id || "new"} className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[color:var(--ink-500)]">
         <span className="min-w-0 max-w-full truncate text-[color:var(--zhu-600)]">{!target ? "新建" : target.type === CanvasNodeType.Config ? "编辑配置：" : hasResult ? branch === "video" ? "转视频：" : "继续编辑：" : "填充节点："}{target?.title}</span>
-        {target ? <button onClick={() => onSelect(null)}>新建</button> : null}
+        {target || pinned ? <button onClick={() => window.dispatchEvent(new CustomEvent("creation-new", { detail: scope }))}>新建</button> : null}
+        {pinned ? <button onClick={() => {
+            const ids = useAgentStore.getState().canvasContext?.getSnapshot().selectedNodeIds || [];
+            const refs = ids.filter((id) => { const node = nodes.find((node) => node.id === id); return node && isCanvasReferenceNode(node, nodes); });
+            if (!refs.length) { message.info("请先选择可引用的素材节点"); return; }
+            useComposerStore.getState().patch(mode, { nodeIds: [...new Set([...(draft.nodeIds || []), ...refs])] }, scope);
+        }}>引用所选节点</button> : null}
         {hasResult && target?.type === CanvasNodeType.Image ? <>
             <button onClick={() => continueEditing("image")}>继续编辑</button>
             <button onClick={() => continueEditing("video")}>转视频</button>
@@ -96,15 +165,17 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
         {target?.metadata?.creation ? <CreationDetails creation={target.metadata.creation} /> : null}
         {target?.metadata?.sourceConfigId ? <button onClick={() => onSelect(target.metadata!.sourceConfigId!)}>定位来源配置</button> : null}
         {target?.metadata?.agentSource ? <button onClick={() => void import("@/stores/use-agent-store").then(({ useAgentStore }) => { useAgentStore.getState().setAgentState({ sourceToLocate: target.metadata!.agentSource, activeTab: "chat" }); useAgentStore.getState().openPanel(); })}>查看来源轮次</button> : null}
-        {availableInputs.filter((node) => !referenceIds.includes(node.id)).map((node) => <button key={node.id} onClick={() => addReference(node.id)}>可用输入（未加入本轮）：{node.title}</button>)}
+        {(pinned ? [] : availableInputs).filter((node) => !referenceIds.includes(node.id)).map((node) => <button key={node.id} onClick={() => addReference(node.id)}>可用输入（未加入本轮）：{node.title}</button>)}
         {target?.metadata?.inputChanged ? <span>输入已变化 · 尚未重新生成</span> : null}
+        {target?.metadata?.agentMediaRequestId && !hasResult ? <button disabled={submitting} onClick={() => onGetStatus(target)}>查询本机任务 / 重试保存</button> : null}
         {target && hasResumableVideoTask(target) ? <button disabled={Boolean(runningId)} onClick={() => onGetStatus(target)}>取任务状态</button> : null}
         {runningId ? <button onClick={() => onStop(runningId)}>停止等待</button> : null}
     </div>;
-    return <div data-canvas-no-zoom data-testid="canvas-docked-composer" className="pointer-events-auto w-full" onPointerDown={(event) => event.stopPropagation()}>
-        <Composer key={scope} mode={mode} onModeChange={setMode} busy={submitting || Boolean(runningId)} onSubmit={(value) => void submit(value as CanvasSubmission)} canvas={{
-            scope, header, error, onReference: () => { setSearch(""); setActive(0); setPicker(true); },
-            prepare: (prompt: string, refs: ReferenceImage[], config) => prepareCanvasSubmission(mode, prompt, refs, config, nodes, draft.nodeIds),
+    const content = <div data-canvas-no-zoom data-testid="canvas-docked-composer" className="pointer-events-auto w-full" onPointerDown={(event) => event.stopPropagation()}>
+        <Composer key={scope} localImages mode={mode} onModeChange={changeMode} busy={submitting || Boolean(runningId)} onSubmit={(value) => submit(value as CanvasSubmission)} canvas={{
+            scope, projectId, targetId: target?.id, header, error, onReference: () => { setSearch(""); setActive(0); setPicker(true); },
+            prepareNative: (prompt, refs, config) => { const { input } = prepareCanvasInput("image", prompt, refs, config, nodes, draft.nodeIds); return { prompt: input.prompt, references: input.referenceImages }; },
+            prepare: (prompt: string, refs: ReferenceImage[], config, validate = true) => prepareCanvasSubmission(mode, prompt, refs, config, nodes, draft.nodeIds, validate),
             referenceBar: referenceIds.length ? <div aria-label="本轮引用" className="mb-2 flex gap-2 overflow-x-auto">
                 {referenceIds.map((id) => {
                     const node = nodes.find((node) => node.id === id);
@@ -133,4 +204,5 @@ export function CanvasDockedComposer({ projectId, nodes, target, availableInputs
             <Button type="text" onClick={() => setPicker(false)}>完成</Button>
         </Modal>
     </div>;
+    return portal ? createPortal(content, portal) : panelOpen ? null : content;
 }

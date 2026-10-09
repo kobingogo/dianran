@@ -67,10 +67,10 @@ export function WorkbenchResults({ tab, onTabChange, logCount, status, actions, 
     return (
         <section id="workbench-results" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <header className="flex min-h-[60px] flex-wrap items-center gap-2.5 border-b border-[var(--line)] px-4 py-3 sm:px-8 lg:h-[68px] lg:py-0">
-                <h2 className="m-0 mr-1 font-[family-name:var(--font-serif)] text-[17px] font-semibold text-[color:var(--ink-900)]">{tab === "logs" ? t("workbench.logs") : "本次结果"}</h2>
+                <h2 className="m-0 mr-1 font-[family-name:var(--font-serif)] text-[17px] font-semibold text-[color:var(--ink-900)]">{tab === "logs" ? t("workbench.logs") : "本次创作"}</h2>
                 <div role="tablist" className="flex gap-1.5">
                     <InkChip role="tab" aria-selected={tab === "results"} selected={tab === "results"} onClick={() => onTabChange("results")}>
-                        {t("workbench.results")}
+                        创作记录
                     </InkChip>
                     <InkChip role="tab" aria-selected={tab === "logs"} selected={tab === "logs"} onClick={() => onTabChange("logs")}>
                         历史 · {logCount}
@@ -110,15 +110,15 @@ export function relativeTime(createdAt?: number) {
 }
 
 /** Failure tile: names the reason and offers a fix (PLAN 6.3 / 7.1). */
-export function FailureTile({ error, aspect = "aspect-[3/4]", onRetry, fixes, children }: { error: string; aspect?: string; onRetry: () => void; fixes?: ReactNode; children?: ReactNode }) {
+export function FailureTile({ error, aspect = "aspect-[3/4]", onRetry, fixes, children, title = "这次没画成", retryLabel = "新建生成请求" }: { error: string; aspect?: string; onRetry: () => void; fixes?: ReactNode; children?: ReactNode; title?: string; retryLabel?: string }) {
     return (
         <div className={cn("flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-[color-mix(in_srgb,var(--zhu-500)_30%,var(--line))] bg-[var(--zhu-100)] p-4 text-center", aspect)}>
-            <b className="font-[family-name:var(--font-serif)] text-[15px] text-[color:var(--zhu-600)]">这次没画成</b>
+            <b className="font-[family-name:var(--font-serif)] text-[15px] text-[color:var(--zhu-600)]">{title}</b>
             <div className="max-h-[45%] w-full overflow-y-auto text-xs leading-5 text-[color:var(--ink-500)]">{children || error}</div>
             <div className="flex flex-wrap justify-center gap-1.5">
                 {fixes}
                 <InkButton size={32} variant="paper" onClick={onRetry}>
-                    重试
+                    {retryLabel}
                 </InkButton>
             </div>
         </div>

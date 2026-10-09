@@ -77,7 +77,7 @@ export function uniqueReferences(references: ReferenceImage[]) {
     });
 }
 
-export function createComposerSubmission(mode: ComposerMode, prompt: string, references: ReferenceImage[], config: AiConfig, canvas = false, imageCountLimit = 10): ComposerSubmission {
+export function createComposerSubmission(mode: ComposerMode, prompt: string, references: ReferenceImage[], config: AiConfig, canvas = false, imageCountLimit = 10, validate = true): ComposerSubmission {
     const normalized = normalizeComposerConfig(config, mode, imageCountLimit).config;
     const refs = uniqueReferences(references);
     const text = prompt
@@ -89,11 +89,13 @@ export function createComposerSubmission(mode: ComposerMode, prompt: string, ref
         .trim();
     if (!text) throw new Error("先写一句想要的画面");
     const plans = composerPlans(normalized);
+    if (validate) {
     if (mode === "image" && plans.image.invalid) throw new Error("请调整为模型支持的尺寸");
     if (mode === "image" && plans.channel === "siliconflow" && refs.length > 1) throw new Error("此渠道编辑只使用第一张图，请保留一张参考图后提交");
     if (mode === "video" && refs.length > 7) throw new Error("视频沿用最多 7 张收集上限，请减少附件后提交");
     if (mode === "video" && plans.video.caps.paramStyle === "openai-sora" && refs.length > 1) throw new Error("Sora 当前仅接入单张参考图，尾帧未核实，请保留一张后提交");
     if (mode === "video" && normalized.videoMode === "frames" && plans.video.caps.paramStyle !== "openai-sora" && refs.length > 2) throw new Error("首尾帧模式只发送前两张；请移除多余图片或选择多图参考");
+    }
     const { imageModel, videoModel, size, videoSize, quality, background, count, vquality, videoSeconds, videoGenerateAudio, videoWatermark, videoMode } = normalized;
     const parameters = { imageModel, videoModel, size, videoSize, quality, background, count, vquality, videoSeconds, videoGenerateAudio, videoWatermark, videoMode };
     const actual =

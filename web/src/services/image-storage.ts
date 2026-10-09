@@ -1,11 +1,15 @@
+import { proxyFetch } from "@/services/api/proxy-transport";
+import { writeOwnership } from "@/lib/write-ownership";
+import { businessOperation } from "@/lib/write-ownership";
 import localforage from "localforage";
 
 import { nanoid } from "nanoid";
 import i18n from "@/i18n";
 import { withLocalProxy } from "@/stores/use-config-store";
 import { createImageThumbnail } from "@/lib/image-thumbnail";
-import { STORAGE_NS, storageKey } from "@/constant/brand";
-import { canvasIndexedStorage } from "@/lib/localforage-storage";
+import { STORAGE_NS } from "@/constant/brand";
+import { collectMediaStorageKeys } from "@/lib/media-references";
+import { cleanupStoredMedia, protectSessionMedia } from "./media-references";
 
 export type UploadedImage = {
     url: string;
@@ -18,8 +22,6 @@ export type UploadedImage = {
 
 const store = localforage.createInstance({ name: STORAGE_NS, storeName: "image_files" });
 const previewStore = localforage.createInstance({ name: STORAGE_NS, storeName: "image_previews" });
-const imageLogStore = localforage.createInstance({ name: STORAGE_NS, storeName: "image_generation_logs" });
-const videoLogStore = localforage.createInstance({ name: STORAGE_NS, storeName: "video_generation_logs" });
 const objectUrls = new Map<string, string>();
 const previewUrls = new Map<string, string>();
 const previewListeners = new Set<() => void>();
@@ -36,7 +38,7 @@ type StoredImagePreview = { version: number; blob?: Blob };
 
 type ImageReadOptions = { signal?: AbortSignal };
 
-export async function uploadImage(input: string | Blob, options?: ImageReadOptions): Promise<UploadedImage> {
+async function uploadImageOwned(input: string | Blob, options?: ImageReadOptions): Promise<UploadedImage> {
     if (typeof input !== "string") return storeImage(input, options);
 
     let blob: Blob;
@@ -58,6 +60,7 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
         const meta = await loadImageMeta(url, options);
         if (!meta) throw new Error(i18n.t("common.imageReadFailed"));
         throwIfAborted(options?.signal);
+        await protectSessionMedia(storageKey);
         await store.setItem(storageKey, blob);
         throwIfAborted(options?.signal);
         objectUrls.set(storageKey, url);
@@ -81,7 +84,7 @@ async function fetchImageBlob(url: string, options?: ImageReadOptions) {
         controller.abort();
     }, IMAGE_DOWNLOAD_TIMEOUT_MS);
     try {
-        const response = await fetch(withLocalProxy(url), { signal: controller.signal });
+        const response = await proxyFetch(withLocalProxy(url), { signal: controller.signal });
         if (!response.ok) throw namedError(IMAGE_RESPONSE_ERROR);
         return await response.blob();
     } catch (error) {
@@ -180,7 +183,7 @@ export async function ensureImagePreview(storageKey?: string) {
     if (cached) return cached;
     const stored = await previewStore.getItem<StoredImagePreview>(storageKey).catch(() => null);
     if (stored?.version === IMAGE_PREVIEW_VERSION) return stored.blob ? cacheImagePreview(storageKey, stored.blob) : undefined;
-    queueImagePreview(storageKey);
+    if (writeOwnership.canWrite()) queueImagePreview(storageKey);
     return undefined;
 }
 
@@ -215,7 +218,8 @@ async function deleteImagePreview(storageKey: string) {
     await previewStore.removeItem(storageKey).catch(() => undefined);
 }
 
-export async function setImageBlob(storageKey: string, blob: Blob) {
+async function setImageBlobOwned(storageKey: string, blob: Blob) {
+    await protectSessionMedia(storageKey);
     await store.setItem(storageKey, blob);
     await deleteImagePreview(storageKey);
     await storeImagePreview(storageKey, blob);
@@ -230,7 +234,7 @@ export async function imageToDataUrl(image: { url?: string; dataUrl?: string; st
     return blobToDataUrl(await fetchImageBlob(url, options));
 }
 
-export async function deleteStoredImages(keys: Iterable<string>) {
+async function deleteStoredImagesOwned(keys: Iterable<string>) {
     await Promise.all(
         Array.from(new Set(keys)).map(async (key) => {
             const url = objectUrls.get(key);
@@ -242,36 +246,13 @@ export async function deleteStoredImages(keys: Iterable<string>) {
     );
 }
 
-export async function cleanupUnusedImages(usedData: unknown) {
-    const usedKeys = collectImageStorageKeys(usedData);
-    const templates = await canvasIndexedStorage.getItem(storageKey("workflow_templates"));
-    if (templates && !Array.isArray(templates)) throw new Error("模板数据无法读取，已停止清理素材");
-    collectImageStorageKeys(templates, usedKeys);
-    const { useComposerStore } = await import("@/stores/use-composer-store");
-    collectImageStorageKeys(useComposerStore.getState(), usedKeys);
-    await Promise.all([
-        imageLogStore.iterate((value) => {
-            collectImageStorageKeys(value, usedKeys);
-        }),
-        videoLogStore.iterate((value) => {
-            collectImageStorageKeys(value, usedKeys);
-        }),
-    ]);
-    const unused: string[] = [];
-    await store.iterate((_value, key) => {
-        if (!usedKeys.has(key)) unused.push(key);
-    });
-    const orphanPreviews: string[] = [];
-    await previewStore.iterate((_value, key) => {
-        if (!usedKeys.has(key)) orphanPreviews.push(key);
-    });
-    await Promise.all([deleteStoredImages(unused), ...orphanPreviews.map(deleteImagePreview)]);
+async function cleanupUnusedImagesOwned(usedData: unknown) {
+    await Promise.all([store.ready(), previewStore.ready()]);
+    await cleanupStoredMedia("image_files", usedData);
 }
 
 export function collectImageStorageKeys(value: unknown, keys = new Set<string>()) {
-    if (!value || typeof value !== "object") return keys;
-    if ("storageKey" in value && typeof value.storageKey === "string" && value.storageKey.startsWith("image:")) keys.add(value.storageKey);
-    Object.values(value).forEach((item) => (Array.isArray(item) ? item.forEach((child) => collectImageStorageKeys(child, keys)) : collectImageStorageKeys(item, keys)));
+    for (const key of collectMediaStorageKeys(value)) if (key.startsWith("image:")) keys.add(key);
     return keys;
 }
 
@@ -283,3 +264,11 @@ function blobToDataUrl(blob: Blob) {
         reader.readAsDataURL(blob);
     });
 }
+
+export const uploadImage = businessOperation(uploadImageOwned);
+
+export const setImageBlob = businessOperation(setImageBlobOwned);
+
+export const deleteStoredImages = businessOperation(deleteStoredImagesOwned);
+
+export const cleanupUnusedImages = businessOperation(cleanupUnusedImagesOwned);

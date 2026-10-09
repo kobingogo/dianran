@@ -6,61 +6,47 @@ import { useTranslation } from "react-i18next";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useAgentStore, type AgentModel, type AgentPermissionMode, type AgentReasoningEffort } from "@/stores/use-agent-store";
-import type { AgentChatAttachment } from "./agent-chat-message";
+import { useShallow } from "zustand/shallow";
+import { useThemeStore } from "@/stores/use-theme-store";
+import { agentAttachmentToChatAttachment } from "./agent-event-formatters";
 import { AgentChatPromptInput } from "./agent-chat-prompt-input";
 
-export function AgentChatComposer({
-    prompt,
-    attachments = [],
-    disabled,
-    sending,
-    placeholder,
-    theme,
-    onPromptChange,
-    onSubmit,
-    onStop,
-    onAddFiles,
-    onRemoveAttachment,
-    confirmTools,
-    onConfirmToolsChange,
-    permissionMode,
-    onPermissionModeChange,
-    models,
-    model,
-    reasoningEffort,
-    onModelChange,
-    onReasoningEffortChange,
-    left,
-}: {
-    prompt: string;
-    attachments?: AgentChatAttachment[];
-    disabled?: boolean;
-    sending?: boolean;
-    placeholder: string;
-    theme: (typeof canvasThemes)[keyof typeof canvasThemes];
-    onPromptChange: (value: string) => void;
-    onSubmit: () => void;
-    onStop?: () => void;
-    onAddFiles?: (files: FileList | File[] | null) => void | Promise<void>;
-    onRemoveAttachment?: (id: string) => void;
-    confirmTools?: boolean;
-    onConfirmToolsChange?: (confirmTools: boolean) => void;
-    permissionMode?: AgentPermissionMode;
-    onPermissionModeChange?: (permissionMode: AgentPermissionMode) => void;
-    models?: AgentModel[];
-    model?: string;
-    reasoningEffort?: AgentReasoningEffort | "";
-    onModelChange?: (model: string) => void;
-    onReasoningEffortChange?: (effort: AgentReasoningEffort) => void;
-    left?: ReactNode;
-}) {
+export function AgentChatComposer({ inline = false }: { inline?: boolean }) {
     const { t } = useTranslation();
+    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const state = useAgentStore(useShallow((state) => ({ prompt: state.prompt, attachments: state.attachments, connected: state.connected, sending: state.sending, waiting: state.waiting, loading: state.loadingThreads, conversation: state.conversation, actions: state.composerActions, confirmTools: state.confirmTools, permissionMode: state.permissionMode, models: state.models, model: state.model, reasoningEffort: state.reasoningEffort, url: state.url, token: state.token })));
+    const { prompt, confirmTools, permissionMode, models, model, reasoningEffort } = state;
+    const setAgentState = useAgentStore((state) => state.setAgentState);
+    const attachments = state.attachments.map((item) => agentAttachmentToChatAttachment(item, state.url, state.token));
+    const disabled = state.loading;
+    const sending = state.sending || state.waiting;
+    const submitDisabled = !state.connected || !state.actions || !["ready", "warning"].includes(state.conversation.status);
+    const placeholder = !state.connected ? "可先写草稿，连接后继续讨论" : ["idle", "preparing"].includes(state.conversation.status) ? t("agent.panel.mcpInitializing") : state.conversation.status === "failed" ? t("agent.panel.initFailed") : "描述创作需求，输入 / 选择 Skill，输入 @ 引用画布内容";
+    const onPromptChange = (prompt: string) => setAgentState({ prompt });
+    const onSubmit = () => state.actions?.submit();
+    const onStop = () => state.actions?.stop();
+    const onAddFiles = (files: FileList | File[] | null) => state.actions?.addFiles(files);
+    const onRemoveAttachment = (id: string) => state.actions?.removeAttachment(id);
+    const onConfirmToolsChange = (confirmTools: boolean) => setAgentState({ confirmTools });
+    const onPermissionModeChange = (mode: AgentPermissionMode) => state.actions?.changePermission(mode);
+    const onModelChange = (model: string) => {
+        const selected = models.find((item) => item.model === model);
+        if (!selected) return;
+        const effort = selected.defaultReasoningEffort || selected.supportedReasoningEfforts[0]?.reasoningEffort;
+        localStorage.setItem("canvas-agent-model", model);
+        if (effort) localStorage.setItem("canvas-agent-reasoning-effort", effort);
+        setAgentState({ model, ...(effort ? { reasoningEffort: effort } : {}) });
+    };
+    const onReasoningEffortChange = (reasoningEffort: AgentReasoningEffort) => {
+        localStorage.setItem("canvas-agent-reasoning-effort", reasoningEffort);
+        setAgentState({ reasoningEffort });
+    };
     const fileInputRef = useRef<HTMLInputElement>(null);
     const canvasReferences = useAgentStore((state) => state.canvasReferences);
-    const canSubmit = !disabled && !sending && Boolean(prompt.trim() || attachments.length || canvasReferences.length);
+    const canSubmit = !disabled && !submitDisabled && !sending && Boolean(prompt.trim() || attachments.length || canvasReferences.length);
     return (
-        <div className="px-2 pb-2 pt-2" onWheelCapture={(event) => event.stopPropagation()}>
-            <div className="rounded-[24px] border px-3 pb-3 pt-3 shadow-lg" style={{ background: theme.toolbar.panel, borderColor: theme.node.stroke }}>
+        <div className={inline ? "" : "px-2 pb-2 pt-2"} onWheelCapture={(event) => event.stopPropagation()}>
+            <div className={inline ? "" : "rounded-[24px] border px-3 pb-3 pt-3 shadow-lg"} style={inline ? undefined : { background: theme.toolbar.panel, borderColor: theme.node.stroke }}>
                 {attachments.length ? (
                     <div className="thin-scrollbar mb-2 flex gap-2 overflow-x-auto pb-1">
                         {attachments.map((item) => (
@@ -75,7 +61,7 @@ export function AgentChatComposer({
                         ))}
                     </div>
                 ) : null}
-                <AgentChatPromptInput value={prompt} disabled={disabled || sending} placeholder={placeholder} theme={theme} onChange={onPromptChange} onSubmit={() => { if (canSubmit) void onSubmit(); }} onAddFiles={onAddFiles} />
+                <AgentChatPromptInput autoFocus={inline} value={prompt} disabled={disabled || sending} placeholder={placeholder} theme={theme} onChange={onPromptChange} onSubmit={() => { if (canSubmit) void onSubmit(); }} onAddFiles={onAddFiles} />
                 <div className="@container mt-2 flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-1">
                         {onAddFiles ? (
@@ -92,7 +78,7 @@ export function AgentChatComposer({
                         {onConfirmToolsChange ? <ToolConfirmationMenu confirmTools={Boolean(confirmTools)} theme={theme} onChange={onConfirmToolsChange} /> : null}
                         {permissionMode && onPermissionModeChange ? <PermissionModeMenu permissionMode={permissionMode} theme={theme} onChange={onPermissionModeChange} /> : null}
                         {models?.length && model && reasoningEffort && onModelChange && onReasoningEffortChange ? <AgentModelControls models={models} model={model} reasoningEffort={reasoningEffort} onModelChange={onModelChange} onReasoningEffortChange={onReasoningEffortChange} /> : null}
-                        {left}
+                        {attachments.length ? <span className="hidden text-[11px] @min-[660px]:inline" style={{ color: theme.node.muted }}>{attachments.length} 张参考图</span> : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                         {sending && onStop ? (

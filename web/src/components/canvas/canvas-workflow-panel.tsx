@@ -1,3 +1,6 @@
+import { CreationEstimate } from "@/components/composer/creation-estimate";
+import { workflowEstimateCondition } from "@/lib/creation-estimates";
+import { exportWorkflowTemplate, importWorkflowTemplate } from "@/lib/canvas/workflow-archive";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { App, Modal } from "antd";
@@ -5,12 +8,16 @@ import { useParams } from "react-router-dom";
 import { useCanvasStore, flushCanvasSave } from "@/stores/canvas/use-canvas-store";
 import { useWorkflowStore } from "@/stores/canvas/use-workflow-store";
 import { useEffectiveConfig } from "@/stores/use-config-store";
-import { createWorkflowRun, executeWorkflow, instantiateWorkflow, planWorkflow, reconcileWorkflow, workflowScope, type WorkflowPlan, type WorkflowRun, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
+import { createWorkflowRun, executeWorkflow, instantiateWorkflow, planWorkflow, reconcileWorkflow, workflowModel, workflowModeLabels, workflowScope, type WorkflowPlan, type WorkflowRun, type WorkflowStep, type WorkflowStepRun } from "@/lib/canvas/workflow";
 import { hydrateCanvasImages } from "@/lib/canvas/canvas-generation-helpers";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { CanvasNodeData, CanvasConnection } from "@/types/canvas";
 import { showErrorToast } from "@/features/errors/error-toast";
+import { useLocalImageGeneration } from "@/hooks/use-local-image-generation";
+import { useAgentStore } from "@/stores/use-agent-store";
+import { fetchAgentMediaCapabilities } from "@/services/api/local-agent-media";
+import { getNodeDefinition } from "@/lib/canvas/node-registry";
 
 export function CanvasWorkflowPanel({
     selectedIds,
@@ -22,17 +29,21 @@ export function CanvasWorkflowPanel({
     execute: (step: WorkflowStep, inputs: string[], state: WorkflowStepRun, checkpoint: () => Promise<void>, frozenInputs: CanvasNodeData[]) => Promise<string[]>;
 }) {
     const { id: projectId = "" } = useParams();
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
     const config = useEffectiveConfig();
     const project = useCanvasStore((store) => store.projects.find((item) => item.id === projectId));
     const proposal = useWorkflowStore((store) => store.proposal);
     const templates = useWorkflowStore((store) => store.templates);
     const theme = canvasThemes[useThemeStore((store) => store.theme)];
     const open = useWorkflowStore((store) => store.panelOpen);
+    const native = useLocalImageGeneration(open);
+    const [sources, setSources] = useState<Record<string, string>>({});
     const setOpen = (panelOpen: boolean) => useWorkflowStore.setState({ panelOpen });
     const [plan, setPlan] = useState<WorkflowPlan>();
     const [busy, setBusy] = useState(false);
     const stop = useRef(false);
+    const templateInput = useRef<HTMLInputElement>(null);
+    const templateAction = async (action: () => Promise<void>) => { setBusy(true); try { await action(); } catch (error) { report(error); } finally { setBusy(false); } };
     useEffect(() => {
         return () => {
             stop.current = true;
@@ -47,12 +58,18 @@ export function CanvasWorkflowPanel({
                 .catch((error) => showErrorToast(message, error, "读取模板失败"));
     }, [open, message]);
     const report = (error: unknown) => showErrorToast(message, error, "工作流未完成");
-    const inspect = async (downstream = false) => {
+    const inspect = async (downstream = false, all = false) => {
         try {
             await flushCanvasSave();
             const current = useCanvasStore.getState().openProject(projectId);
             if (!current) throw new Error("画布已不存在");
-            setPlan(planWorkflow(current.nodes, current.connections, workflowScope(current.nodes, current.connections, [...selectedIds], downstream), config));
+            const scope = all ? current.nodes.filter((node) => node.type === "config" || getNodeDefinition(node.type)?.workflowAction).map((node) => node.id) : [...selectedIds];
+            const nodes = current.nodes.map((node) => {
+                if (!sources[node.id]) return node;
+                const nativeModel = sources[node.id].startsWith("codex:") ? sources[node.id].slice(6) : "";
+                return { ...node, metadata: { ...node.metadata, generationSource: nativeModel ? "codex" as const : "api" as const, codexModel: nativeModel || undefined } };
+            });
+            setPlan(planWorkflow(nodes, current.connections, workflowScope(nodes, current.connections, scope, downstream), config));
         } catch (error) {
             setPlan(undefined);
             report(error);
@@ -69,6 +86,25 @@ export function CanvasWorkflowPanel({
         setBusy(true);
         stop.current = false;
         try {
+            const pendingNative = source.plan.steps.filter((step) => step.source === "codex" && source.steps.find((item) => item.stepId === step.id)?.status === "pending");
+            pendingNative.forEach((step) => { delete step.allowUnverified; });
+            if (pendingNative.length) {
+                const agent = useAgentStore.getState();
+                if (!agent.connected) throw new Error("请先连接本机 Agent，再执行计划");
+                const capabilities = (await fetchAgentMediaCapabilities(agent.url, agent.token)).data.find((item) => item.agentId === "codex");
+                let unverified = false;
+                for (const step of pendingNative) {
+                    const images = step.inputs.some((input) => input.stepId ? source.plan.steps.find((item) => item.id === input.stepId)?.mode === "image" : source.plan.resources.find((node) => node.id === input.nodeId)?.type === "image");
+                    const availability = capabilities?.capabilities[images ? "image-edit" : "text-to-image"];
+                    if (!availability || availability === "unavailable") throw new Error("计划中的本机生图能力不可用，请刷新能力");
+                    unverified ||= availability === "unverified";
+                }
+                if (unverified) {
+                    const approved = await new Promise<boolean>((resolve) => modal.confirm({ title: "本机 Codex 生图能力尚未验证", content: "本次工作流会提交原生生图任务，可能消耗 Codex 使用额度。失败或结果未知时停止下游，不改用 API，也不重复生成。", okText: "允许本次工作流", cancelText: "取消", onOk: () => resolve(true), onCancel: () => resolve(false) }));
+                    if (!approved) return;
+                    pendingNative.forEach((step) => { step.allowUnverified = true; });
+                }
+            }
             if (!source.prepared) {
                 const current = useCanvasStore.getState().openProject(projectId);
                 if (!current) throw new Error("画布已不存在");
@@ -128,8 +164,26 @@ export function CanvasWorkflowPanel({
     return (
         <>
             <Modal title="工作流 · 预览后执行" open={open} onCancel={() => setOpen(false)} footer={null} width={720}>
-                <p>生图/视频 MVP。配置修改与连线不触发调用；每次运行创建独立配置与结果，保留原作品。依赖步骤使用上游结果的主图。</p>
+                <p>支持生成配置和图片处理插件。修改参数与连线不执行；每次运行创建独立配置与结果，保留原作品。处理步骤接收上游全部图片，结果保存后继续下游。</p>
+                <div className="my-3 space-y-2">
+                    {(project?.nodes || []).filter((node) => node.type === "config" && (!node.metadata?.generationMode || node.metadata.generationMode === "image")).map((node) => (
+                        <label key={node.id} className="flex items-center gap-2">
+                            <span>{node.title} · 生图来源</span>
+                            <select disabled={busy} className="min-w-0 flex-1 bg-transparent" value={sources[node.id] || (node.metadata?.generationSource === "codex" ? `codex:${node.metadata.codexModel}` : "api")} onChange={(event) => { setSources((current) => ({ ...current, [node.id]: event.target.value })); setPlan(undefined); }}>
+                                <option value="api">模型 API（使用配置节点的模型）</option>
+                                {native.models.map((model) => <option key={model.model} value={`codex:${model.model}`}>本机 Codex · {model.model}</option>)}
+                                {node.metadata?.codexModel && !native.models.some((model) => model.model === node.metadata?.codexModel) && <option value={`codex:${node.metadata.codexModel}`}>本机 Codex · {node.metadata.codexModel}（待验证）</option>}
+                            </select>
+                        </label>
+                    ))}
+                    <div className="flex gap-3 text-xs">
+                        <button disabled={busy} onClick={() => { const agent = useAgentStore.getState(); agent.openPanel(); agent.setAgentState({ activeTab: "setup" }); }}>{native.connected ? "查看本机连接" : "连接本机 Agent"}</button>
+                        <button disabled={busy || native.loading || !native.connected} onClick={() => void native.refresh()}>刷新 Codex 模型与能力</button>
+                    </div>
+                    {native.error && <p className="text-xs">{native.error}</p>}
+                </div>
                 <div className="my-3 flex flex-wrap gap-3">
+                    <button disabled={busy} onClick={() => void inspect(false, true)}>预览全部步骤</button>
                     <button disabled={busy} onClick={() => void inspect()}>
                         预览选定节点
                     </button>
@@ -153,19 +207,20 @@ export function CanvasWorkflowPanel({
                             <input className="min-w-0 flex-1 bg-transparent" value={plan.title} onChange={(event) => setPlan({ ...plan, title: event.target.value })} />
                         </label>
                         <p>
-                            {plan.steps.length} 步 · 共 {plan.steps.reduce((sum, step) => sum + step.calls, 0)} 次生成请求 · 费用由配置的渠道计费
+                            {plan.steps.length} 步 · 共 {plan.steps.reduce((sum, step) => sum + step.calls, 0)} 次生成请求 · API 按渠道计费，本机 Codex 按账户规则计费
                         </p>
                         {plan.steps.map((step, index) => (
                             <div key={step.id} className="border-b py-2" style={{ borderColor: theme.node.stroke }}>
                                 <p>
-                                    {index + 1}. {step.title} · {step.mode === "image" ? "图片" : "视频"} · {step.calls} 次
+                                    {index + 1}. {step.title} · {step.action ? "插件处理" : step.source === "codex" ? "本机 Codex 生图" : workflowModeLabels[step.mode]} · {step.calls} 次
                                 </p>
                                 <p className="break-all text-xs">{step.prompt}</p>
                                 <p className="text-xs">
-                                    模型：{step.parameters[step.mode === "image" ? "imageModel" : "videoModel"]} · 输入：
-                                    {step.inputs.map((input) => (input.stepId ? `步骤 ${plan.steps.findIndex((item) => item.id === input.stepId) + 1}` : input.nodeId)).join("、") || "无"}
+                                    {step.action ? `插件：${step.action.pluginId} · ${step.action.version}` : `模型：${workflowModel(step)}`} · 输入：
+                                    {step.inputs.map((input) => (input.stepId ? `步骤 ${plan.steps.findIndex((item) => item.id === input.stepId) + 1}` : plan.resources.find((node) => node.id === input.nodeId)?.title || input.nodeId)).join("、") || "无"}
                                 </p>
                                 <pre className="overflow-auto text-xs">{JSON.stringify(step.actual, null, 2)}</pre>
+                                {step.action ? <p className="text-xs">{getNodeDefinition(step.action.nodeType)?.workflowAction?.description} · 原图保留，结果保存后继续；刷新后不自动重做。</p> : step.source === "codex" ? <p className="text-xs">一个原生任务；数量、比例等要求请写入提示词。图片保存后才执行下游。</p> : <CreationEstimate config={config} approvedCondition={workflowEstimateCondition(step, plan, config)} />}
                             </div>
                         ))}
                         <div className="flex gap-3">
@@ -189,9 +244,12 @@ export function CanvasWorkflowPanel({
                 )}
                 <details className="mt-5">
                     <summary>本机模板（{templates.length}）</summary>
+                    <input hidden ref={templateInput} type="file" accept=".zip" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void templateAction(async () => { await importWorkflowTemplate(file); message.success("模板及原始素材已导入，请展开并重新预览参数"); }); }} />
+                    <button disabled={busy} onClick={() => templateInput.current?.click()}>导入模板 ZIP</button>
                     {templates.map((template) => (
                         <div key={template.id} className="my-2 flex gap-3">
                             <span>{template.title}</span>
+                            <button disabled={busy} onClick={() => void templateAction(() => exportWorkflowTemplate(template))}>导出 ZIP</button>
                             <button disabled={busy} onClick={() => void apply(template.plan)}>
                                 展开到画布
                             </button>

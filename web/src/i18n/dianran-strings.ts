@@ -53,6 +53,7 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
         tasks: {
             title: "任务中心",
             description: "这里显示本页面发出的生成请求和真实状态，刷新页面后清空。",
+            returnToSource: "返回创作页面",
             clear: "清除已结束",
             running: "{{count}} 个任务进行中",
             failedCount: "{{count}} 个任务失败",
@@ -143,6 +144,7 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
         tasks: {
             title: "Task center",
             description: "Generation requests sent from this page and their real status. Cleared on reload.",
+            returnToSource: "Return to workspace",
             clear: "Clear finished",
             running: "{{count}} running",
             failedCount: "{{count}} failed",

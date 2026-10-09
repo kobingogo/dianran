@@ -16,7 +16,8 @@ type ComposerCommand = { type: "skill" | "resource"; query: string; length: numb
 type ComposerCandidate = { type: "skill"; skill: AgentSkillSummary } | { type: "resource"; reference: CanvasResourceReference };
 type ReferenceHover = { reference: AgentCanvasReference; left: number; top: number; width: number; height: number };
 
-export function AgentChatPromptInput({ value, disabled, placeholder, theme, onChange, onSubmit, onAddFiles }: {
+export function AgentChatPromptInput({ value, disabled, placeholder, theme, onChange, onSubmit, onAddFiles, autoFocus = false }: {
+    autoFocus?: boolean;
     value: string;
     disabled?: boolean;
     placeholder: string;
@@ -50,7 +51,7 @@ export function AgentChatPromptInput({ value, disabled, placeholder, theme, onCh
         const query = command.query.trim().toLowerCase();
         if (command.type === "skill") {
             return skills
-                .filter((skill) => skill.enabled && (!query || [skill.name, skill.description, skill.interface?.displayName, skill.interface?.shortDescription, skill.shortDescription].some((item) => item?.toLowerCase().includes(query))))
+                .filter((skill) => skill.enabled && skill.readiness?.status !== "missing" && (!query || [skill.name, skill.description, skill.interface?.displayName, skill.interface?.shortDescription, skill.shortDescription].some((item) => item?.toLowerCase().includes(query))))
                 .map((skill) => ({ type: "skill", skill }));
         }
         return resourceCandidates
@@ -69,6 +70,18 @@ export function AgentChatPromptInput({ value, disabled, placeholder, theme, onCh
         }));
         lastEmittedRef.current = value;
     }, [theme, tokens, value]);
+
+    useEffect(() => {
+        const editor = editorRef.current;
+        if (!autoFocus || !editor) return;
+        editor.focus();
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    }, [autoFocus]);
 
     const emit = (next: string) => {
         lastEmittedRef.current = next;
@@ -98,6 +111,8 @@ export function AgentChatPromptInput({ value, disabled, placeholder, theme, onCh
         const selectedIds = new Set(snapshot?.selectedNodeIds || []);
         setResourceCandidates([...references.filter((item) => selectedIds.has(item.nodeId)), ...references.filter((item) => !selectedIds.has(item.nodeId))]);
     };
+
+    useEffect(() => { if (autoFocus && value === "/") syncCommand(); }, [autoFocus, value]);
 
     const syncFromEditor = () => {
         const editor = editorRef.current;
@@ -244,6 +259,7 @@ export function AgentChatPromptInput({ value, disabled, placeholder, theme, onCh
 function AgentCommandMenu({ command, candidates, activeIndex, loading, theme, onSelect }: { command: ComposerCommand; candidates: ComposerCandidate[]; activeIndex: number; loading: boolean; theme: (typeof canvasThemes)[keyof typeof canvasThemes]; onSelect: (candidate: ComposerCandidate) => void }) {
     const { t } = useTranslation();
     const activeItemRef = useRef<HTMLButtonElement | null>(null);
+    const connected = useAgentStore((state) => state.connected);
     useEffect(() => { activeItemRef.current?.scrollIntoView({ block: "nearest" }); }, [activeIndex]);
     const stopPropagation = (event: PointerEvent | MouseEvent) => event.stopPropagation();
     return (
@@ -263,7 +279,7 @@ function AgentCommandMenu({ command, candidates, activeIndex, loading, theme, on
                             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{title}</span><span className="mt-0.5 block truncate text-xs" style={{ color: theme.node.muted }}>{description}</span></span>
                         </button>
                     );
-                }) : <div className="px-3 py-6 text-center text-xs" style={{ color: theme.node.muted }}>{t(loading ? "agent.composer.mentions.loadingSkills" : command.type === "skill" ? "agent.composer.mentions.noSkills" : "agent.composer.mentions.noResources")}</div>}
+                }) : <div className="px-3 py-6 text-center text-xs" style={{ color: theme.node.muted }}>{command.type === "skill" && !connected ? "连接本机 Agent 后可读取 Skill" : t(loading ? "agent.composer.mentions.loadingSkills" : command.type === "skill" ? "agent.composer.mentions.noSkills" : "agent.composer.mentions.noResources")}</div>}
             </div>
         </div>
     );

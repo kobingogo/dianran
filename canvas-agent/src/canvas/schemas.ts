@@ -3,15 +3,20 @@ import { z } from "zod";
 const recordSchema = z.record(z.unknown());
 const positionSchema = z.object({ x: z.number(), y: z.number() });
 const viewportSchema = z.object({ x: z.number(), y: z.number(), k: z.number() });
-const nodeTypeSchema = z.enum(["image", "text", "config", "video", "audio"]);
+const nodeTypeSchema = z.string().min(1);
 const generationModeSchema = z.enum(["text", "image", "video", "audio"]);
 
 /** Canvas Agent 对外提供的工具名称。 */
 export const toolNames = [
+    "media_register_artifact",
     "site_navigate",
     "canvas_list_projects",
     "canvas_get_state",
     "canvas_get_selection",
+    "canvas_get_node_content",
+    "canvas_get_capabilities",
+    "canvas_preview_workflow",
+    "canvas_get_request_status",
     "canvas_export_snapshot",
     "canvas_apply_ops",
     "canvas_create_node",
@@ -89,11 +94,16 @@ const generationFlowSchema = z.object({
     referenceNodeIds: z.array(z.string()).optional(),
 });
 
-export const toolInputSchemas = {
+const baseToolInputSchemas = {
+    media_register_artifact: z.object({ requestId:z.string().min(1),threadId:z.string().min(1),turnId:z.string().min(1),itemId:z.string().min(1),productionDirectory:z.string().min(1),filePath:z.string().min(1) }),
     site_navigate: z.object({ path: z.string() }),
     canvas_list_projects: z.object({ keyword: z.string().optional(), page: z.number().optional(), pageSize: z.number().optional() }),
     canvas_get_state: z.object({}).passthrough(),
     canvas_get_selection: z.object({}).passthrough(),
+    canvas_get_capabilities: z.object({ mode: generationModeSchema.optional() }),
+    canvas_preview_workflow: z.object({ nodeIds: z.array(z.string().min(1)).min(1), includeDownstream: z.boolean().optional() }),
+    canvas_get_request_status: z.object({ clientId: z.string(), requestId: z.string() }),
+    canvas_get_node_content: z.object({ nodeId: z.string(), includeMedia: z.boolean().optional() }),
     canvas_export_snapshot: z.object({}).passthrough(),
     canvas_apply_ops: z.object({ ops: z.array(canvasOpSchema) }),
     canvas_create_node: z.object({ nodeType: nodeTypeSchema, title: z.string().optional(), x: z.number().optional(), y: z.number().optional(), width: z.number().optional(), height: z.number().optional(), metadata: recordSchema.optional() }),
@@ -126,12 +136,20 @@ export const toolInputSchemas = {
     assets_add: z.object({ kind: z.enum(["text", "image"]), title: z.string(), content: z.string().optional(), imageUrl: z.string().optional(), tags: z.array(z.string()).optional(), source: z.string().optional(), note: z.string().optional() }),
 } satisfies Record<ToolName, z.AnyZodObject>;
 
+export const canvasTargetSchema = z.object({ clientId: z.string().min(1), projectId: z.string().min(1), revision: z.string().min(1) });
+export const toolInputSchemas = Object.fromEntries(Object.entries(baseToolInputSchemas).map(([name, schema]) => [name, schema.extend({ target: canvasTargetSchema.optional() })])) as { [K in ToolName]: z.AnyZodObject };
+
 export const toolDescriptions: Record<ToolName, string> = {
+    media_register_artifact: "将外部 Codex 原生任务生成的图片显式登记到目标项目。必须携带 target、原 request/thread/turn/item 身份和生产目录/原文件；网页用户确认授权后读取目录内原图并保留副本，再保存到浏览器。不会发起生成；不支持目录之外或未知归属文件。",
     site_navigate: "跳转网站页面。path 可为 / (首页)、/canvas (我的画布)、/canvas/:id (指定画布)、/image (生图工作台)、/video (视频创作台)、/prompts (提示词库)、/assets (我的素材)、/config (配置)。操作画布前若不在画布页，先用本工具打开画布。",
     canvas_list_projects: "列出用户全部画布（仅标题、创建/更新时间、节点数、连线数，不含完整数据），支持 keyword 搜索和 page/pageSize 分页。返回的 id 可配合 site_navigate 跳转到 /canvas/:id 打开对应画布。",
-    canvas_get_state: "读取当前网页画布的节点、连线、选区和视口。",
+    canvas_get_state: "读取画布节点摘要、连线、选区和视口，并返回 target（clientId/projectId/revision）。后续写入必须携带该 target；修改后重新读取。正文可能截断，用 canvas_get_node_content 读取完整正文。",
     canvas_get_selection: "读取当前网页画布选中的节点。",
-    canvas_export_snapshot: "导出当前画布快照，用于理解布局。",
+    canvas_export_snapshot: "导出画布完整文本快照（不包含媒体原文件），包含 target 和修订。",
+    canvas_get_capabilities: "读取当前画布按 text/image/video/audio 模式的可选模型、选中参数及能力状态。不返回 Key；已配置或可选模型不代表已经通过实际生成验证。",
+    canvas_preview_workflow: "审阅选定生成配置或已启用的图片处理插件及可选下游。返回冻结的步骤、来源、模型、参数和依赖，并打开网页工作流；不执行或付费，须由用户在网页确认执行。先读取画布并携带 target。",
+    canvas_get_request_status: "按 clientId 和 requestId 查询原工具请求回执，不重新执行；工具超时后先查询，未知状态不能视为未执行。",
+    canvas_get_node_content: "按 nodeId 读取完整节点正文与结果元数据。includeMedia=true 时须经网页用户授权，才能返回图片原文件；不支持视频/音频完整理解。",
     canvas_apply_ops: "批量操作当前网页画布。ops 支持 add_node、update_node、delete_node、delete_connections、connect_nodes、set_viewport、select_nodes、run_generation。",
     canvas_create_node: "创建任意类型节点：text、image、config、video、audio。适合创建占位图、媒体占位、配置节点或自定义 metadata 节点。",
     canvas_create_attachment_nodes: "把当前对话中用户上传的图片附件创建成真实画布图片节点。attachmentIds 使用本轮附件清单中的 ID；返回的节点 ID 可传给 canvas_create_generation_flow.referenceNodeIds 作为生成参考图。",

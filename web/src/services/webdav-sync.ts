@@ -1,3 +1,4 @@
+import { proxyFetch } from "@/services/api/proxy-transport";
 import i18n from "@/i18n";
 import { withLocalProxy, type WebdavSyncConfig } from "@/stores/use-config-store";
 
@@ -18,28 +19,54 @@ export async function downloadWebdavSyncFile(config: WebdavSyncConfig) {
 }
 
 export async function downloadWebdavFile(config: WebdavSyncConfig, path: string) {
+    return (await readWebdavRevision(config, path))?.file || null;
+}
+
+export async function readWebdavRevision(config: WebdavSyncConfig, path: string) {
     await ensureWebdavDirectory(config);
     const response = await webdavFetch(config, path, { method: "GET" });
     if (response.status === 404) return null;
     if (!response.ok) await throwWebdavError(response, webdavText("downloadFailed"));
     const file = await withTimeout(response.blob(), webdavText("downloadTimeout"));
-    return file.size ? file : null;
+    return { file, etag: response.headers.get("ETag") };
 }
 
 export async function uploadWebdavSyncFile(config: WebdavSyncConfig, file: Blob) {
     return uploadWebdavFile(config, WEBDAV_MANIFEST_FILE_NAME, file, "application/json");
 }
 
-export async function uploadWebdavFile(config: WebdavSyncConfig, path: string, file: Blob, contentType = "application/octet-stream") {
+export async function uploadWebdavFile(config: WebdavSyncConfig, path: string, file: Blob, contentType = "application/octet-stream", condition?: { etag: string | null }) {
     if (!file.size) throw new Error(webdavText("emptyUpload"));
     await ensureWebdavDirectory(config);
     await ensureWebdavSubdirectory(config, path);
     const response = await webdavFetch(config, path, {
         method: "PUT",
-        headers: { "Content-Type": contentType },
+        headers: { "Content-Type": contentType, ...(condition ? condition.etag ? { "If-Match": condition.etag } : { "If-None-Match": "*" } : {}) },
         body: file,
     });
+    if (response.status === 412) throw new WebdavRevisionConflict();
     if (!response.ok) await throwWebdavError(response, webdavText("uploadFailed"));
+}
+
+export class WebdavRevisionConflict extends Error {
+    constructor() { super("远端在同步期间已修改；未覆盖远端，请查看差异后重新同步"); }
+}
+
+// A disposable, nonexistent resource must reject an impossible If-Match before touching manifests.
+export async function verifyWebdavConditionalWrites(config: WebdavSyncConfig) {
+    await ensureWebdavDirectory(config);
+    const path = `.dianran-condition-${crypto.randomUUID()}`;
+    const failure = () => new Error("WebDAV 未提供可靠条件写入（或浏览器无法访问）；已停止同步，原清单未覆盖。服务若忽略条件头，可能留下一份测试文件");
+    try {
+        const impossible = await webdavFetch(config, path, { method: "PUT", headers: { "If-Match": '"dianran-nonexistent-revision"', "Content-Type": "text/plain" }, body: "conditional-write-probe" });
+        if (impossible.status !== 412) throw failure();
+        const init: RequestInit = { method: "PUT", headers: { "If-None-Match": "*", "Content-Type": "text/plain" }, body: "conditional-write-probe" };
+        if (!(await webdavFetch(config, path, init)).ok) throw failure();
+        if ((await webdavFetch(config, path, init)).status !== 412) throw failure();
+    } finally {
+        // Only this invocation's random probe is removable; never delete a user resource.
+        await webdavFetch(config, path, { method: "DELETE" }).catch(() => {});
+    }
 }
 
 async function ensureWebdavDirectory(config: WebdavSyncConfig) {
@@ -79,7 +106,7 @@ async function webdavFetch(config: WebdavSyncConfig, path: string, init: Request
     const timer = window.setTimeout(() => controller.abort(), WEBDAV_REQUEST_TIMEOUT_MS);
     try {
         const url = withLocalProxy(buildWebdavUrl(config, path));
-        return await fetch(url, { ...init, headers, signal: controller.signal });
+        return await proxyFetch(url, { ...init, headers, signal: controller.signal });
     } catch (error) {
         if (error instanceof Error && error.name === "AbortError") throw new Error(webdavText("requestTimeout"));
         if (error instanceof TypeError) throw new Error(webdavText("connectionFailed"));

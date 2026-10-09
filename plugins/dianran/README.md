@@ -1,5 +1,7 @@
 # 点染 Dianran Codex / ZCode 插件
 
+工作区新增能力：查询本机 Codex 模型与图片处理动作，通过 `canvas_preview_workflow` 审阅生成/处理节点及下游，再由网页用户确认执行。本机图片无需图片 API Key；视频仍走已配置的模型 API。该能力需配套本轮前端与 Canvas Agent 源码，发布前安装的 `latest` 不代表含新增工具。
+
 让 Codex / ZCode 可以打开并操作点染画布。插件本身只包含两样东西：
 
 - `skills/`：告诉 Codex 如何打开画布（`open-canvas`）和如何使用画布工具（`canvas`）；

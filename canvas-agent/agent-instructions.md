@@ -23,3 +23,10 @@
 ```
 
 只支持 image/video；model 可省略以沿用当前配置。parameters 只允许 size、quality、background、count、seconds、vquality、generateAudio、watermark、videoMode，所有值为字符串。不包含 API Key、渠道密钥、任务 ID、临时 URL、工具代码或 shell 命令。dependsOn 仅引用本计划的步骤 ID，禁止循环。计划导入与执行由网页工作流完成，生成结果保留原始 threadId/turnId/itemId 来源。
+
+本机 Codex 生图步骤使用 `"source":"codex","mode":"image","model":"用户明确选择的本机模型"`，不带 API parameters；不要猜测本机模型。每步提交一个原生任务，数量、比例等要求写入 prompt。图片原文件保存后才执行 dependsOn 的下游；视频继续使用配置好的模型 API。网页确认执行前不提交原生任务，断线和结果未知只查询原任务，不重复生成。
+
+
+## 图片处理插件与原生工作流
+
+先使用 `canvas_get_capabilities` 查询本机 Codex 模型与已启用的图片处理动作。通过 `canvas_create_node` 创建返回的已注册节点类型，使用 `pluginActionParameters` 填写明确参数，连接真实图片；本机配置使用 `generationSource: codex` 和用户选定的 `codexModel`。调用 `canvas_preview_workflow` 并携带刚读取的 target、nodeIds；includeDownstream 可审阅整条链路。此工具只打开网页审阅，不执行，勿同时调用生成工具。处理结果另存图片，原文件保存成功后才传给下游；失败后查询原请求或重新保存，不自动重复处理。打包导出由网页的交付节点发起本地下载，不声称已经保存到用户目录。

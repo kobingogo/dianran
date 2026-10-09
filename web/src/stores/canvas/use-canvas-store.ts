@@ -1,3 +1,4 @@
+import { writeOwnership } from "@/lib/write-ownership";
 import { create } from "zustand";
 import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
 
@@ -83,7 +84,7 @@ const canvasStorage: PersistStorage<CanvasStore> = {
         return parsed;
     },
     setItem: (_name, value) => {
-        if (!readable) return;
+        if (!readable || (!writeOwnership.canWrite() && writeOwnership.getSnapshot() !== "draining")) return;
         const nextState = value.state as PersistedCanvasState;
         if (queuedPersistState && queuedPersistState.projects === nextState.projects && queuedPersistState.deletedProjects === nextState.deletedProjects) return;
         queuedPersistState = nextState;
@@ -94,69 +95,73 @@ const canvasStorage: PersistStorage<CanvasStore> = {
 
 export const useCanvasStore = create<CanvasStore>()(
     persist(
-        (set, get) => ({
-            hydrated: false,
-            projects: [],
-            deletedProjects: [],
-            createProject: (title = i18n.t("canvas.project.untitled")) => {
-                const now = new Date().toISOString();
-                const id = nanoid();
-                const project: CanvasProject = {
-                    id,
-                    title,
-                    createdAt: now,
-                    updatedAt: now,
-                    nodes: [],
-                    connections: [],
-                    chatSessions: [],
-                    activeChatId: null,
-                    backgroundMode: "dots",
-                    showImageInfo: false,
-                    viewport: initialViewport,
-                };
-                set((state) => ({ projects: [project, ...state.projects] }));
-                return id;
-            },
-            importProject: (source) => {
-                const now = new Date().toISOString();
-                const project: CanvasProject = {
-                    id: nanoid(),
-                    title: source.title || i18n.t("canvas.project.imported"),
-                    createdAt: source.createdAt || now,
-                    updatedAt: now,
-                    nodes: source.nodes || [],
-                    connections: source.connections || [],
-                    chatSessions: source.chatSessions || [],
-                    activeChatId: source.activeChatId || null,
-                    backgroundMode: source.backgroundMode || "lines",
-                    showImageInfo: source.showImageInfo || false,
-                    viewport: source.viewport || initialViewport,
-                    workflowRuns: source.workflowRuns,
-                };
-                set((state) => ({ projects: [project, ...state.projects] }));
-                return project.id;
-            },
-            openProject: (id) => {
-                return get().projects.find((item) => item.id === id) || null;
-            },
-            renameProject: (id, title) =>
-                set((state) => ({
-                    projects: state.projects.map((project) => (project.id === id ? { ...project, title: title.trim() || project.title, updatedAt: new Date().toISOString() } : project)),
-                })),
-            deleteProjects: (ids) =>
-                set((state) => {
+        (set, get) => {
+            const commit = set;
+            set = ((...args: Parameters<typeof set>) => { writeOwnership.assertOwned(); (commit as (...values: Parameters<typeof set>) => void)(...args); }) as typeof set;
+            return {
+                hydrated: false,
+                projects: [],
+                deletedProjects: [],
+                createProject: (title = i18n.t("canvas.project.untitled")) => {
                     const now = new Date().toISOString();
-                    const removing = new Set(ids);
-                    const projects = state.projects.filter((project) => !removing.has(project.id));
-                    const deletedProjects = [...state.deletedProjects.filter((item) => !removing.has(item.id)), ...ids.map((id) => ({ id, deletedAt: now }))];
-                    return { projects, deletedProjects };
-                }),
-            replaceProjects: (projects, deletedProjects = []) => set({ projects, deletedProjects }),
-            updateProject: (id, patch) =>
-                set((state) => ({
-                    projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)),
-                })),
-        }),
+                    const id = nanoid();
+                    const project: CanvasProject = {
+                        id,
+                        title,
+                        createdAt: now,
+                        updatedAt: now,
+                        nodes: [],
+                        connections: [],
+                        chatSessions: [],
+                        activeChatId: null,
+                        backgroundMode: "dots",
+                        showImageInfo: false,
+                        viewport: initialViewport,
+                    };
+                    set((state) => ({ projects: [project, ...state.projects] }));
+                    return id;
+                },
+                importProject: (source) => {
+                    const now = new Date().toISOString();
+                    const project: CanvasProject = {
+                        id: nanoid(),
+                        title: source.title || i18n.t("canvas.project.imported"),
+                        createdAt: source.createdAt || now,
+                        updatedAt: now,
+                        nodes: source.nodes || [],
+                        connections: source.connections || [],
+                        chatSessions: source.chatSessions || [],
+                        activeChatId: source.activeChatId || null,
+                        backgroundMode: source.backgroundMode || "lines",
+                        showImageInfo: source.showImageInfo || false,
+                        viewport: source.viewport || initialViewport,
+                        workflowRuns: source.workflowRuns,
+                    };
+                    set((state) => ({ projects: [project, ...state.projects] }));
+                    return project.id;
+                },
+                openProject: (id) => {
+                    return get().projects.find((item) => item.id === id) || null;
+                },
+                renameProject: (id, title) =>
+                    set((state) => ({
+                        projects: state.projects.map((project) => (project.id === id ? { ...project, title: title.trim() || project.title, updatedAt: new Date().toISOString() } : project)),
+                    })),
+                deleteProjects: (ids) =>
+                    set((state) => {
+                        const now = new Date().toISOString();
+                        const removing = new Set(ids);
+                        const projects = state.projects.filter((project) => !removing.has(project.id));
+                        const deletedProjects = [...state.deletedProjects.filter((item) => !removing.has(item.id)), ...ids.map((id) => ({ id, deletedAt: now }))];
+                        return { projects, deletedProjects };
+                    }),
+                replaceProjects: (projects, deletedProjects = []) => set({ projects, deletedProjects }),
+                updateProject: (id, patch) =>
+                    set((state) => ({
+                        projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)),
+                    })),
+            };
+        },
         {
             name: CANVAS_STORE_KEY,
             storage: canvasStorage,

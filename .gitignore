@@ -22,3 +22,4 @@ brand/.cover-failures.txt
 !brand/pipeline/data/
 brand/pipeline/candidates/
 api/node_modules
+.vercel

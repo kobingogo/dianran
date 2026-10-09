@@ -5,6 +5,69 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 提示词手动采集发布：内置来源按钮通过维护者本地 Agent 启动现有完整采集发布流水线；显示进度、各源结果，区分已发布、无变化、待人工、失败和未知。发布回执与当前站点快照一致后刷新缓存；自定义来源仍直拉 JSON，自动刷新不触发发布。独立 HTTP 行为测试覆盖任务身份去重、待人工/失败、脏仓库保护及重启未知状态；未构建、未部署前端或 Agent、未执行真实采集发布。需使用配置 `DIANRAN_PROMPT_PIPELINE_ROOT` 的干净独立仓库验收真实平台登录、采集发布、断线恢复、当前站点代理和新版 Agent 配套连接。见 [流水线与本机配置](../../../../brand/pipeline/README.md)。
+
+[创作输入与讨论设计](../../../CREATION-CONVERSATION-DESIGN.md)首轮已落地本地工作区，尚未发布或通过用户验收。此前统一 Agent 入口条目作为上一轮检查记录保留，其中额外 Agent tab 和两处编辑同一草稿的设计已被本轮取代。
+
+- 统一输入：图片/视频主输入只保留媒体类型，原输入框提供「先讨论 / 直接生成」、`/ Skill` 与素材引用；对话模型单独选择，可以与生成模型来自不同渠道。指令型 Skill 作为方法参考，不执行脚本或 MCP；实际工具协作仍通过本机工具面板及现有审批执行。
+
+- 讨论、方案和作品：复用云端文本请求并新增本机创作讨论端点，浏览器保存多轮上下文；主区域按创作会话串联消息、版本方案、具体任务与原位作品，执行后修改生成新版本。方案确认前不发媒体请求；模型/渠道/引用/参数改变需重新审阅。新建保留旧记录，历史预览不改草稿，继续历史为显式动作；刷新不自动重提。图片意图与任务保存后移走同一份输入，迟到回执不清空新草稿。
+
+- 画布：新建生成输入靠近选定节点，进入讨论时同一草稿接续到右侧，收起回到画布；固定目标与引用，提供「引用所选节点」。恢复讨论保留原目标，目标删除不给新选区代替。本机初次生成可填充原空节点，修改在原作品旁新建并关联；API 延用配置与结果图，修改保留原作。
+
+- 本轮验证：独立浏览器确认图片用途切换保留草稿、视频讨论及原输入 Skill 菜单、画布右侧接续/收起/新建、历史预览保留当前输入、选区改变仍固定原目标、刷新恢复原对象且只有一份输入、缺少对话配置时反馈与草稿保留；隔离源码 HTTP 服务确认健康检查 200、未认证讨论请求 401、认证后的无效讨论 400，未触发模型调用。未执行语法检查、类型检查或构建，未部署、未新增真实付费生成。云端不同渠道、真实本机多轮回复/方案/产物、重复确认、保存失败、真实任务刷新恢复、多素材固定引用、深浅主题与软键盘仍需实机验收。确认 17371 服务空闲后已以本轮源码重启并保留配置，健康与新增端点校验通过；用户网页重连和真实讨论仍待确认。见[实施与验收说明](../../../CREATION-CONVERSATION-IMPLEMENTATION.md)。
+
+- 统一 Agent 创作入口：主复合输入框支持 Agent 模式、`/` Skill 与 `@` 画布引用，和可收起的协作详情共用草稿/附件/模型/权限/会话；图片、视频主区域承载对话、审批及按会话过滤的图片作品。非画布会话复用持久结果画布，目标删除、保存失败及会话切换拒绝提交；详细 MCP 状态默认折叠。9 项行为回归及独立浏览器草稿/跨页/刷新/快捷入口走查通过，未构建/发布/付费调用；真实 Skill、审批、产物回填、深色与软键盘待验收。见 [统一入口与验收](../../../AGENT-CREATION-ENTRY.md)。
+
+- Skill 安装首轮：技能页新增 GitHub 安装及「资源与版本」。支持选择仓库内 Skill、固定提交与完整文件审阅，确认后安装到点染工作空间；保留脚本、二进制资源和仓库许可证，更新显示增改删并完整备份/回退。文本编辑、空白资源、二进制上传及删除均按整目录修订检查，同名新资源拒绝覆盖，入口与来源记录受保护。检查声明的命令与环境变量，缺项阻止专属技能提交；未声明依赖、MCP 与实际运行仍待验证。沿用结构化 `/` 调用和跨页广播，安装不会执行脚本或自动安装依赖。23 项后端与真实隔离 HTTP 行为回归通过，覆盖多技能选择、原文件/许可证、更新回退、历史完整性、资源并发冲突、路径保护及依赖检查；未构建/类型检查、未发布/部署、未安装真实开源技能或新增付费调用。待验证真实 GitHub 链接、文件预览、上传/删除、远端更新/本地冲突/回退、重启与断开、`/` 使用及画布交付。见 [Skill 安装说明](../../../SKILL-INSTALLATION.md)。
+
+- 两类插件开发：Codex MCP 可查询本机模型与已启用处理动作、创建注册类型节点并用 canvas_preview_workflow 固定当前画布修订打开审阅，不自动提交。画布图片工具栏「素材处理」可创建已连接原图的去背景、AI 放大 2 倍、像素裁剪、完整留白/填满裁切、PNG/JPEG/WebP 转换和原文件 ZIP 节点。五个图片处理动作接入工作流、冻结授权源码/版本/参数，原图不覆盖；本地任务和原始输出回执持久保存，恢复只保存已有结果，下游等待原文件保存成功。首次模型下载、WASM/浏览器能力、设备内存、透明边缘质量、大图与批量、ZIP 原件、Codex→处理→API 视频、刷新中断及多页冲突仍待实机验证。输出回执无法落盘时如实报保存失败，不标记成功。83 项行为回归通过（网页 39 项、Agent 44 项），覆盖冻结依赖、版本变化、透明通道、保存失败、恢复不重复执行与固定目标审阅；未运行构建或类型检查，未进行真实模型推理或新增付费生成。尚未发布/部署本轮前端、Agent 和 Codex 插件版本；安装的旧版没有新增审阅工具。使用与 SDK 契约见 [插件 SDK](../../../../plugins/canvas/sdk/README.md)。
+
+- 工作流本机 Codex 生图：打开画布「工作流」，为图片配置选择本机 Codex 模型，再预览选定节点及下游并确认执行。每个图片步骤提交一个原生任务，数量、比例等要求由提示词表达；进度节点原位回填原图，实际保存成功后才传入下游 API 视频或其他步骤。运行保留原请求身份，断线、切画布、响应未知和保存失败停止下游；在原节点查询/重新保存后，使用「核对已有结果并继续」，不重提原生任务或自动改用 API。模板及 ZIP 保留来源/模型，不包含 Token 或上次的未验证能力授权；Agent 的 dianran-plan 可声明 source: codex、image 模式与明确模型。23 项模拟行为回归通过，覆盖工作流、原生提交/断线、产物导入和画布草稿；未构建、未部署、未实际付费生图。待用户验证真实 Codex→视频、连续两个本机步骤、参考编辑、浏览器刷新/切页、保存冲突和模板导入流程。
+
+- 多页面冲突保护：每个页面保持直接编辑，不恢复只读或编辑权交接。画布、素材、独立画布草稿、模板、业务任务、本机回执及生成历史在 IndexedDB 同一事务内核对读取基线与最新数据；独立记录合并，同一记录编辑/删除冲突停止覆盖并保存双方快照。冲突提示可下载本页数据；画布/素材可另存冲突副本后刷新，删除冲突保留另一页面内容。新媒体先持久登记保护，业务保存成功后原子解除；其他创作页面打开时暂停自动清理，单页核对引用和删除共用事务。不支持 Web Locks 时保留文件、不执行自动清理。待验证两个真实标签页的同/不同画布编辑、同素材删除与修改、草稿冲突、任务并行、冲突副本、文件保存失败和关闭页面后的清理。详见 [多页面冲突保护](../../../MULTI-PAGE-CONFLICT-PROTECTION.md)。
+
+- 跨页面创作交互首轮已落地：本机/API 图片、视频和画布登记业务任务；原位卡与节点按具体身份显示状态，任务中心区分生成和保存，返回作品时带批次/节点身份。结束列表清除不删作品，未知与保存失败任务保留；任务记录使用 localforage，不静默裁剪业务历史。
+
+- 草稿与历史：本机/视频回执持久保存后移走原草稿，同步图片与画布图片在结果确认并保存后处理；迟到回执不清空修改过的新草稿，画布配置输入保持。查看历史不改输入与模型，「复用条件」替换已有草稿前确认。图片历史可按 API/本机筛选，本机回执缺失意图也计入异常记录。
+
+- 恢复与保存：视频分别沿原 ID 查询，各自更新原卡；停止等待不称为取消远端任务。图片/视频生成成功后保存失败保留预览，独立重试保存；画布选中失败保存节点可重试文件保存，不创建生成请求。作品默认停留当前页面，自动交付画布不再强制跳转；Agent 生图面板改为工作台入口，连接教程折叠。
+
+- 本轮验证：16 项任务生命周期/草稿/本机落图/视频保存行为回归通过；独立本地浏览器确认图片历史筛选、视频页与空白画布加载。未执行构建或类型检查，未部署本轮改动，未新增付费真实生成；真实渠道输出、多任务恢复、存储故障与手机软键盘仍待实机验收。详见 [实施说明与验收矩阵](../../../CREATION-INTERACTION-IMPLEMENTATION.md)、[统一规则](../../../CREATION-INTERACTION-RULES.md)；不将原型或页面加载记为全链路通过。
+
+- 本机连接提示：区分发现服务但缺少 Token 与无法发现服务；已有 Token 时直接连接，模型菜单明确区分生成方式和连接设置。已在用户 Chrome 编辑页面补齐 Token，确认已连接并读取、选择本机模型；提示修正已部署。Codex 内置浏览器仍停留在连接中，首次配对与本地网络权限仍需验收。
+
+- 图片本机生图：左上角独立来源切换已移除，在复合输入框模型菜单选择本机 Codex 或 API 模型；共用提示词、参考图、素材引用和「落笔生成」，本机模式隐藏 API 参数、报价和 Key 引导。检查桌面与手机模型菜单、连接与刷新、本机模型明确选择、来源切换与草稿保留；没有活动画布时先保存新结果画布再提交原生任务，结果区查询任务、保存原图并打开原画布。未验证能力提交仍需额度确认，提交失败或回执未知不自动回退 API 或重复生成。正式站点已完成本机 gpt-5.6-sol 文生图、原画布保存及刷新恢复，Agent 0.7.1 已发布并安装本地 Codex 插件；手机、参考编辑、独立 ZIP 恢复及用户实际浏览器仍待验收。
+
+- 多页面直接操作：已停用应用启动时的排他编辑锁和只读浏览入口，新打开的同源标签页读取本地数据后可直接编辑、生成，无需交接编辑权；读取失败保留错误提示与重试入口。请打开两个本地页面验收生图、视频、画布和底部输入区；未运行构建。
+
+逐项手动验收按 [T01–T17 手册](../../../T01-T17-MANUAL-ACCEPTANCE.md) 执行，分别记录正常操作、故障与真实环境结果；未测项不视为通过。
+
+- 产品走查优先项：无可用渠道/模型时首页和首次提交引导到正确配置步骤；空画布提供可关闭的添加节点/工作流入口；手机 Composer 参数控件换行显示，并说明本轮张数与画布默认张数的区别；首页说明浏览器本地保存及分别备份画布和素材；结束的任务可返回原工作台。任务来源只记录站内路径；网络观测记录不持久化，显式业务任务刷新后恢复。桌面/手机布局、实际配置流程和用户手动验收待确认。
+
+- AG01–AG10 本轮实现及隔离验证已完成，含真实本机 Codex 一张生图与一次参考编辑产物登记；Codex turn 随后返回额度上限错误。正式图片工作台的实际连接提交、原项目保存和刷新恢复已验证；仍需在空浏览器验证 ZIP；外部 MCP 要用用户自己的安装流程核对授权登记。Grok Build 和原生视频未接入。见 [AG 交付汇总](../../../MULTI-AGENT-DELIVERY.md)、[媒体验收](../../../AG07-AG10-VALIDATION.md) 和 [T12 矩阵](../../../T12-ACCEPTANCE-MATRIX.md)。
+
+- T06 插件与脚本授权：安装/更新先审阅来源、完整源码与 SHA-256，取消不执行；启动使用授权源码快照。本地插件发现不执行；模型辅助 HTTP 默认 Key 限于绑定渠道路径，重定向不自动跟随。独立行为回归与浏览器取消零执行检查通过，真实插件与脚本仍待验收，见 [T06/T16 记录](../../../T06-T16-VALIDATION.md)。
+- T07/T08 请求与就绪状态：未提交、渠道拒绝与结果未知明确区分；图片/视频先保存意图，视频 ID 保存失败保留可抢救身份并阻止提前查询；未知请求刷新不自动重提，新请求提示可能再计费。首页和 Composer 按当前能力、渠道、Key、模型区分配置/读取模型/生成成功，默认占位模型不冒充可调用；真实渠道、部分槽位与错误 Key 待验收，见 [T07/T08 记录](../../../T07-T08-VALIDATION.md)。
+- T09 存储说明：首页、设置与使用说明明确浏览器来源隔离、Key/素材调用路径和项目 ZIP 范围；设置可查询/主动申请持久化，被拒绝或不支持仍可创作和备份。Docker 补共享代理策略构建输入，尚未构建/部署验收，见 [T09/T11/T14 记录](../../../T09-T11-T14-VALIDATION.md)。
+- T10 WebDAV：同步先可靠保存并备份媒体，使用强 ETag 条件写入；同项目及删除/编辑冲突保留双方，不按时钟丢弃作品。分域失败报告已完成部分，恢复重建冲突媒体身份并刷新当前页面；缺条件写入明确停止。13 项隔离/实际 HTTP 回归通过，真实多设备与服务仍待验收，见 [T10 记录](../../../T10-VALIDATION.md)。
+- T11/T13 模板创作：五个首页模板均可填写、创建独立画布并预览工作流；四模式执行、冻结上游输入、预设、条件报价/耗时、只读比较和携带原素材的模板 ZIP 已在当前工作区整合。21 项模块检查通过，隔离浏览器检查剩余模板填写/预览、预设、交付、工作流与视频恢复；另有部分文本失败→人工确认重试的浏览器脚本仍需修正并复测，模块回归覆盖了计划与局部失败保护。真实渠道输出一致性、完整四模式交互、手机体验和用户验收待完成；未合并 PR、未部署。见 [T11 记录](../../../T11-INTEGRATION-VALIDATION.md)、[主流程验收记录](../../../MAJOR-FLOW-ACCEPTANCE.md)与 [T13 记录](../../../T13-VALIDATION.md)。
+- Cloudflare 本地准备：离线提示词快照工具、Worker 路由与静态资源配置模板、站点产物复制工具已落地，6 项行为检查和当前提示词包 dry-run 通过；真实 R2 上传/绑定、边缘缓存、CI、域名、HTTPS、统计迁移及部署回退仍未验收。见 [本地准备说明](../../../cloudflare/README.md)。
+- T14 自愿诊断工具：默认关闭，仅本页面会话记录固定操作类别/时间/耗时，不记录内容、Key、模型/渠道或项目身份，不上传，可停止、导出或删除。工具检查通过，真实用户研究尚未开展，不将模拟操作作为用户反馈。
+- T15 ZIP 响应优化：模拟 40/200 节点工程形成性能基线，ZIP 打包移到 Worker。同一约 60 MB 快照对比，旧算法出现 204–229 ms 主线程长任务，Worker 两轮未观测到导出长任务，67 文件解包与摘要校验通过；不承诺总耗时更快。真实设备、生产打包与 CSP 仍待测，见 [T15 基线](../../../T15-PERFORMANCE-BASELINE.md)。
+- T16 提示词统计：稳定批次身份与明确接收回执，响应丢失保留批次，服务端排他写入与聚合去重；沿用原频率和边界，静态或旧 API 明确停用。不完整复制/应用信号不代表作品质量。线上成对发布及真实 Blob 去重仍待验收，不改已有内容发布门禁，见 [T06/T16 记录](../../../T06-T16-VALIDATION.md)。
+
+- T05 本地代理授权：代理仅监听本机，启动时显式授权网页来源和服务目标，导入本机配对文件后才可转发；配对凭据独立保存，不进入目标 URL、上游请求、日志或普通配置分享。预检不授予权限，重定向明确拒绝，浏览器本地访问失败提供中文恢复指引。12 项针对性行为检查与独立 Chromium 模拟模型列表、Axios、SSE、WebDAV、配置导出和拒绝恢复检查通过；真实渠道、正式 HTTPS 站点权限及目标浏览器仍待用户验收。代理 0.2.0 包已准备，npm 与前端必须成对发布，见 [T05 验收记录](../../../T05-PROXY-VALIDATION.md)。
+
+
+- T03 项目备份：导出包升级 v4，缺件、读取失败及未打包媒体不再误报完整备份；卡片、批量和编辑页列出问题并可主动导出抢救包，保存失败也有抢救出口。导入校验整包大小、摘要、身份与引用，生成新文件身份，不覆盖已有媒体；抢救恢复需确认，项目保存失败保留内存内容与文件。新增 8 项真实 ZIP/隔离存储回归通过。请在独立浏览器存储验证打开、下载、参数与关系，以及缺件/旧包拒绝、抢救确认与失败重试；不代表站点全量备份，详见 [作品保全验收记录](../../../WORK-PRESERVATION-VALIDATION.md)。
+
+- T02 素材保存：素材列表只使用 IndexedDB，新增/修改/删除/导入、Agent 添加与 WebDAV 替换等待实际写入；失败保留内存列表，「我的素材」及画布素材侧栏可重试或导出带缺失清单的抢救包。测试写入失败不报成功、重试后刷新读到最新值、读取失败/未知版本不覆盖原数据、失败删除不清理文件；检查批量失败反馈、表单不重复添加及离开提醒。新增 8 项隔离回归通过，浏览器与真实 Agent/WebDAV 待验收。项目备份见 T03，跨页保护仍待 T04，详见 [作品保全验收记录](../../../WORK-PRESERVATION-VALIDATION.md)。
+
+- T01 作品保全：图片与媒体清理共用磁盘素材、画布、草稿、模板和生成历史引用，读取失败停止清理，新上传/导入文件在本页会话内保留。验证视频只留在历史中时，删除无关素材并刷新仍可播放、下载；草稿/模板/运行快照引用不丢失；读取故障不删除原文件；真正无引用的旧文件仍能清理。11 项隔离回归已通过，浏览器场景待验收。素材保存回执和项目备份见 T02/T03，跨页竞争仍待 T04，详见 [作品保全验收记录](../../../WORK-PRESERVATION-VALIDATION.md)。
+
+- 早晚提示词更新（`brand/pipeline/run-twicedaily.sh`）：没有新增条目、精选名单和封面变化时不部署，`manifest.json` 的 `generatedAt` 保持不变。新条目被内容规则命中，或单轮新增超过 60 条时，只开 PR、不发布。正常发布后，https://dianran.vercel.app/prompt-sources/manifest.json 的 `generatedAt` 应与该次提交一致，任一封面返回 `image/webp`。同一天同一档重跑应更新原来的 PR。三个抓取源都失败时不发布。
+
 - 线上入口是 https://dianran.vercel.app 。打开 `/prompt-sources/manifest.json` 应返回 JSON，封面从同域 `/prompt-sources/covers/` 加载。更新提示词后刷新，不必等整站重新构建；`dianran-next.vercel.app` 不再作为入口。
 
 - 提示词快照 `prompts-2026-10-07`：YouMind GPT Image 2、YouMind Nano Banana Pro、Civitai 热门有新增条目，X 热门条数不变。刷新后应看到新封面；点染精选轮换 6 条，手作「水墨远山」退出精选并进入归档。标题含「换脸」的「山顶观景台享用 Biryani」不应出现。
@@ -37,7 +100,7 @@ The current release needs manual verification in these areas:
 - Video size and default model: changing the image size must not change the video size, and the reverse must also hold. When no separate video size was saved, reuse the old size only if it is a legal video ratio and its short side is at most 1080; otherwise the video size defaults to 1280×720 and the stored image size stays unchanged. A new install should show "Not set · Configure" on the video page and canvas video settings, linking to settings. A saved video model must stay as stored. New standard/HD quality values affect only the outgoing request; stored values such as auto and high must not be rewritten.
 - Canvas image previews: canvas image nodes, the left element list, the node reference bar, my-assets cards, the asset picker, image workbench result cards and history thumbnails, and the image/video workbench reference strips all render from a preview capped at a 768px long edge, so image-heavy views no longer decode the originals. Previews live locally only: canvas data, asset data, generation history, exported zips, and WebDAV sync must never contain preview content, and previews should be cleaned up when an image is deleted or no longer used. Opening the full-size image, editing, downloading, exporting, and generation references must keep using the original; an image that is already at or under 768px, exists only as a remote URL, or uses a custom cover should fall back to the original.
 - Canvas drag and connection rendering performance: Dragging a single node, a multi-selection, or a whole group should stay responsive, and the drop position after releasing should match the dragged preview. Group highlighting should appear and disappear at the right moment when dragging nodes over a group, releasing should add them to the group, and dragging them out should remove them; dragging a group node itself should not highlight any group. When zoomed or panned so only part of the canvas is visible, every connection crossing the viewport should still render (including ones whose endpoints are both off-screen), connection click selection and the context menu should still work, and the dashed preview while creating a connection should follow the cursor as before.
-- Local proxy: Settings should show a dedicated Local proxy tab between Providers and Preferences, with a switch that is off by default. Turning it on should reveal the `npx @basketikun/canvas-proxy@latest` command (with `--port` appended when a non-default port is configured), a copy action, and an address field defaulting to `http://127.0.0.1:23210` that normalizes a missing scheme and trailing slashes on blur. Test connection should succeed only while the command is running. With the proxy on, fetching model lists, generating images, videos, text (including streamed output), and audio, running custom call scripts, polling video tasks, downloading generated images and videos, and WebDAV connection tests plus sync should all route through the proxy and keep working; turning it off should restore direct requests. The proxy itself should forward request methods, headers, query strings, and bodies unchanged, stream SSE responses without buffering, and keep `data:` and `blob:` URLs untouched.
+- 本地代理：配置页显示当前网页来源和渠道/服务授权命令，额外下载或 WebDAV 地址需显式加入目标。旧开放代理不能直接连接新版前端；运行配套版本并导入配对文件后测试。关闭代理恢复直连，data/blob 地址保持原行为；上游重定向当前拒绝，含 CDN 跳转的真实下载需单独验收。
 - Image and video size settings: Image settings should split resolution (`1k` / `2k` / `4k` / auto) from aspect ratio (`1:1`, `2:3`, `3:2`, `4:3`, `3:4`, `16:9`, `9:16`, `21:9`, `9:21`, auto) and fill W/H from that pair. Video settings should keep `480p` / `720p` / `1080p` (plus a custom `p` value) and `1:1` / `3:4` / `4:3` / `16:9` / `9:16` / `21:9` / auto, then fill W/H from that pair. Duration should be a 4–30 second slider with the current value on the right; auto ratio should disable W/H.
 - Built-in video requests: without a custom call script, OpenAI-format channels should send `mode`, `first_frame`/`last_frame` or `image[]`, `generate_audio`, `watermark`, and reference videos/audio like the insertable template, and must not use `input_reference[]`. Gemini-format channels should use `predictLongRunning` with `image`/`lastFrame` or `referenceImages`, and must not report that video is unsupported. Refreshing the page should continue polling a Gemini task.
 - Video generation mode: Video settings should offer First & last frame and General reference. One image is sent as the first frame, two images as first and last frames, and more than two images as general references even if first-and-last-frame mode is selected. Built-in requests and request scripts should use `frames` or `reference`.
@@ -88,6 +151,8 @@ The current release needs manual verification in these areas:
 The Chinese version contains the complete item-by-item acceptance checklist.
 
 ## 图片分辨率尺寸表
+
+- 画布本机 Codex 生图：复合输入框的模型菜单可选择本机 Codex，使用当前画布草稿、附件及图片/文字节点参考；受理后清空未再编辑的本轮草稿，画布进度节点原位填回图片，任务中心定位该节点。重连查询原请求，查询/保存重试不新建生成；原生图片一次提交一个任务，数量和比例通过提示词表达，视频仍使用原 API 渠道。10 项针对性行为测试通过，未执行构建、未新增真实付费生图；待验证浏览器菜单、真实输出、切页/刷新和保存失败场景。
 
 选择分辨率和宽高比后，W/H 按下表填写，单位为像素。预设尺寸不受「16 倍数对齐」开关影响；该开关只控制手动输入尺寸时的对齐。最终生成尺寸以所选模型的实际输出为准。
 

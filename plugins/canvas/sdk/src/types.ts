@@ -135,6 +135,16 @@ export type CanvasAgentOp =
 export type CanvasResourceKind = "image" | "video" | "audio" | "text";
 export type CanvasNodeResource = { kind: CanvasResourceKind; text?: string; url?: string };
 
+export type PluginActionParameters = Record<string, string | number | boolean>;
+export type CanvasPluginAction = {
+    id: string;
+    version: string;
+    title: string;
+    description: string;
+    validate: (parameters: unknown) => PluginActionParameters;
+    execute: (images: Blob[], parameters: PluginActionParameters, progress: (message: string) => void) => Promise<Blob[]>;
+};
+
 // ---------------------------------------------------------------------------
 // AI 生成:插件直接复用宿主的模型/密钥配置发起生成(生图/生视频/生文本/生音频)
 //
@@ -235,6 +245,7 @@ export type CanvasNodeContext = {
     closePanel: () => void;
     // 插件私有持久化,按插件 id 命名空间隔离
     storage: PluginStorage;
+    previewWorkflow: (parameters?: PluginActionParameters) => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -289,6 +300,7 @@ export type CanvasNodeDefinition = {
     forceInteractive?: (node: CanvasNodeData) => boolean;
     keepAspectRatio?: (node: CanvasNodeData) => boolean;
     resource?: (node: CanvasNodeData) => CanvasNodeResource | null;
+    workflowAction?: CanvasPluginAction;
     // 渲染
     Content?: ComponentType<CanvasNodeContentProps>;
     Panel?: ComponentType<CanvasNodePanelProps>; // 节点下方面板(自定义)
