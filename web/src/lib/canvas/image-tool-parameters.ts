@@ -5,7 +5,7 @@ export type ImageTool = keyof typeof imageToolTitles;
 export function imageToolParameters(action: ImageTool, input: unknown): PluginActionParameters {
     const p = input as PluginActionParameters;
     if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error("请填写处理参数");
-    const keys = { removeBackground: [], upscale: [], crop: ["x", "y", "width", "height"], resize: ["width", "height", "fit", "background"], convert: ["format", "quality", "background"] }[action];
+    const keys: string[] = { removeBackground: [], upscale: [], crop: ["x", "y", "width", "height"], resize: ["width", "height", "fit", "background"], convert: ["format", "quality", "background"] }[action];
     if (!keys || Object.keys(p).some((key) => !keys.includes(key))) throw new Error("处理参数包含未知字段");
     const integer = (key: string, zero = false) => { if (typeof p[key] !== "number" || !Number.isSafeInteger(p[key]) || Number(p[key]) < (zero ? 0 : 1)) throw new Error(`${key} 必须是${zero ? "非负" : "正"}整数`); return p[key]; };
     const background = () => { if (typeof p.background !== "string" || !/^#[\da-f]{6}$/i.test(p.background)) throw new Error("背景颜色须为六位十六进制颜色"); return p.background; };

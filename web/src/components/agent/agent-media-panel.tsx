@@ -8,7 +8,7 @@ import { useAgentMediaStore, selectImageSource, recordAgentMediaTask, reloadAgen
 import { fetchAgentMediaTasks, fetchAgentMediaTask, fetchAgentMediaArtifact, type MediaTask, type MediaArtifact } from "@/services/api/local-agent-media";
 import { businessOperation } from "@/lib/write-ownership";
 import { importAgentMedia } from "@/lib/agent/import-agent-media";
-import { resolveImageUrl } from "@/services/image-storage";
+import { probeImageAsset, resolveImageUrl } from "@/services/image-storage";
 import { InkButton } from "@/components/ui/ink-button";
 import { GenerationStatus } from "@/features/tasks/generation-status";
 import { useTaskStore } from "@/features/tasks/task-store";
@@ -122,7 +122,7 @@ function NativeImage({ task, artifact, storageKey }: { task: MediaTask; artifact
                 window.dispatchEvent(new CustomEvent("creation-focus", { detail: "image" }));
                 document.querySelector<HTMLTextAreaElement>('[data-testid="composer"] textarea')?.focus();
             })}>继续修改</InkButton>
-            <InkButton disabled={!storageKey || !src} onClick={() => void mutateAsset(async () => { await useAssetStore.getState().addAsset({ kind: "image", title: task.request.prompt.slice(0, 24), coverUrl: src, tags: [], source: "本机 Codex", data: { dataUrl: src, storageKey, mimeType: "image/png" }, metadata: { prompt: task.request.prompt } }); }, "已存入素材")}>存入素材</InkButton>
+            <InkButton disabled={!storageKey || !src} onClick={() => void mutateAsset(async () => { await useAssetStore.getState().addAsset({ kind: "image", title: task.request.prompt.slice(0, 24), coverUrl: src, tags: [], source: "本机 Codex", data: { dataUrl: src, storageKey, ...(await probeImageAsset(src, "image/png")) }, metadata: { prompt: task.request.prompt } }); }, "已存入素材")}>存入素材</InkButton>
         </div>
     </div>;
 }

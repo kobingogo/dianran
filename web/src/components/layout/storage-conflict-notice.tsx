@@ -22,7 +22,7 @@ export function StorageConflictNotice() {
             window.location.reload();
         } catch (reason) { setError(String(reason)); setBusy(false); }
     };
-    return <div role="alert" className="fixed right-4 top-4 z-[1000] max-h-[50vh] w-96 max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border p-4 text-sm" style={{ background: theme.node.fill, color: theme.node.text, borderColor: theme.node.border }}>
+    return <div role="alert" className="fixed right-4 top-4 z-[1000] max-h-[50vh] w-96 max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border p-4 text-sm" style={{ background: theme.node.fill, color: theme.node.text, borderColor: theme.node.stroke }}>
         <strong>其他页面已更新这份内容</strong>
         <p className="my-2">已阻止覆盖。最新数据和本页修改均已保留；页面仍可编辑，本批修改等待处理。</p>
         <details className="my-2 text-xs"><summary>查看冲突详情</summary>{conflicts.map((item) => <p key={item.id}>{item.message}</p>)}</details>

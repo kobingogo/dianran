@@ -917,7 +917,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
             } else if (payload.name === "canvas_get_node_content") {
                 const snapshot = currentSnapshot();
                 const node = snapshot?.nodes.find((node) => node.id === payload.input?.nodeId);
-                if (!node || node.type !== "image" || !node.metadata.storageKey) throw new Error("原图缺失或节点不支持原文件读取");
+                if (!node || node.type !== "image" || !node.metadata?.storageKey) throw new Error("原图缺失或节点不支持原文件读取");
                 const blob = await getImageBlob(node.metadata.storageKey);
                 if (!blob) throw new Error("原图文件读取失败");
                 const dataUrl = await readDataUrl(blob);
@@ -934,7 +934,7 @@ export function LocalAgentPanel({ embedded, headless, autoConnect }: { embedded?
                 const config = useConfigStore.getState().config;
                 const modes = payload.input?.mode ? [String(payload.input.mode)] : ["text", "image", "video", "audio"];
                 const [nativeCapabilities, nativeModels] = await Promise.all([fetchAgentMediaCapabilities(endpoint, token), fetchAgentMediaModels(endpoint, token)]);
-                result = { modes: modes.map((mode) => ({ mode, models: selectableModelsByCapability(config.channels, mode as "text" | "image" | "video" | "audio"), status: "configured-options-not-success-proof" })), native: { capabilities: nativeCapabilities.data, models: nativeModels.data }, actions: listNodeDefinitions().filter((node) => node.workflowAction).map((node) => ({ nodeType: node.type, id: node.workflowAction!.id, version: node.workflowAction!.version, title: node.title, description: node.workflowAction!.description })), note: "本机图片步骤明确选择 Codex 模型；插件处理步骤连接已保存图片。请调用 canvas_preview_workflow 审阅，配置不代表真实调用成功。" };
+                result = { modes: modes.map((mode) => ({ mode, models: selectableModelsByCapability(config, mode as "text" | "image" | "video" | "audio"), status: "configured-options-not-success-proof" })), native: { capabilities: nativeCapabilities.data, models: nativeModels.data }, actions: listNodeDefinitions().filter((node) => node.workflowAction).map((node) => ({ nodeType: node.type, id: node.workflowAction!.id, version: node.workflowAction!.version, title: node.title, description: node.workflowAction!.description })), note: "本机图片步骤明确选择 Codex 模型；插件处理步骤连接已保存图片。请调用 canvas_preview_workflow 审阅，配置不代表真实调用成功。" };
             } else if (payload.name === "canvas_preview_workflow") {
                 const snapshot = currentSnapshot();
                 if (!snapshot) throw new Error("请先打开画布");

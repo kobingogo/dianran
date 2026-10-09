@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { App } from "antd";
 import { nanoid } from "nanoid";
 import { flushComposerSave, useComposerStore } from "@/stores/use-composer-store";
-import { creationExecutors, discussionRequests, DISCUSSION_INSTRUCTIONS, useCreationRuntimeStore, type CreationPlan } from "@/lib/creation-conversation";
+import { creationExecutors, discussionRequests, DISCUSSION_INSTRUCTIONS, useCreationRuntimeStore, type CreationEntry, type CreationPlan } from "@/lib/creation-conversation";
 import { requestCreationDiscussion } from "@/services/api/creation-discussion";
 import type { AiTextMessage } from "@/services/api/image";
 import { imageToDataUrl } from "@/services/image-storage";
@@ -46,7 +46,7 @@ export function useCreationDiscussion(scope: string, mode: ComposerMode) {
         try {
             const prepared = creationExecutors.get(scope)?.prepare(draft.prompt, true);
             if (!prepared) throw new Error("当前创作输入尚未准备好");
-            const entry = { id: messageId, role: "user" as const, text: prepared.submission.prompt, references: prepared.submission.references };
+            const entry: CreationEntry = { id: messageId, role: "user", text: prepared.submission.prompt, references: prepared.submission.references };
             // Save the user message before network submission; no silent resend after refresh.
             const entries = [...current.entries, entry];
             state.updateConversation(id, { entries });

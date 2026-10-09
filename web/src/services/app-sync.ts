@@ -222,8 +222,9 @@ async function readDomainManifest<T>(config: WebdavSyncConfig, domain: DomainKey
     const data = JSON.parse(await revision.file.text()) as DomainManifest<T>;
     if (!isAcceptedAppId(data.app) || data.domain !== domain) throw new Error(i18n.t("config.webdav.errors.invalidManifest", { domain }));
     if (data.version !== 1 || !data.data || typeof data.data !== "object" || !Array.isArray(data.files)) throw new Error("远端清单损坏，已停止同步");
-    const records = domain === "canvas" ? (data.data as CanvasDomainData).projects : domain === "assets" ? (data.data as AssetDomainData).assets : (data.data as LogDomainData).logs;
-    if (!Array.isArray(records) || records.some((item) => !item || typeof item.id !== "string") || (domain === "canvas" && !Array.isArray((data.data as CanvasDomainData).deleted))) throw new Error("远端记录格式损坏，已停止同步");
+    const payload = data.data as unknown as Partial<CanvasDomainData & AssetDomainData & LogDomainData>;
+    const records = domain === "canvas" ? payload.projects : domain === "assets" ? payload.assets : payload.logs;
+    if (!Array.isArray(records) || records.some((item) => !item || typeof item.id !== "string") || (domain === "canvas" && !Array.isArray(payload.deleted))) throw new Error("远端记录格式损坏，已停止同步");
     if (data.files.some((item) => !item || typeof item.path !== "string" || !item.path.startsWith(`${domain}/files/`) || item.path.split("/").some((part) => part === ".." || part === ".") || typeof item.storageKey !== "string")) throw new Error("远端媒体路径损坏，已停止同步");
     return { etag: revision.etag, manifest: {
         app: EXPORT_APP_ID,

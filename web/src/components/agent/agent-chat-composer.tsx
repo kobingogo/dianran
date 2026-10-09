@@ -77,7 +77,7 @@ export function AgentChatComposer({ inline = false }: { inline?: boolean }) {
                         ) : null}
                         {onConfirmToolsChange ? <ToolConfirmationMenu confirmTools={Boolean(confirmTools)} theme={theme} onChange={onConfirmToolsChange} /> : null}
                         {permissionMode && onPermissionModeChange ? <PermissionModeMenu permissionMode={permissionMode} theme={theme} onChange={onPermissionModeChange} /> : null}
-                        {models?.length && model && reasoningEffort && onModelChange && onReasoningEffortChange ? <AgentModelControls models={models} model={model} reasoningEffort={reasoningEffort} onModelChange={onModelChange} onReasoningEffortChange={onReasoningEffortChange} /> : null}
+                        {models?.length && model && reasoningEffort ? <AgentModelControls models={models} model={model} reasoningEffort={reasoningEffort} onModelChange={onModelChange} onReasoningEffortChange={onReasoningEffortChange} /> : null}
                         {attachments.length ? <span className="hidden text-[11px] @min-[660px]:inline" style={{ color: theme.node.muted }}>{attachments.length} 张参考图</span> : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">

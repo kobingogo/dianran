@@ -53,7 +53,7 @@ if (typeof window !== "undefined") {
 const empty = (): Draft => ({ initialized: false, prompt: "", references: [], canvas: false });
 export const useComposerStore = create<ComposerStore>()(
     persist(
-        (set) => {
+        (set): ComposerStore => {
             const commit = set;
             set = ((...args: Parameters<typeof set>) => { assertBusinessWriter(); (commit as (...values: Parameters<typeof set>) => void)(...args); }) as typeof set;
             return {

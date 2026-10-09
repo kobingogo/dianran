@@ -22,4 +22,6 @@ export class CreationNotSubmittedError extends Error {}
 export const creationExecutors = new Map<string, { prepare: (prompt: string, discussion?: boolean) => Omit<CreationPlan, "id" | "version" | "state">; execute: (plan: CreationPlan) => Promise<string | undefined> }>();
 export const creationExecutions = new Set<string>();
 export const discussionRequests = new Map<string, AbortController>();
-export const useCreationRuntimeStore = create<{ runs: Record<string, { pending: boolean; stream: string; error: string }>; update: (id: string, change: Partial<{ pending: boolean; stream: string; error: string }>) => void }>((set) => ({ runs: {}, update: (id, change) => set((state) => ({ runs: { ...state.runs, [id]: { pending: false, stream: "", error: "", ...state.runs[id], ...change } } })) }));
+type CreationRun = { pending: boolean; stream: string; error: string };
+const EMPTY_RUN: CreationRun = { pending: false, stream: "", error: "" };
+export const useCreationRuntimeStore = create<{ runs: Record<string, CreationRun>; update: (id: string, change: Partial<CreationRun>) => void }>((set) => ({ runs: {}, update: (id, change) => set((state) => ({ runs: { ...state.runs, [id]: { ...EMPTY_RUN, ...state.runs[id], ...change } } })) }));

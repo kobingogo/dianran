@@ -9,7 +9,7 @@ import { GenerationStatus } from "@/features/tasks/generation-status";
 import { AgentMediaPanel } from "@/components/agent/agent-media-panel";
 import { InkButton } from "@/components/ui/ink-button";
 import { CanvasDeliveryButton } from "./canvas-delivery";
-import { resolveImageUrl } from "@/services/image-storage";
+import { probeImageAsset, resolveImageUrl } from "@/services/image-storage";
 import { useComposerStore } from "@/stores/use-composer-store";
 import { useReuseCreation } from "@/hooks/use-reuse-creation";
 import { useAssetMutation } from "@/hooks/use-asset-mutation";
@@ -69,7 +69,7 @@ export function CreationArtifacts({ plan, scope }: { plan: CreationPlan; scope: 
                     }
                 })().catch((cause) => showErrorToast(message, cause))}>继续修改</InkButton>
                 <CanvasDeliveryButton kind={plan.submission.mode} result={{ ...artifact, creation: plan.submission }} />
-                <InkButton onClick={() => void mutateAsset(() => useAssetStore.getState().addAsset({ kind: plan.submission.mode, title: `作品第 ${plan.version} 版`, coverUrl: plan.submission.mode === "image" ? artifact.url : "", tags: [], source: "创作记录", data: { ...artifact, dataUrl: artifact.url }, metadata: { prompt: plan.submission.prompt, creation: plan.submission } }), "已存入素材")}>存素材</InkButton>
+                <InkButton onClick={() => void mutateAsset(async () => useAssetStore.getState().addAsset({ kind: plan.submission.mode, title: `作品第 ${plan.version} 版`, coverUrl: plan.submission.mode === "image" ? artifact.url : "", tags: [], source: "创作记录", data: plan.submission.mode === "image" ? { dataUrl: artifact.url, ...(artifact.storageKey ? { storageKey: artifact.storageKey } : {}), ...(await probeImageAsset(artifact.url, artifact.mimeType || "image/png")) } : { url: artifact.url, ...(artifact.storageKey ? { storageKey: artifact.storageKey } : {}), width: artifact.width, height: artifact.height, bytes: artifact.bytes, mimeType: artifact.mimeType || "video/mp4" }, metadata: { prompt: plan.submission.prompt, creation: plan.submission } }), "已存入素材")}>存素材</InkButton>
             </div>
         </div>)}</div>
         {owned.filter((task) => !artifacts.length || task.phase !== "done" || task.saveState === "error").map((task) => <div key={task.id} className="space-y-2 py-3 text-xs text-[color:var(--ink-500)]">

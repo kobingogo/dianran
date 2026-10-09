@@ -234,6 +234,18 @@ export async function imageToDataUrl(image: { url?: string; dataUrl?: string; st
     return blobToDataUrl(await fetchImageBlob(url, options));
 }
 
+// 存入素材前需要真实像素与体积，读取图片元信息即可，不必整份解码。
+export async function probeImageAsset(url: string, mimeType: string) {
+    const blob = await fetchImageBlob(url);
+    const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const probe = new Image();
+        probe.onload = () => resolve({ width: probe.naturalWidth, height: probe.naturalHeight });
+        probe.onerror = () => reject(new Error("图片尺寸读取失败"));
+        probe.src = url;
+    });
+    return { width: size.width, height: size.height, bytes: blob.size, mimeType: blob.type || mimeType };
+}
+
 async function deleteStoredImagesOwned(keys: Iterable<string>) {
     await Promise.all(
         Array.from(new Set(keys)).map(async (key) => {
