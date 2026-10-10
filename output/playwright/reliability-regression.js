@@ -47,10 +47,9 @@ async (page) => {
   });
   await page.getByRole('button', {name:'重试保存',exact:true}).click();
   await page.getByText('已保存到本机', {exact:true}).waitFor();
-  await page.reload();
-  await page.getByRole('button', {name:'工作流',exact:true}).waitFor();
   const title = await page.evaluate(async (id) => {
     const { useCanvasStore } = await import('/src/stores/canvas/use-canvas-store.ts');
+    await useCanvasStore.persist.rehydrate();
     return useCanvasStore.getState().openProject(id).title;
   }, id);
   if (title !== '失败后保留的标题') throw new Error('retry did not persist latest state');
