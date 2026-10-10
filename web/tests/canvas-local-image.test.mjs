@@ -52,7 +52,7 @@ test('canvas submits its scoped prompt and references, saves an in-place target 
     assert.deepEqual(f.nodes[0].position, { x: 250, y: 200 });
     assert.equal(f.calls.find(call => call[0] === 'task')[1].sourcePath, '/canvas/canvas-A');
     const intent = f.calls.filter(call => call[0] === 'intent').at(-1);
-    assert.equal(intent[2].nodeId, f.nodes[0].id); assert.equal(intent[1].revision, '1');
+    assert.equal(intent[2].nodeId, f.nodes[0].id); assert.equal(intent[1].revision, '2');
     assert.deepEqual(f.calls.find(call => call[0] === 'consume'), ['consume', 'image', f.draft, 'scope']);
     assert.equal(f.calls.filter(call => call[0] === 'submit').length, 1);
 });
