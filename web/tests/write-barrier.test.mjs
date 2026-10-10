@@ -9,6 +9,7 @@ globalThis.requestAnimationFrame = (fn) => { queueMicrotask(fn); return 0; };
 globalThis.window = globalThis;
 globalThis.addEventListener = () => {};
 globalThis.removeEventListener = () => {};
+globalThis.document = { addEventListener: () => {}, visibilityState: "visible" };
 const locks = { request: async (_name, _options, callback) => callback({}) };
 function load(path, mocks) {
     const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;

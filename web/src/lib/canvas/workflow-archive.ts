@@ -1,6 +1,5 @@
 import { businessOperation } from "@/lib/write-ownership";
 import { nanoid } from "nanoid";
-import { saveAs } from "file-saver";
 import { createZip, readZip } from "@/lib/zip";
 import { getImageBlob, setImageBlob, deleteStoredImages } from "@/services/image-storage";
 import { getMediaBlob, setMediaBlob, deleteStoredMedia } from "@/services/file-storage";
@@ -95,6 +94,7 @@ export async function exportWorkflowTemplate(template: WorkflowTemplate) {
         files.push({ name: path, data: blob });
     }
     const zip = await createZip([{ name: "template.json", data: JSON.stringify({ format: "dianran-workflow", version: 1, plan, assets }) }, ...files]);
+    const { saveAs } = await import("file-saver");
     saveAs(zip, `${template.title.replace(/[\\/:*?"<>|]/g, "_") || "工作流"}.zip`);
 }
 

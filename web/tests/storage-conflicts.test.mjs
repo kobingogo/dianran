@@ -12,6 +12,8 @@ const { load } = fixture();
 const { mergeStorageValue, StorageConflictError } = load("@/lib/storage-conflicts");
 const { atomicStorageWrite, CONFLICT_STORE, preserveConflictCopies, MEDIA_PIN_PREFIX, storageConflictId } = load("@/lib/atomic-storage");
 const { collectStoredReferenceValue } = load("@/lib/media-references");
+const localforage = require("localforage");
+const indexedDBTest = localforage.supports(localforage.INDEXEDDB) ? test : test.skip;
 const snapshot = (projects) => JSON.stringify({ state: { projects, deletedProjects: [] }, version: 0 });
 async function database() {
     const name = `conflict-test-${crypto.randomUUID()}`;
@@ -87,8 +89,7 @@ test("task additions from different pages preserve both identities", async () =>
     } finally { db.close(); }
 });
 
-test("the installed localforage barrier detects conflicts across separate page baselines", async () => {
-    const localforage = require("localforage");
+indexedDBTest("the installed localforage barrier detects conflicts across separate page baselines", async () => {
     const original = localforage.createInstance;
     const name = `real-barrier-${crypto.randomUUID()}`;
     const key = "infinite-canvas:canvas_store";

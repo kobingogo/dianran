@@ -33,7 +33,7 @@ function fixture() {
         '@/lib/canvas/canvas-node-factory': { createCanvasNode: (type, position, metadata) => ({ id: 'temporary', type, position, metadata }) },
         '@/types/canvas': { CanvasNodeType: { Image: 'image' } },
         '@/stores/use-config-store': { useConfigStore: { getState: () => ({ config: {} }) } },
-        '@/lib/composer': { uniqueReferences: values => values },
+        '@/lib/composer': { uniqueReferences: values => values, creationSnapshot: () => ({}) },
         '@/lib/canvas/canvas-composer': { vacantCanvasPosition: () => ({ x: 250, y: 200 }) },
         '@/features/tasks/task-store': { beginCreationTask: value => { calls.push(['task', value]); return value.id; }, updateCreationTask: (id, patch) => calls.push(['update', id, patch]) },
     };
