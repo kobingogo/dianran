@@ -16,6 +16,16 @@ async (page) => {
   await page.evaluate(async (id) => {
     const { canvasIndexedStorage } = await import('/src/lib/localforage-storage.ts');
     const { useCanvasStore, flushCanvasSave } = await import('/src/stores/canvas/use-canvas-store.ts');
+    const { writeOwnership } = await import('/src/lib/write-ownership.ts');
+    await new Promise((resolve, reject) => {
+      const deadline = Date.now() + 10000;
+      const check = () => {
+        if (useCanvasStore.getState().hydrated && writeOwnership.canWrite()) return resolve();
+        if (Date.now() >= deadline) return reject(new Error('canvas did not become writable'));
+        setTimeout(check, 100);
+      };
+      check();
+    });
     await canvasIndexedStorage.ready();
     // Proxy reads return the write barrier, not the underlying driver method.
     // Restoring that wrapper onto the target would recurse into itself.
