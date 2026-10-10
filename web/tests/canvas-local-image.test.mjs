@@ -12,7 +12,7 @@ function fixture() {
     const draft = { prompt: '画布草稿 @[node:reference]', references: [], nodeIds: ['reference'], parameters: {} };
     const imageDraft = { prompt: '其他页面草稿', references: [] };
     const nodes = [], media = { source: 'agent', codexModel: 'codex-model', receipts: {} };
-    const context = { getSnapshot: () => ({ projectId: 'canvas-A', revision: String(revision), nodes, viewport: { x: 0, y: 0, k: 2 } }), importMediaNodes: async values => { nodes.push(...values); revision++; agent.canvasContext = { ...context }; } };
+    const context = { getSnapshot: () => ({ projectId: 'canvas-A', revision: String(revision), nodes, viewport: { x: 0, y: 0, k: 2 } }), importMediaNodes: async values => { nodes.push(...values); revision++; agent.canvasContext = { ...context }; }, applyOps: async () => { revision++; } };
     const agent = { url: 'local', token: 'token', connected: true, models: [{ model: 'codex-model' }], conversation: { status: 'idle' }, canvasContext: context, setAgentState: value => Object.assign(agent, value) };
     const agentStore = Object.assign(() => agent, { getState: () => agent });
     const mediaStore = Object.assign(() => media, { getState: () => media, setState: value => Object.assign(media, value) });
