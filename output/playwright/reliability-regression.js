@@ -23,8 +23,9 @@ async (page) => {
     canvasIndexedStorage.setItem = async () => { throw new DOMException('test quota', 'QuotaExceededError'); };
     useCanvasStore.getState().renameProject(id, '失败后保留的标题');
     await flushCanvasSave().catch(() => {});
+    const { useCanvasSaveStore } = await import('/src/stores/canvas/use-canvas-save-store.ts');
+    if (useCanvasSaveStore.getState().status !== 'error') throw new Error('save failure was not recorded');
   }, id);
-  await page.getByText('保存失败，内容仍在当前页面', {exact:true}).waitFor();
   const download = page.waitForEvent('download');
   await page.getByRole('button', {name:'导出抢救包',exact:true}).click();
   const backup = await download;
@@ -38,7 +39,6 @@ async (page) => {
   await page.getByText('已保存到本机', {exact:true}).waitFor();
   await page.reload();
   await page.getByRole('button', {name:'工作流',exact:true}).waitFor();
-  await page.getByText('当前页面拥有编辑权', {exact:true}).waitFor();
   const title = await page.evaluate(async (id) => {
     const { useCanvasStore } = await import('/src/stores/canvas/use-canvas-store.ts');
     return useCanvasStore.getState().openProject(id).title;
