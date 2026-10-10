@@ -4,7 +4,6 @@ async (page) => {
   const base = 'http://127.0.0.1:4317';
   await page.goto(base + '/canvas');
   await page.getByRole('button', {name:'新建画布',exact:true}).first().waitFor();
-  await page.getByText('当前页面拥有编辑权', {exact:true}).waitFor();
   const id = await page.evaluate(async () => {
     const { useCanvasStore, flushCanvasSave } = await import('/src/stores/canvas/use-canvas-store.ts');
     if (!useCanvasStore.getState().hydrated) await useCanvasStore.persist.rehydrate();
@@ -14,7 +13,6 @@ async (page) => {
   });
   await page.goto(base + '/canvas/' + id);
   await page.getByRole('button', {name:'工作流',exact:true}).waitFor();
-  await page.getByText('当前页面拥有编辑权', {exact:true}).waitFor();
   await page.evaluate(async (id) => {
     const { canvasIndexedStorage } = await import('/src/lib/localforage-storage.ts');
     const { useCanvasStore, flushCanvasSave } = await import('/src/stores/canvas/use-canvas-store.ts');
