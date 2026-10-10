@@ -6,6 +6,9 @@ import { createWriteOwnership } from "../src/lib/write-ownership.ts";
 import { createSaveQueue } from "../src/lib/canvas/save-queue.ts";
 const require = createRequire(import.meta.url), ts = require("typescript");
 globalThis.requestAnimationFrame = (fn) => { queueMicrotask(fn); return 0; };
+globalThis.window = globalThis;
+globalThis.addEventListener = () => {};
+globalThis.removeEventListener = () => {};
 const locks = { request: async (_name, _options, callback) => callback({}) };
 function load(path, mocks) {
     const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;

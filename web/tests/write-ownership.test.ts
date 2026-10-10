@@ -70,11 +70,11 @@ test("upload/generation in flight prevents handoff; no lease or forced takeover"
     await a.relinquish(async () => {}); await settled();
 });
 
-test("hydration failure and unsupported browser never open editing", async () => {
-    const unsupported = createWriteOwnership();
-    await unsupported.acquire(async () => { throw new Error("must not run"); });
-    assert.equal(unsupported.getSnapshot(), "unsupported");
-    assert.throws(unsupported.assertWriter, /只读/);
+test("without Web Locks, local editing stays enabled; hydration failure still blocks it", async () => {
+    const noLocks = createWriteOwnership(); let hydrated = false;
+    await noLocks.acquire(async () => { hydrated = true; });
+    assert.equal(noLocks.getSnapshot(), "writer");
+    assert.equal(hydrated, true);
     const locks = lockFixture(), a = createWriteOwnership(locks), b = createWriteOwnership(locks);
     await assert.rejects(a.acquire(async () => { throw new Error("corrupt state"); }), /corrupt state/);
     assert.equal(a.getSnapshot(), "readonly");

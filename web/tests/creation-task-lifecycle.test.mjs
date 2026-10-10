@@ -12,7 +12,7 @@ function load(path, mocks) {
 function fixture(disk = new Map()) {
     let fail = false;
     const queue = load('../src/lib/canvas/save-queue.ts', {});
-    const mocks = { zustand: require('zustand'), localforage: { createInstance: () => ({ getItem: async (key) => disk.get(key), setItem: async (key, value) => { if (fail) throw Error('disk full'); disk.set(key, structuredClone(value)); } }) }, '@/constant/brand': { STORAGE_NS: 'test' }, '@/lib/canvas/save-queue': queue, '@/lib/write-ownership': { writeOwnership: { canWrite: () => true }, assertBusinessWriter: () => {} } };
+    const mocks = { zustand: require('zustand'), localforage: { createInstance: () => ({ getItem: async (key) => disk.get(key), setItem: async (key, value) => { if (fail) throw Error('disk full'); disk.set(key, structuredClone(value)); } }) }, '@/constant/brand': { STORAGE_NS: 'test' }, '@/lib/canvas/save-queue': queue, '@/lib/write-ownership': { writeOwnership: { canWrite: () => true }, assertBusinessWriter: () => {} }, nanoid: { nanoid: () => 'task-id' } };
     const api = load('../src/features/tasks/task-store.ts', mocks);
     return { api, disk, fail: (value) => { fail = value; } };
 }

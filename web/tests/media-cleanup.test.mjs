@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { fixture } from "./t11-loader.mjs";
 const require = createRequire(import.meta.url);
-require("fake-indexeddb/auto");
+const fakeIndexedDB = require("fake-indexeddb");
+globalThis.indexedDB = fakeIndexedDB.indexedDB;
+globalThis.IDBKeyRange = fakeIndexedDB.IDBKeyRange;
+globalThis.window = globalThis;
 
 function locks() {
     const held = new Map();
@@ -20,7 +23,7 @@ function locks() {
 async function setup() {
     Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: locks() } });
     const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open("infinite-canvas");
+        const request = globalThis.indexedDB.open("infinite-canvas");
         request.onupgradeneeded = () => ["app_state", "image_files", "image_previews", "media_files", "video_generation_logs", "write_conflicts"].forEach((name) => request.result.createObjectStore(name));
         request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
@@ -35,7 +38,7 @@ async function setup() {
     const cleanup = fixture().load("@/services/media-references").cleanupStoredMedia;
     const close = async () => {
         db.close();
-        await new Promise((resolve, reject) => { const request = indexedDB.deleteDatabase("infinite-canvas"); request.onsuccess = resolve; request.onerror = () => reject(request.error); });
+        await new Promise((resolve, reject) => { const request = globalThis.indexedDB.deleteDatabase("infinite-canvas"); request.onsuccess = resolve; request.onerror = () => reject(request.error); });
     };
     return { put, get, cleanup, close };
 }

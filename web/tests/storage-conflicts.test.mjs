@@ -4,7 +4,10 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { fixture } from "./t11-loader.mjs";
 const require = createRequire(import.meta.url);
-require("fake-indexeddb/auto");
+const fakeIndexedDB = require("fake-indexeddb");
+globalThis.indexedDB = fakeIndexedDB.indexedDB;
+globalThis.IDBKeyRange = fakeIndexedDB.IDBKeyRange;
+globalThis.window = globalThis;
 const { load } = fixture();
 const { mergeStorageValue, StorageConflictError } = load("@/lib/storage-conflicts");
 const { atomicStorageWrite, CONFLICT_STORE, preserveConflictCopies, MEDIA_PIN_PREFIX, storageConflictId } = load("@/lib/atomic-storage");
@@ -13,7 +16,7 @@ const snapshot = (projects) => JSON.stringify({ state: { projects, deletedProjec
 async function database() {
     const name = `conflict-test-${crypto.randomUUID()}`;
     const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open(name);
+        const request = globalThis.indexedDB.open(name);
         request.onupgradeneeded = () => ["app_state", CONFLICT_STORE, "creation_tasks", "image_files"].forEach((store) => request.result.createObjectStore(store));
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);

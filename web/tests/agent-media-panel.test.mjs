@@ -18,6 +18,7 @@ function fixture() {
         '@/components/ui/ink-button': { InkButton: 'InkButton' }, '@/features/tasks/generation-status': {},
         '@/features/tasks/task-store': { useTaskStore: (select) => select({ tasks: [] }) },
         '@/hooks/use-reuse-creation': {}, '@/hooks/use-asset-mutation': {}, '@/stores/use-asset-store': {},
+        '@/stores/use-composer-store': { useComposerStore: { getState: () => ({ ensureConversation: () => 'conversation', updateConversation: () => {} }) } },
     };
     const code = ts.transpileModule(readFileSync(new URL('../src/components/agent/agent-media-panel.tsx', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
     const module = { exports: {} };

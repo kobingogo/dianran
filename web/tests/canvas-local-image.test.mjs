@@ -34,6 +34,7 @@ function fixture() {
         '@/types/canvas': { CanvasNodeType: { Image: 'image' } },
         '@/stores/use-config-store': { useConfigStore: { getState: () => ({ config: {} }) } },
         '@/lib/composer': { uniqueReferences: values => values },
+        '@/lib/canvas/canvas-composer': { vacantCanvasPosition: () => ({ x: 250, y: 200 }) },
         '@/features/tasks/task-store': { beginCreationTask: value => { calls.push(['task', value]); return value.id; }, updateCreationTask: (id, patch) => calls.push(['update', id, patch]) },
     };
     const code = ts.transpileModule(readFileSync(new URL('../src/hooks/use-local-image-generation.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
