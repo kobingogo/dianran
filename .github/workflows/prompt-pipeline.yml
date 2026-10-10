@@ -1,0 +1,79 @@
+name: Prompt library update
+run-name: prompt-pipeline ${{ inputs.request_id || github.run_id }}
+on:
+  schedule:
+    # UTC 22:30 / 10:30 = Asia/Taipei 06:30 / 18:30.
+    - cron: '30 10,22 * * *'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Maintainer request identity (leave empty for a GitHub manual run)
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: dianran-prompt-publication
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROMPT_RESOURCE_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.PROMPT_VERCEL_TOKEN }}
+      TWITTER_COOKIES: ${{ secrets.TWITTER_COOKIES }}
+      TWSCRAPE_DB: ${{ runner.temp }}/twscrape/accounts.db
+      TWSCRAPE_PYTHON: python
+      CIVITAI_API_TOKEN: ${{ secrets.CIVITAI_API_TOKEN }}
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      DIANRAN_PROMPT_PIPELINE_ROOT: ${{ github.workspace }}/resources
+      DIANRAN_PROMPT_BASELINE_COMMIT: ${{ vars.PROMPT_BASELINE_COMMIT }}
+      DIANRAN_PIPELINE_RESULT_FILE: ${{ github.workspace }}/pipeline-result/result.json
+      DIANRAN_PIPELINE_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      X_PROVIDER: twscrape
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: code
+      - name: Check maintainer credentials
+        run: |
+          test -n "$GH_TOKEN" && test -n "$VERCEL_TOKEN" && test -n "$TWITTER_COOKIES"
+          mkdir -p pipeline-result
+      - uses: actions/checkout@v4
+        with:
+          repository: kobingogo/dianran-prompts
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.PROMPT_RESOURCE_TOKEN }}
+          path: resources
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare collection tools
+        run: |
+          npm ci --prefix code/brand --no-audit --no-fund
+          pip install -r code/brand/pipeline/requirements-x.txt
+          npm install --global vercel@58.5.1
+          git -C resources config user.name dianran-prompt-maintainer
+          git -C resources config user.email prompt-maintainer@users.noreply.github.com
+      - name: Collect and publish
+        run: bash code/brand/pipeline/run-twicedaily.sh
+      - name: Preserve failure receipt
+        if: always()
+        run: |
+          mkdir -p pipeline-result
+          if [ ! -f pipeline-result/result.json ]; then
+            node --input-type=module -e 'import { writeFileSync } from "node:fs"; writeFileSync(process.env.DIANRAN_PIPELINE_RESULT_FILE, JSON.stringify({status:"failed", snapshot:"", added:0, sources:"流水线未完成，请查看云端运行记录", runUrl:process.env.DIANRAN_PIPELINE_RUN_URL}));'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prompt-pipeline-result
+          path: pipeline-result/result.json
+      - name: Write execution summary
+        if: always()
+        run: |
+          if [ -f pipeline-result/result.json ]; then cat pipeline-result/result.json >> "$GITHUB_STEP_SUMMARY"; fi
+          if [ -f resources/candidates/merge-report.json ]; then cat resources/candidates/merge-report.json >> "$GITHUB_STEP_SUMMARY"; fi
