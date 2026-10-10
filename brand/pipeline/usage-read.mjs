@@ -58,11 +58,14 @@ try {
         cursor = page.hasMore ? page.cursor : undefined;
     } while (cursor);
 
+    agg.acceptedBatches ||= {};
     let events = 0;
     const processed = [];
     for (const blob of blobs) {
         try {
             const batch = await readJsonBlob(blob.pathname, token);
+            const identity = batch?.batchId || blob.pathname;
+            if (agg.acceptedBatches[identity]) { processed.push(blob.url); continue; }
             const day = /^\d{4}-\d{2}-\d{2}$/.test(batch?.day || "") ? batch.day : String(blob.uploadedAt).slice(0, 10);
             for (const [rawId, value] of Object.entries(batch?.events || {})) {
                 const id = rawId.startsWith("dianran-picks:") && rawId.split(":").length > 2 ? rawId.slice("dianran-picks:".length) : rawId;
@@ -78,6 +81,7 @@ try {
                 if (day > t.last) t.last = day;
                 events += copy + use;
             }
+            agg.acceptedBatches[identity] = day;
             processed.push(blob.url);
         } catch (error) {
             log(`usage: skip ${blob.pathname}: ${error.message}`);

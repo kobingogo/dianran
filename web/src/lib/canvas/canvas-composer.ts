@@ -11,7 +11,7 @@ import { canvasReferenceIds } from "./canvas-composer-references";
 export { canvasReferenceIds } from "./canvas-composer-references";
 export type CanvasSubmission = ComposerSubmission & { input: NodeGenerationContext; composerContent: string; inputNodeIds: string[]; materials: CanvasNodeData[] };
 
-export function prepareCanvasSubmission(mode: ComposerMode, prompt: string, attachments: ReferenceImage[], config: AiConfig, nodes: CanvasNodeData[], nodeIds: string[] = []): CanvasSubmission {
+export function prepareCanvasInput(mode: ComposerMode, prompt: string, attachments: ReferenceImage[], config: AiConfig, nodes: CanvasNodeData[], nodeIds: string[] = [], validate = true) {
     const materials: CanvasNodeData[] = [];
     let composerContent = prompt;
     for (const id of nodeIds) if (!composerContent.includes("@[node:" + id + "]")) composerContent += " @[node:" + id + "]";
@@ -31,9 +31,14 @@ export function prepareCanvasSubmission(mode: ComposerMode, prompt: string, atta
     const source = createCanvasNode(CanvasNodeType.Config, { x: 0, y: 0 }, { composerContent });
     const connections = inputNodeIds.map((fromNodeId) => ({ id: nanoid(), fromNodeId, toNodeId: source.id, kind: "input" as const }));
     const input = buildNodeGenerationContext(source.id, [...nodes, ...materials, source], connections, composerContent);
-    if (mode === "image" && (input.referenceVideos.length || input.referenceAudios.length)) throw new Error("生图当前支持图片和文字参考，请移除视频或音频引用");
-    if (mode === "video" && !resolveModelScript(config, config.videoModel) && resolveModelRequestConfig(config, config.videoModel).apiFormat === "gemini" && (input.referenceVideos.length > 1 || input.referenceAudios.length > 1)) throw new Error("当前 Gemini 视频适配器仅发送一个视频和一个音频，请移除多余引用或配置支持它们的调用脚本");
-    const submission = createComposerSubmission(mode, input.prompt, input.referenceImages, config, false, 15);
+    if (validate && mode === "image" && (input.referenceVideos.length || input.referenceAudios.length)) throw new Error("生图当前支持图片和文字参考，请移除视频或音频引用");
+    if (validate && mode === "video" && !resolveModelScript(config, config.videoModel) && resolveModelRequestConfig(config, config.videoModel).apiFormat === "gemini" && (input.referenceVideos.length > 1 || input.referenceAudios.length > 1)) throw new Error("当前 Gemini 视频适配器仅发送一个视频和一个音频，请移除多余引用或配置支持它们的调用脚本");
+    return { input, composerContent, inputNodeIds, materials };
+}
+
+export function prepareCanvasSubmission(mode: ComposerMode, prompt: string, attachments: ReferenceImage[], config: AiConfig, nodes: CanvasNodeData[], nodeIds: string[] = [], validate = true): CanvasSubmission {
+    const { input, composerContent, inputNodeIds, materials } = prepareCanvasInput(mode, prompt, attachments, config, nodes, nodeIds, validate);
+    const submission = createComposerSubmission(mode, input.prompt, input.referenceImages, config, false, 15, validate);
     input.prompt = submission.prompt;
     input.referenceImages = submission.references;
     return { ...submission, input, composerContent, inputNodeIds, materials };
@@ -59,7 +64,7 @@ export function createCanvasSubmissionGraph(submission: CanvasSubmission, nodes:
         seconds: p.videoSeconds, vquality: p.vquality, generateAudio: p.videoGenerateAudio, watermark: p.videoWatermark, videoMode: p.videoMode,
         creation: creationSnapshot(submission), inputSnapshot: freezeCanvasInput(submission.input), inputNodeIds: submission.inputNodeIds, draftReferenceIds: submission.inputNodeIds,
         sourceNodeId: target?.type !== CanvasNodeType.Config ? target?.id : target.metadata?.sourceNodeId,
-        branchKind, versionOf: branchKind === "regenerate" ? target?.id : undefined,
+        branchKind, versionOf: branchKind === "regenerate" || branchKind === "edit" ? target?.id : undefined,
         resultTargetId: fill ? target.id : undefined, inputChanged: false,
     };
     const config = target?.type === CanvasNodeType.Config ? { ...target, metadata: { ...target.metadata, ...metadata } } : createCanvasNode(CanvasNodeType.Config, position, metadata);
@@ -72,8 +77,9 @@ export function createCanvasSubmissionGraph(submission: CanvasSubmission, nodes:
 }
 
 export function resultProvenance(source: CanvasNodeData | undefined) {
-    return source?.metadata?.creation ? {
+    return source?.metadata?.creation || source?.metadata?.workflowStep ? {
         creation: source.metadata.creation,
+        workflowStep: source.metadata.workflowStep,
         inputSnapshot: source.metadata.inputSnapshot,
         composerContent: source.metadata.composerContent,
         inputNodeIds: source.metadata.inputNodeIds,

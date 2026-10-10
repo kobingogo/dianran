@@ -103,11 +103,12 @@ export function getInputSummary(inputs: NodeGenerationInput[]) {
 }
 
 export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefined, mode: CanvasNodeGenerationMode): AiConfig {
-    config = { ...config, ...node?.metadata?.creation?.parameters };
+    config = { ...config, ...node?.metadata?.workflowStep?.parameters, ...node?.metadata?.creation?.parameters };
     return {
         ...config,
         model: resolveModelForCapability(config, node?.metadata?.model, mode),
         reasoningEffort: node?.metadata?.reasoningEffort || config.reasoningEffort || defaultConfig.reasoningEffort,
+        systemPrompt: node?.metadata?.systemPrompt ?? config.systemPrompt,
         quality: node?.metadata?.quality || config.quality || defaultConfig.quality,
         size: mode === "video" ? config.size || defaultConfig.size : node?.metadata?.size || config.size || defaultConfig.size,
         videoSize: mode === "video" ? node?.metadata?.size || resolveVideoSize(config) : config.videoSize || defaultConfig.videoSize,
@@ -139,9 +140,9 @@ export function resetInterruptedGeneration(nodes: CanvasNodeData[]) {
                       metadata: {
                           ...node.metadata,
                           status: "error" as const,
-                          errorDetails: i18n.t("canvas.generation.interrupted"),
-                          images: node.metadata.images?.map((image) => (image.status === "loading" ? { ...image, status: "error" as const, errorDetails: i18n.t("canvas.generation.interrupted") } : image)),
-                          texts: node.metadata.texts?.map((text) => (text.status === "loading" ? { ...text, status: "error" as const, errorDetails: i18n.t("canvas.generation.interrupted") } : text)),
+                          errorDetails: "本地等待中断，结果未知；原请求可能已被接受。没有任务 ID 时无法自动查询，新请求可能再次计费",
+                          images: node.metadata.images?.map((image) => (image.status === "loading" ? { ...image, status: "error" as const, errorDetails: "本地等待中断，结果未知；原请求可能已被接受。没有任务 ID 时无法自动查询，新请求可能再次计费" } : image)),
+                          texts: node.metadata.texts?.map((text) => (text.status === "loading" ? { ...text, status: "error" as const, errorDetails: "本地等待中断，结果未知；原请求可能已被接受。没有任务 ID 时无法自动查询，新请求可能再次计费" } : text)),
                       },
                   }
             : node,
@@ -200,8 +201,10 @@ export function buildAnglePrompt(params: CanvasImageAngleParams) {
  */
 export function sanitizeClonedNode(node: CanvasNodeData): CanvasNodeData {
     const metadata = node.metadata;
-    if (!metadata || (metadata.status !== "loading" && !metadata.videoTaskId)) return node;
+    if (!metadata || (metadata.status !== "loading" && !metadata.videoTaskId && !metadata.generationTaskId)) return node;
     const next = { ...metadata };
+    delete next.generationTaskId;
+    delete next.agentMediaRequestId;
     if (next.status === "loading") next.status = undefined;
     if (next.videoTaskId && !next.content) { delete next.videoTaskId; delete next.videoTaskEndpoint; delete next.videoTaskProvider; }
     if (next.images) next.images = next.images.filter((image) => image.status !== "loading");

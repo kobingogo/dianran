@@ -7,6 +7,8 @@ import { canvasThemes } from "@/lib/canvas-theme";
 import { CANVAS_AGENT_PANEL_MOTION_MS, useAgentStore } from "@/stores/use-agent-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { CreationConversationView } from "@/components/composer/creation-conversation";
+import { InkButton } from "@/components/ui/ink-button";
 
 const PANEL_MOTION_SECONDS = CANVAS_AGENT_PANEL_MOTION_MS / 1000;
 
@@ -21,6 +23,8 @@ export function AgentPanel() {
     const panelMounted = useAgentStore((state) => state.panelMounted);
     const panelOpen = useAgentStore((state) => state.panelOpen);
     const panelClosing = useAgentStore((state) => state.panelClosing);
+    const creation = useAgentStore((state) => state.creationContext);
+    const activeTab = useAgentStore((state) => state.activeTab);
     const setAgentState = useAgentStore((state) => state.setAgentState);
     const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
         event.preventDefault();
@@ -61,7 +65,13 @@ export function AgentPanel() {
                 style={{ width, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
             >
                 {!mobile ? <button type="button" className="absolute inset-y-0 left-0 z-40 w-4 -translate-x-1/2 cursor-col-resize" onPointerDown={startResize} aria-label={t("agent.panel.resize")} /> : null}
-                <LocalAgentPanel embedded />
+                {creation && activeTab === "chat" ? <>
+                    <header className="flex shrink-0 items-center gap-2 px-4 py-3"><strong className="flex-1">创作讨论</strong><InkButton variant="ghost" size={32} onClick={() => setAgentState({ activeTab: "setup" })}>连接与设置</InkButton><InkButton variant="ghost" size={32} onClick={() => useAgentStore.getState().closePanel()}>收起</InkButton></header>
+                    <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-2"><CreationConversationView scope={creation.scope} mode={creation.mode} /></div>
+                    <div id="creation-panel-composer" className="max-h-[60dvh] shrink-0 overflow-y-auto border-t px-3 py-3" style={{ borderColor: theme.node.stroke }} />
+                </> : null}
+                {creation && activeTab !== "chat" ? <InkButton variant="ghost" size={32} onClick={() => setAgentState({ activeTab: "chat" })}>返回当前创作讨论</InkButton> : null}
+                <LocalAgentPanel embedded headless={Boolean(creation && activeTab === "chat")} />
             </motion.aside>
         </motion.div>
     );

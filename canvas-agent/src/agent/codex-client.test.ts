@@ -940,3 +940,65 @@ function eventScope(payload: unknown) {
 function eventType(payload: unknown) {
     return payload && typeof payload === "object" ? (payload as Record<string, unknown>).type : undefined;
 }
+
+test("结构化问题真实回答、身份校验与跨页重复回答保护", () => {
+    const writes: Array<Record<string, unknown>> = [];
+    const events: Array<{ type: string; payload: unknown }> = [];
+    const client = Reflect.construct(CodexAppClient, [{ stdin: { write: (line: string) => (writes.push(JSON.parse(line)), true) } }, (type: string, payload: unknown) => events.push({ type, payload }), emptyEventHistory]) as CodexAppClient;
+    const internal = client as unknown as TestClient;
+    internal.answerServerRequest({ id: "question-17", method: "item/tool/requestUserInput", params: { threadId: "thread", turnId: "turn", itemId: "item", questions: [{ id: "style", header: "风格", question: "选择风格", isOther: true, options: [{ label: "简洁", description: "清晰" }] }] } });
+    assert.equal(writes.length, 0);
+    assert.equal(client.resolveInteraction("question-17", "other-thread", "turn", { answers: { style: { answers: ["简洁"] } } }), false);
+    assert.throws(() => client.resolveInteraction("question-17", "thread", "turn", { answers: {} }), /回答全部问题/);
+    assert.equal(client.resolveInteraction("question-17", "thread", "turn", { answers: { style: { answers: ["简洁且温暖"] } } }), true);
+    assert.deepEqual(writes[0], { id: "question-17", result: { answers: { style: { answers: ["简洁且温暖"] } } } });
+    assert.equal(client.resolveInteraction("question-17", "thread", "turn", { action: "cancel" }), false);
+    assert.equal(client.pendingInteractions()[0]?.submitted, true);
+    internal.handleNotification("serverRequest/resolved", { threadId: "other-thread", requestId: "question-17" });
+    assert.equal(client.pendingInteractions().length, 1);
+    internal.handleNotification("serverRequest/resolved", { threadId: "thread", requestId: "question-17" });
+    assert.equal(client.pendingInteractions().length, 0);
+    assert.equal(events.filter(({ type }) => type === "codex_interaction_resolved").length, 1);
+});
+
+test("MCP 表单按 schema 验证，不自动接受空表单，扩展请求明确取消", () => {
+    const writes: Array<Record<string, unknown>> = [];
+    const client = Reflect.construct(CodexAppClient, [{ stdin: { write: (line: string) => (writes.push(JSON.parse(line)), true) } }, () => undefined, emptyEventHistory]) as CodexAppClient;
+    const internal = client as unknown as TestClient;
+    internal.answerServerRequest({ id: 31, method: "mcpServer/elicitation/request", params: { threadId: "thread", turnId: "turn", serverName: "test", mode: "form", message: "选择", requestedSchema: { type: "object", required: ["amount", "email"], properties: { amount: { type: "integer", minimum: 1, maximum: 3 }, email: { type: "string", format: "email", minLength: null } } } } });
+    assert.equal(writes.length, 0);
+    assert.throws(() => client.resolveInteraction("31", "thread", "turn", { action: "accept", content: {} }), /校验/);
+    assert.throws(() => client.resolveInteraction("31", "thread", "turn", { action: "accept", content: { amount: 4, email: "wrong" } }), /校验/);
+    assert.equal(client.resolveInteraction("31", "thread", "turn", { action: "accept", content: { amount: 2, email: "a@example.com" } }), true);
+    internal.answerServerRequest({ id: 32, method: "mcpServer/elicitation/request", params: { threadId: "thread", turnId: "turn", mode: "openai/form", requestedSchema: {} } });
+    assert.deepEqual(writes.at(-1), { id: 32, result: { action: "cancel", content: null } });
+});
+
+test("URL 必须显式确认，任务结束和进程退出清除迟到交互", () => {
+    const writes: Array<Record<string, unknown>> = [];
+    const client = Reflect.construct(CodexAppClient, [{ stdin: { write: (line: string) => (writes.push(JSON.parse(line)), true) } }, () => undefined, emptyEventHistory]) as CodexAppClient;
+    const internal = client as unknown as TestClient;
+    internal.answerServerRequest({ id: 40, method: "mcpServer/elicitation/request", params: { threadId: "thread", turnId: "turn", mode: "url", url: "https://example.com/login", elicitationId: "e" } });
+    assert.equal(writes.length, 0);
+    assert.equal(client.resolveInteraction("40", "thread", "turn", { action: "decline" }), true);
+    assert.deepEqual(writes[0], { id: 40, result: { action: "decline", content: null } });
+    internal.handleNotification("turn/completed", { threadId: "thread", turn: { id: "turn", status: "completed" } });
+    assert.equal(client.pendingInteractions().length, 0);
+    assert.equal(client.resolveInteraction("40", "thread", "turn", { action: "accept" }), false);
+    internal.answerServerRequest({ id: 41, method: "mcpServer/elicitation/request", params: { threadId: "thread", turnId: "turn2", mode: "url", url: "javascript:alert(1)" } });
+    assert.deepEqual(writes.at(-1), { id: 41, result: { action: "cancel", content: null } });
+    internal.answerServerRequest({ id: 42, method: "item/tool/requestUserInput", params: { threadId: "thread", turnId: "turn2", questions: [{ id: "q", header: "Q", question: "输入" }] } });
+    internal.failAll("exit");
+    assert.equal(client.pendingInteractions().length, 0);
+});
+
+test("权限审批校验原任务并随 turn 结束失效", () => {
+    const writes: Array<Record<string, unknown>> = [];
+    const client = Reflect.construct(CodexAppClient, [{ stdin: { write: (line: string) => (writes.push(JSON.parse(line)), true) } }, () => undefined, emptyEventHistory]) as CodexAppClient;
+    const internal = client as unknown as TestClient;
+    internal.answerServerRequest({ id: 60, method: "item/fileChange/requestApproval", params: { threadId: "thread", turnId: "turn" } });
+    assert.equal(client.resolveApproval("60", "accept", "wrong", "turn"), false);
+    internal.handleNotification("turn/completed", { threadId: "thread", turn: { id: "turn", status: "completed" } });
+    assert.equal(client.resolveApproval("60", "accept", "thread", "turn"), false);
+    assert.equal(writes.length, 0);
+});

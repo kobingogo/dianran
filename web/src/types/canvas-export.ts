@@ -3,10 +3,13 @@ import type { AppFileId } from "@/constant/brand";
 
 export type CanvasExportFile = {
     app: AppFileId;
-    version: 3;
+    version: 4;
     exportedAt: string;
     projects: CanvasProjectExportItem[];
+    backup: { mode: "complete" | "rescue"; unavailableFiles: CanvasBackupIssue[]; externalLinks: CanvasBackupIssue[] };
 };
+
+export type CanvasBackupIssue = { projectId: string; reference: string; reason: string };
 
 export type CanvasProjectExportItem = {
     project: CanvasProject;
@@ -18,4 +21,5 @@ export type CanvasExportAsset = {
     path: string;
     mimeType: string;
     bytes: number;
+    sha256: string;
 };

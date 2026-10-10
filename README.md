@@ -40,10 +40,10 @@ bun run dev
 浏览器请求被 CORS 拦截时，可在本机启动代理：
 
 ```bash
-npx @kobinflow/canvas-proxy@latest
+node canvas-proxy/index.js --origin http://localhost:3000 --target https://api.openai.com/v1
 ```
 
-在「设置 → 本地代理」启用 `http://127.0.0.1:23210`。更多说明见 [Canvas Proxy](canvas-proxy/README.md)。需要 Codex / Claude Code 协作时，按 [Canvas Agent](canvas-agent/README.md) 连接本地服务；直接生图和视频不依赖 Agent。
+命令从仓库根目录运行，`--target` 改为自己的渠道地址。在「设置 → 高级 → 本地代理」启用并导入终端提示的本机配对文件；新前端需配套协议 2，代理 0.2.0 尚待 npm 成对发布。更多说明见 [Canvas Proxy](canvas-proxy/README.md)。需要 Codex / Claude Code 协作时，按 [Canvas Agent](canvas-agent/README.md) 连接本地服务。
 
 ## 自部署与开发
 
@@ -54,7 +54,7 @@ npx @kobinflow/canvas-proxy@latest
 
 ## 数据与隐私
 
-画布、素材与生成记录主要保存在浏览器本地。API Key 也保存在浏览器，生成请求直达你配置的渠道；开启本地代理或 Agent 后，请求按相应服务的路径处理。可选 WebDAV 用于同步，项目没有内置云账户或云作品库。
+画布、素材与生成记录主要保存在浏览器本地。API Key 也保存在浏览器，生成请求直达你配置的渠道；开启本地代理或 Agent 后，请求按相应服务的路径处理。可选 WebDAV 用于同步，项目没有内置云账户或云作品库。更换设备、浏览器、域名或端口前请导出备份；「已保存到本机」和浏览器持久化许可都不等于已有备份。
 
 部署方可配置匿名提示词使用统计与站点分析；提示词统计只发送提示词 ID、次数和日期，不发送创作提示词、素材或 Key。具体实现与配置见 [提示词流水线](brand/pipeline/README.md)。
 

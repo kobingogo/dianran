@@ -156,3 +156,10 @@ type CodexNotificationSpec = {
 
 export type CodexNotificationMethod = keyof CodexNotificationSpec;
 export type CodexNotificationParams<Method extends CodexNotificationMethod> = CodexNotificationSpec[Method];
+
+/** @openai/codex 0.146.0 生成 schema 的服务端交互契约。 */
+export type CodexUserInputQuestion = { id: string; header: string; question: string; isOther?: boolean; isSecret?: boolean; options?: Array<{ label: string; description: string }> | null };
+export type CodexUserInputParams = { threadId: string; turnId: string; itemId: string; questions: CodexUserInputQuestion[]; autoResolutionMs?: number | null };
+export type CodexUserInputResponse = { answers: Record<string, { answers: string[] }> };
+export type CodexElicitationParams = { threadId: string; turnId?: string | null; serverName: string; message: string } & ({ mode: "form"; requestedSchema: JsonRecord } | { mode: "openai/form"; requestedSchema: unknown } | { mode: "url"; url: string; elicitationId: string });
+export type CodexElicitationResponse = { action: "accept" | "decline" | "cancel"; content?: unknown; _meta?: unknown };

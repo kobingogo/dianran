@@ -17,14 +17,16 @@ export function formatBytes(bytes?: number) {
 }
 
 export function phaseLabel(task: Pick<GenerationTask, "phase" | "progress" | "kind">, t: TFunction) {
-    const base = t(`tasks.phase.${task.phase}`);
+    const base = task.phase === "unknown" || task.phase === "stale" ? "结果未知" : task.phase === "canceled" ? "已停止本地等待" : t(`tasks.phase.${task.phase}`);
     if ((task.phase === "generating" || task.phase === "queued") && task.progress !== undefined && task.progress > 0 && task.progress < 100) return `${base} ${Math.round(task.progress)}%`;
     return base;
 }
 
 export function phaseHint(task: GenerationTask, t: TFunction) {
+    if (["unknown", "stale", "canceled"].includes(task.phase)) return "渠道可能仍在执行；有原任务 ID 可取状态，新请求可能再次计费";
     if (task.phase === "requesting") return t(task.kind === "video" ? "tasks.hint.requestingVideo" : "tasks.hint.requesting");
     if (task.phase === "queued") return t("tasks.hint.queued", { count: task.polls || 0 });
+    if (task.saveState === "saving") return "作品已生成，正在保存";
     if (task.phase === "receiving") {
         const loaded = formatBytes(task.loadedBytes);
         const total = formatBytes(task.totalBytes);

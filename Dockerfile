@@ -9,6 +9,7 @@ COPY CHANGELOG.md /app/CHANGELOG.md
 # [dianran] product version + changelog (preferred by vite.config.ts)
 COPY brand/VERSION brand/CHANGELOG.md /app/brand/
 COPY web ./
+COPY canvas-proxy/policy.js /app/canvas-proxy/policy.js
 RUN bun run build
 
 # 运行镜像：只启动静态前端，AI 请求由浏览器前台直连用户自己的接口。

@@ -79,6 +79,7 @@ export function ModelScriptEditor({ open, capability, modelName, value, onSave, 
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-scroll overscroll-contain p-0">
                             <StepBlock index={1} title={t("config.scriptEditor.stepRule")}>
+                                <p className="mb-2 text-xs leading-5">脚本拥有当前网页权限，可读取本地作品、配置与 Key 并联网，不是沙箱。仅运行可信代码。http 仅绑定渠道和路径范围自动附带 Key；跨站请求须显式处理凭据。</p>
                                 <p className="text-xs leading-5 text-stone-600 dark:text-stone-300">{t("config.scriptEditor.stepRuleHint")}</p>
                                 <div className="mt-3">
                                     <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{t("config.scriptEditor.returnRequirements")}</div>

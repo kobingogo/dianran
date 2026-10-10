@@ -3,6 +3,14 @@ import { getPluginRuntime } from "@/lib/canvas/plugin-runtime";
 import { usePluginStore, type InstalledPlugin } from "@/stores/canvas/use-plugin-store";
 import type { CanvasPlugin } from "@/types/canvas-plugin";
 import i18n from "@/i18n";
+import { assertBusinessWriter } from "@/lib/write-ownership";
+import { imageToolsPlugin } from "./image-tools-plugin";
+
+export type PluginReview = { url: string; source: string; digest: string; previousDigest?: string };
+export type AuthorizePlugin = (review: PluginReview) => Promise<boolean>;
+async function digestSource(source: string) {
+    return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source))), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 const cleanups = new Map<string, () => void>();
 
@@ -29,6 +37,7 @@ function assertPlugin(plugin: unknown): asserts plugin is CanvasPlugin {
 }
 
 export function activatePlugin(plugin: CanvasPlugin) {
+    if (plugin.id === imageToolsPlugin.id && plugin !== imageToolsPlugin) throw new Error("内置素材工具不能被外部插件覆盖");
     registerNodeDefinitions(plugin.nodes, plugin.id);
     const runtime = getPluginRuntime();
     const disposers: Array<() => void> = [];
@@ -56,32 +65,43 @@ function withCacheBust(url: string) {
     return `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
 }
 
-// Install or replace a plugin from a URL and enable it immediately.
-// bustCache bypasses HTTP/CDN caches during upgrades while persisting a clean URL without the timestamp query.
-export async function installPluginFromUrl(url: string, opts?: { official?: boolean; bustCache?: boolean }) {
-    const source = await fetchPluginSource(opts?.bustCache ? withCacheBust(url) : url);
+// Download and review the exact snapshot before evaluating any JavaScript.
+export async function installPluginFromUrl(url: string, opts: { authorize: AuthorizePlugin; official?: boolean; bustCache?: boolean; record?: InstalledPlugin }) {
+    assertBusinessWriter();
+    opts = { ...opts, record: opts.record || usePluginStore.getState().plugins.find((item) => item.url === url) };
+    const source = await fetchPluginSource(opts.bustCache ? withCacheBust(url) : url);
+    const digest = await digestSource(source);
+    if (!await opts.authorize({ url, source, digest, previousDigest: opts.record?.sourceDigest })) return null;
+    assertBusinessWriter();
     const plugin = await evaluatePluginSource(source);
-    deactivatePlugin(plugin.id); // Replace the previous version.
-    usePluginStore.getState().upsert({ id: plugin.id, name: plugin.name || plugin.id, version: plugin.version || "0.0.0", description: plugin.description, url, source, enabled: true, official: opts?.official });
+    if (plugin.id === imageToolsPlugin.id) throw new Error("内置素材工具随应用更新，不能用外部插件覆盖");
+    if (opts.record && plugin.id !== opts.record.id && !opts.record.local) throw new Error("更新后的插件 ID 已改变，请作为新插件安装");
+    deactivatePlugin(plugin.id);
+    if (opts.record && opts.record.id !== plugin.id) usePluginStore.getState().remove(opts.record.id);
+    usePluginStore.getState().upsert({ id: plugin.id, name: plugin.name || plugin.id, version: plugin.version || "0.0.0", description: plugin.description, url, source, sourceDigest: digest, enabled: true, official: opts.official, local: opts.record?.local });
     activatePlugin(plugin);
     return plugin;
 }
 
-export async function updatePlugin(record: InstalledPlugin) {
-    // Upgrades must fetch the latest output and therefore always bypass caches.
-    return installPluginFromUrl(record.url, { official: record.official, bustCache: true });
+export async function updatePlugin(record: InstalledPlugin, authorize: AuthorizePlugin) {
+    return installPluginFromUrl(record.url, { authorize, record, official: record.official, bustCache: true });
 }
 
-export async function setPluginEnabled(record: InstalledPlugin, enabled: boolean) {
-    usePluginStore.getState().setEnabled(record.id, enabled);
+export async function setPluginEnabled(record: InstalledPlugin, enabled: boolean, authorize: AuthorizePlugin) {
+    assertBusinessWriter();
     if (!enabled) {
+        usePluginStore.getState().setEnabled(record.id, false);
         deactivatePlugin(record.id);
         return;
     }
-    // Reload local plugins from their URL when enabled because the cached source may be stale.
-    const source = record.local ? await fetchPluginSource(withCacheBust(record.url)) : record.source;
-    const plugin = await evaluatePluginSource(source);
+    if (!record.sourceDigest) {
+        return Boolean(await installPluginFromUrl(record.url, { authorize, record, official: record.official }));
+    }
+    if (await digestSource(record.source) !== record.sourceDigest) throw new Error("插件源码与授权摘要不一致，请重新审阅更新");
+    const plugin = await evaluatePluginSource(record.source);
+    usePluginStore.getState().setEnabled(record.id, true);
     activatePlugin(plugin);
+    return true;
 }
 
 export function uninstallPlugin(id: string) {
@@ -95,15 +115,19 @@ let loaded = false;
 export async function ensurePluginsLoaded() {
     if (loaded) return;
     loaded = true;
+    activatePlugin(imageToolsPlugin);
     await usePluginStore.persist.rehydrate();
     await loadLocalPlugins(); // Discover disabled local plugins first, then activate all enabled records.
-    const records = usePluginStore.getState().plugins.filter((record) => record.enabled);
+    for (const record of usePluginStore.getState().plugins) {
+        if (record.enabled && !record.sourceDigest) usePluginStore.getState().setEnabled(record.id, false);
+    }
+    const records = usePluginStore.getState().plugins.filter((record) => record.enabled && record.sourceDigest);
     await Promise.all(
         records.map(async (record) => {
             try {
                 // Local plugins use the latest output; other plugins use their cached source.
-                const source = record.local ? await fetchPluginSource(withCacheBust(record.url)) : record.source;
-                activatePlugin(await evaluatePluginSource(source));
+                if (await digestSource(record.source) !== record.sourceDigest) throw new Error("插件源码摘要不一致");
+                activatePlugin(await evaluatePluginSource(record.source));
             } catch (error) {
                 console.error(`[plugin] Failed to load: ${record.id}`, error);
             }
@@ -113,7 +137,7 @@ export async function ensurePluginsLoaded() {
 }
 
 // Discover local plugins from web/public/plugins, add them disabled, and expose them in the manager without a URL.
-// Refresh metadata and source for existing records while preserving the enabled flag so persisted versions stay current.
+// Existing records retain their authorized snapshot until the user reviews an update.
 async function loadLocalPlugins() {
     let urls: unknown;
     try {
@@ -129,18 +153,9 @@ async function loadLocalPlugins() {
         urls.map(async (url: string) => {
             try {
                 const source = await fetchPluginSource(withCacheBust(url));
-                const plugin = await evaluatePluginSource(source);
-                const existing = store.plugins.find((item) => item.id === plugin.id);
-                store.upsert({
-                    id: plugin.id,
-                    name: plugin.name || plugin.id,
-                    version: plugin.version || "0.0.0",
-                    description: plugin.description,
-                    url,
-                    source,
-                    enabled: existing?.enabled ?? false, // Preserve the user setting; new discoveries default to disabled.
-                    local: true,
-                });
+                if (store.plugins.some((item) => item.url === url)) return;
+                // Discovery never imports source, including disabled local plugins.
+                store.upsert({ id: url, name: url.split("/").pop() || url, version: "未授权", url, source, enabled: false, local: true });
             } catch (error) {
                 console.error(`[plugin] Failed to discover local plugin: ${url}`, error);
             }

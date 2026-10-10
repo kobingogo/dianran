@@ -1,18 +1,22 @@
+import { proxyFetch } from "@/services/api/proxy-transport";
+import { businessOperation } from "@/lib/write-ownership";
 import localforage from "localforage";
 import { nanoid } from "nanoid";
 
 import { withLocalProxy } from "@/stores/use-config-store";
-import { STORAGE_NS, storageKey } from "@/constant/brand";
-import { canvasIndexedStorage } from "@/lib/localforage-storage";
+import { STORAGE_NS } from "@/constant/brand";
+import { cleanupStoredMedia, protectSessionMedia } from "./media-references";
+export { collectMediaStorageKeys } from "@/lib/media-references";
 
 export type UploadedFile = { url: string; storageKey: string; bytes: number; mimeType: string; width?: number; height?: number; durationMs?: number };
 
 const store = localforage.createInstance({ name: STORAGE_NS, storeName: "media_files" });
 const objectUrls = new Map<string, string>();
 
-export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
-    const blob = typeof input === "string" ? await (await fetch(withLocalProxy(input))).blob() : input;
+async function uploadMediaFileOwned(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
+    const blob = typeof input === "string" ? await (await proxyFetch(withLocalProxy(input))).blob() : input;
     const storageKey = `${prefix}:${nanoid()}`;
+    await protectSessionMedia(storageKey);
     await store.setItem(storageKey, blob);
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
@@ -35,14 +39,15 @@ export async function getMediaBlob(storageKey: string) {
     return store.getItem<Blob>(storageKey);
 }
 
-export async function setMediaBlob(storageKey: string, blob: Blob) {
+async function setMediaBlobOwned(storageKey: string, blob: Blob) {
+    await protectSessionMedia(storageKey);
     await store.setItem(storageKey, blob);
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
     return url;
 }
 
-export async function deleteStoredMedia(keys: Iterable<string>) {
+async function deleteStoredMediaOwned(keys: Iterable<string>) {
     await Promise.all(
         Array.from(new Set(keys)).map(async (key) => {
             const url = objectUrls.get(key);
@@ -53,23 +58,9 @@ export async function deleteStoredMedia(keys: Iterable<string>) {
     );
 }
 
-export async function cleanupUnusedMedia(usedData: unknown) {
-    const usedKeys = collectMediaStorageKeys(usedData);
-    const templates = await canvasIndexedStorage.getItem(storageKey("workflow_templates"));
-    if (templates && !Array.isArray(templates)) throw new Error("模板数据无法读取，已停止清理素材");
-    collectMediaStorageKeys(templates, usedKeys);
-    const unused: string[] = [];
-    await store.iterate((_value, key) => {
-        if (!usedKeys.has(key)) unused.push(key);
-    });
-    await Promise.all(unused.map((key) => store.removeItem(key)));
-}
-
-export function collectMediaStorageKeys(value: unknown, keys = new Set<string>()) {
-    if (!value || typeof value !== "object") return keys;
-    if ("storageKey" in value && typeof value.storageKey === "string" && value.storageKey.includes(":")) keys.add(value.storageKey);
-    Object.values(value).forEach((item) => (Array.isArray(item) ? item.forEach((child) => collectMediaStorageKeys(child, keys)) : collectMediaStorageKeys(item, keys)));
-    return keys;
+async function cleanupUnusedMediaOwned(usedData: unknown) {
+    await store.ready();
+    await cleanupStoredMedia("media_files", usedData);
 }
 
 function readVideoMeta(url: string) {
@@ -91,3 +82,11 @@ function readAudioMeta(url: string) {
         audio.src = url;
     });
 }
+
+export const uploadMediaFile = businessOperation(uploadMediaFileOwned);
+
+export const setMediaBlob = businessOperation(setMediaBlobOwned);
+
+export const deleteStoredMedia = businessOperation(deleteStoredMediaOwned);
+
+export const cleanupUnusedMedia = businessOperation(cleanupUnusedMediaOwned);

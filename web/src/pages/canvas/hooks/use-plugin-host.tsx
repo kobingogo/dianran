@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { App, Modal } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { requestEdit, requestGeneration, requestImageQuestion, type AiTextMessage } from "@/services/api/image";
@@ -9,6 +10,11 @@ import { buildGenerationConfig } from "@/lib/canvas/canvas-generation-helpers";
 import { buildNodeContext } from "@/lib/canvas/plugin-node-context";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { ensurePluginsLoaded } from "@/lib/canvas/plugin-loader";
+import { planWorkflow } from "@/lib/canvas/workflow";
+import { useWorkflowStore } from "@/stores/canvas/use-workflow-store";
+import { useAgentStore } from "@/stores/use-agent-store";
+import { imageToolsPlugin } from "@/lib/canvas/image-tools-plugin";
+import { showErrorToast } from "@/features/errors/error-toast";
 import { canvasThemes } from "@/lib/canvas-theme";
 import type { CanvasNodeToolbarItem, CanvasPluginAi, CanvasPluginHost } from "@/types/canvas-plugin";
 import type { ReferenceImage } from "@/types/image";
@@ -36,6 +42,8 @@ type PluginHostParams = {
  */
 export function usePluginHost(params: PluginHostParams) {
     const { t } = useTranslation();
+    const { message } = App.useApp();
+    const [toolInput, setToolInput] = useState<string>();
     const { effectiveConfig, isAiConfigReady, openConfigDialog, theme, nodesRef, connectionsRef, viewportRef, setNodes, setDialogNodeId, applyAgentOps } = params;
 
     // Host capabilities available to plugin nodes; methods receive nodeId and are not bound to a specific node.
@@ -108,10 +116,18 @@ export function usePluginHost(params: PluginHostParams) {
             updateMetadata: (nodeId, patch) => setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, ...patch } } : node))),
             applyOps: (ops) => applyAgentOps(ops),
             ai: pluginAi,
+            previewWorkflow: (nodeId, parameters) => {
+                const projectId = useAgentStore.getState().canvasContext?.getSnapshot().projectId;
+                if (!projectId) throw new Error("请先打开画布");
+                const nodes = parameters ? nodesRef.current.map((node) => node.id === nodeId ? { ...node, metadata: { ...node.metadata, pluginActionParameters: parameters } } : node) : nodesRef.current;
+                const plan = planWorkflow(nodes, connectionsRef.current, [nodeId], effectiveConfig);
+                if (parameters) setNodes((previous) => previous.map((node) => node.id === nodeId ? { ...node, metadata: { ...node.metadata, pluginActionParameters: parameters } } : node));
+                useWorkflowStore.setState({ panelOpen: true, proposal: { projectId, plan } });
+            },
             openPanel: (nodeId) => setDialogNodeId(nodeId),
             closePanel: () => setDialogNodeId(null),
         }),
-        [applyAgentOps, pluginAi],
+        [applyAgentOps, pluginAi, effectiveConfig],
     );
 
     const renderPluginPanel = useCallback(
@@ -129,7 +145,8 @@ export function usePluginHost(params: PluginHostParams) {
         (node: CanvasNodeData): CanvasNodeToolbarItem[] => {
             const definition = getNodeDefinition(node.type);
             const ctx = buildNodeContext(pluginHost, node, theme, viewportRef.current.k);
-            const custom = definition?.toolbar?.(ctx) || [];
+            const custom = [...(definition?.toolbar?.(ctx) || [])];
+            if (node.type === "image" && node.metadata?.storageKey) custom.push({ id: "image-tools", title: "素材处理与交付", label: "素材处理", icon: "✂", onClick: () => setToolInput(node.id) });
             // Show the interaction/move toggle only for nodes with content that are not forced into an interactive state.
             if (!definition?.interactionToggle || !node.metadata?.content || definition.forceInteractive?.(node)) return custom;
             const interactive = Boolean(node.metadata?.interactive);
@@ -151,5 +168,14 @@ export function usePluginHost(params: PluginHostParams) {
         void ensurePluginsLoaded();
     }, []);
 
-    return { pluginHost, renderPluginPanel, buildNodeToolbarItems };
+    const imageToolsDialog = <Modal title="素材处理与交付" open={Boolean(toolInput)} onCancel={() => setToolInput(undefined)} footer={null}>
+        <p className="mb-3 text-xs" style={{ color: theme.node.muted }}>选择工具后创建独立处理节点并连接这张原图；填写参数、预览后执行，保留原作品。</p>
+        <div className="grid grid-cols-2 gap-2">{imageToolsPlugin.nodes.map((definition) => <button key={definition.type} className="rounded p-3 text-left hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} onClick={() => {
+            const source = nodesRef.current.find((node) => node.id === toolInput);
+            if (!source) { message.error("原图节点已不存在"); return; }
+            const id = crypto.randomUUID();
+            void Promise.resolve(applyAgentOps([{ type: "add_node", id, nodeType: definition.type, position: { x: source.position.x + source.width + 80, y: source.position.y }, metadata: definition.defaultMetadata }, { type: "connect_nodes", fromNodeId: source.id, toNodeId: id }, { type: "select_nodes", ids: [id] }])).then(() => setToolInput(undefined)).catch((error) => showErrorToast(message, error));
+        }}>{definition.title}</button>)}</div>
+    </Modal>;
+    return { pluginHost, renderPluginPanel, buildNodeToolbarItems, imageToolsDialog };
 }

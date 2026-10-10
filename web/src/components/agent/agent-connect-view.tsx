@@ -78,31 +78,8 @@ export function AgentConnectView({
                 <div>
                     <div className="text-base font-semibold leading-6">{t("agent.connect.title")}</div>
                     <div className="mt-1 text-xs leading-5" style={{ color: theme.node.muted }}>
-                        {t("agent.connect.description")}
+                        连接后回到模型菜单选择 Codex 模型，再在输入框提交创作。选择来源不会自动启动本机服务。
                     </div>
-                </div>
-                <div className="space-y-2">
-                    {steps.map((step, index) => {
-                        return (
-                            <Fragment key={step.title}>
-                                <div className="rounded-lg px-3 py-2.5">
-                                    <div className="text-sm font-medium leading-5">{step.title}</div>
-                                    <div className="mt-1 text-xs leading-5" style={{ color: theme.node.muted }}>
-                                        {step.text}
-                                    </div>
-                                    {step.commands.map((command) => (
-                                        <div key={command} className="mt-2 flex items-center gap-2 rounded-md border bg-transparent px-2 py-1.5" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
-                                            <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-[11px] leading-5">{command}</code>
-                                            <Tooltip title={t("agent.connect.copyCommand")}>
-                                                <Button size="small" type="text" className="!h-6 !w-6 !min-w-6" icon={<Copy className="size-3.5" />} onClick={() => copyCommand(command)} />
-                                            </Tooltip>
-                                        </div>
-                                    ))}
-                                </div>
-                                {index === 0 ? codexPluginReminder : null}
-                            </Fragment>
-                        );
-                    })}
                 </div>
                 <div className="rounded-lg border p-3" style={{ borderColor: theme.node.stroke }}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -155,6 +132,32 @@ export function AgentConnectView({
                         ) : null}
                     </div>
                 </div>
+                <details className="text-xs" style={{ color: theme.node.muted }}>
+                    <summary className="cursor-pointer py-2">首次使用？安装插件或手动启动 Agent</summary>
+                <div className="space-y-2">
+                    {steps.map((step, index) => {
+                        return (
+                            <Fragment key={step.title}>
+                                <div className="rounded-lg px-3 py-2.5">
+                                    <div className="text-sm font-medium leading-5">{step.title}</div>
+                                    <div className="mt-1 text-xs leading-5" style={{ color: theme.node.muted }}>
+                                        {step.text}
+                                    </div>
+                                    {step.commands.map((command) => (
+                                        <div key={command} className="mt-2 flex items-center gap-2 rounded-md border bg-transparent px-2 py-1.5" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+                                            <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap text-[11px] leading-5">{command}</code>
+                                            <Tooltip title={t("agent.connect.copyCommand")}>
+                                                <Button size="small" type="text" className="!h-6 !w-6 !min-w-6" icon={<Copy className="size-3.5" />} onClick={() => copyCommand(command)} />
+                                            </Tooltip>
+                                        </div>
+                                    ))}
+                                </div>
+                                {index === 0 ? codexPluginReminder : null}
+                            </Fragment>
+                        );
+                    })}
+                </div>
+                </details>
             </div>
         </div>
     );

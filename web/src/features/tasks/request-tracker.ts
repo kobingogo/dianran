@@ -35,7 +35,7 @@ function readModel(body: unknown): string {
     return "";
 }
 
-export function classifyRequest(method: string, rawUrl: string, body?: unknown): Classified | null {
+function classifyObservedRequest(method: string, rawUrl: string, body?: unknown): Classified | null {
     const url = targetUrl(rawUrl);
     if (!url || url.origin === window.location.origin) return null;
     if (/^(127\.0\.0\.1|localhost)$/.test(url.hostname) && url.port === "17371") return null; // local agent
@@ -59,17 +59,25 @@ export function classifyRequest(method: string, rawUrl: string, body?: unknown):
     return null;
 }
 
+export function classifyRequest(method: string, rawUrl: string, body?: unknown): Classified | null {
+    const info = classifyObservedRequest(method, rawUrl, body);
+    if (info && useTaskStore.getState().tasks.some((task) => task.managed && task.kind === info.kind && task.sourcePath === window.location.pathname && !task.endedAt)) return null;
+    return info;
+}
+
 const store = () => useTaskStore.getState();
 
 function startTask(info: Classified): string {
     const now = Date.now();
-    const task: GenerationTask = { id: nanoid(), kind: info.kind, model: info.model, host: info.host, phase: "requesting", startedAt: now, updatedAt: now };
+    const path = window.location.pathname;
+    const sourcePath = /^\/(?:|image|video|canvas\/[^/]+)$/.test(path) ? path : undefined;
+    const task: GenerationTask = { id: nanoid(), kind: info.kind, model: info.model, host: info.host, sourcePath, phase: "requesting", startedAt: now, updatedAt: now };
     store().add(task);
     return task.id;
 }
 
 function findVideoTask(rawUrl: string) {
-    return store().tasks.find((task) => task.kind === "video" && task.remoteId && rawUrl.includes(task.remoteId) && !task.endedAt);
+    return store().tasks.find((task) => !task.managed && task.kind === "video" && task.remoteId && rawUrl.includes(task.remoteId) && !task.endedAt);
 }
 
 function remoteIdOf(payload: unknown): string {
@@ -109,7 +117,7 @@ function finishCreate(id: string, kind: TaskKind, status: number, bodyText: stri
     if (status >= 400 || status === 0) {
         const payload = bodyText ? safeJson(bodyText) : null;
         const message = payload && typeof payload === "object" ? extractMessage(payload) : bodyText?.slice(0, 300) || "";
-        store().update(id, { phase: "failed", status, error: message || `HTTP ${status}`, endedAt: Date.now() });
+        store().update(id, { phase: status >= 400 && status < 500 && status !== 408 ? "failed" : "unknown", status, error: message || `HTTP ${status}`, endedAt: Date.now() });
         return;
     }
     if (kind === "video") {
@@ -118,6 +126,10 @@ function finishCreate(id: string, kind: TaskKind, status: number, bodyText: stri
         const state = remoteStatusOf(payload);
         if (remoteId && state.phase !== "done") {
             store().update(id, { phase: state.phase === "failed" ? "failed" : "queued", remoteId, status, progress: state.progress, error: state.error, ...(state.phase === "failed" ? { endedAt: Date.now() } : {}) });
+            return;
+        }
+        if (!remoteId && state.phase !== "done") {
+            store().update(id, { phase: state.phase === "failed" ? "failed" : "unknown", status, error: state.error || "渠道响应未包含可查询的任务 ID", endedAt: Date.now() });
             return;
         }
     }
@@ -151,7 +163,7 @@ function handlePoll(rawUrl: string, status: number, bodyText: string | null) {
     store().update(task.id, patch);
 }
 
-function markFailed(id: string, error: string, phase: TaskPhase = "failed") {
+function markFailed(id: string, error: string, phase: TaskPhase = "unknown") {
     store().update(id, { phase, error, endedAt: Date.now() });
 }
 
@@ -165,7 +177,7 @@ export function installRequestTracker() {
     window.setInterval(() => {
         const now = Date.now();
         for (const task of store().tasks) {
-            if (!task.endedAt && now - task.updatedAt > STALE_AFTER_MS) store().update(task.id, { phase: "stale", endedAt: now });
+            if (!task.managed && !task.endedAt && now - task.updatedAt > STALE_AFTER_MS) store().update(task.id, { phase: "unknown", endedAt: now });
         }
     }, 30_000);
 }
@@ -194,7 +206,7 @@ function patchXhr() {
                 xhr.addEventListener("load", () => finishCreate(id, info.kind, xhr.status, xhr.responseType === "" || xhr.responseType === "text" ? xhr.responseText : null));
                 xhr.addEventListener("error", () => markFailed(id, "Network Error"));
                 xhr.addEventListener("timeout", () => markFailed(id, "timeout"));
-                xhr.addEventListener("abort", () => markFailed(id, "canceled", "canceled"));
+                xhr.addEventListener("abort", () => markFailed(id, "已停止本地等待，远端任务状态未知", "unknown"));
             } else {
                 const xhr = this;
                 xhr.addEventListener("load", () => {
@@ -228,7 +240,7 @@ function patchFetch() {
         if (id && signal) {
             signal.addEventListener("abort", () => {
                 const task = store().tasks.find((item) => item.id === id);
-                if (task && !task.endedAt) markFailed(id, "canceled", "canceled");
+                if (task && !task.endedAt) markFailed(id, "已停止本地等待，远端任务状态未知", "unknown");
             });
         }
         let response: Response;
@@ -236,7 +248,7 @@ function patchFetch() {
             response = await original(input, init);
         } catch (error) {
             const aborted = error instanceof DOMException && error.name === "AbortError";
-            if (id) markFailed(id, aborted ? "canceled" : error instanceof Error ? error.message : "Network Error", aborted ? "canceled" : "failed");
+            if (id) markFailed(id, aborted ? "canceled" : error instanceof Error ? error.message : "Network Error", "unknown");
             throw error;
         }
         try {

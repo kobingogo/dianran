@@ -2,8 +2,8 @@
   "id": "product-set",
   "title": "产品图组",
   "titleEn": "Product photo set",
-  "description": "描述一次产品，生成白底主图、使用场景、细节特写和生活方式四张电商图。",
-  "descriptionEn": "Describe the product once and get a white-background hero, an in-use scene, a detail close-up and a lifestyle shot.",
+  "description": "上传自己的产品参考图，修改描述，再预览主图与延展；输出主体一致性仍需人工比较。",
+  "descriptionEn": "Upload your own product reference, edit the brief and review generation. Compare outputs to assess consistency.",
   "tags": [
     "电商",
     "产品"
@@ -86,5 +86,11 @@
       "product",
       "lifestyle"
     ]
+  ],
+  "referenceTargets": [
+    "hero",
+    "scene",
+    "detail",
+    "lifestyle"
   ]
 }

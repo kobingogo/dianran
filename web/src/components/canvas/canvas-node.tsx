@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
+import { Modal } from "antd";
+import { recordLocalDiagnostic } from "@/stores/use-local-diagnostics-store";
 import { ChevronRight, Copy, Download, Group, Image as ImageIcon, Music2, Puzzle, RefreshCw, Star, Trash2, Video } from "lucide-react";
 
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -320,6 +322,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onHoverEnd(data.id);
             }}
             onMouseDownCapture={(event) => {
+                if (!event.currentTarget.contains(event.target as Node)) return;
                 if (!referenceSelectionState) onSelectCapture?.(event, data.id);
             }}
             onContextMenu={(event) => {
@@ -372,6 +375,7 @@ export const CanvasNode = React.memo(function CanvasNode({
                     boxShadow: isGroupDropTarget ? `0 0 0 2px ${selectionBlue}66, inset 0 0 0 999px ${selectionBlue}10` : isActive ? `0 0 0 1px ${selectionBlue}55` : isRelated ? `0 0 0 1px ${theme.node.muted}55, 0 18px 48px rgba(0,0,0,.14)` : isGroup || transparentBg ? undefined : "var(--sh-1)",
                 }}
                 onMouseDown={(event) => {
+                    if (!event.currentTarget.contains(event.target as Node)) return;
                     if (!referenceSelectionState) onMouseDown(event, data.id);
                     else if (event.button === 0 && referenceSelectionState === "available") {
                         event.stopPropagation();
@@ -433,6 +437,9 @@ export const CanvasNode = React.memo(function CanvasNode({
                 </div>
 
                 {showImageInfo && hasImageContent ? <ImageInfoBar node={data} /> : null}
+                {isSelected && data.metadata?.saveError && <div role="alert" className="absolute left-0 top-full z-[65] mt-2 max-w-full text-xs" style={{ color: theme.node.text, background: theme.toolbar.panel }} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+                    <p className="line-clamp-2">{data.metadata.saveError}</p><button type="button" className="py-1 hover:bg-black/5 dark:hover:bg-white/10" onClick={() => window.dispatchEvent(new CustomEvent("dianran:retry-canvas-save", { detail: data.id }))}>重试保存，不重新生成</button>
+                </div>}
 
                 {!isGroup && !hasImageContent && !hasVideoContent && !hasAudioContent ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12" style={{ background: `linear-gradient(to top, ${theme.canvas.background}66, transparent)` }} /> : null}
 
@@ -460,7 +467,7 @@ function NodeContent(props: NodeContentRendererProps) {
     if (props.node.type === CanvasNodeType.Config && props.renderNodeContent) return props.renderNodeContent(props.node);
     if (props.isBatchRoot && props.node.type === CanvasNodeType.Image) return <ImageNodeContent {...props} />;
     if (props.node.type === CanvasNodeType.Text && props.node.metadata?.texts?.length && (props.node.metadata.status !== "error" || props.node.metadata.texts.some((text) => text.content))) return <TextContent {...props} />;
-    if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} kind={taskKindOf(props.node.type)} />;
+    if (props.node.metadata?.status === "loading") return <LoadingContent theme={props.theme} taskId={props.node.metadata.generationTaskId} nodeId={props.node.id} kind={taskKindOf(props.node.type)} />;
     if (props.node.metadata?.status === "error") return <ErrorContent node={props.node} theme={props.theme} onRetry={props.onRetry} />;
 
     const Renderer = nodeContentRenderers[props.node.type as CanvasNodeType];
@@ -503,8 +510,8 @@ function taskKindOf(type: string): TaskKind {
     return type === "video" || type === "text" || type === "audio" ? type : "image";
 }
 
-function LoadingContent({ theme, kind }: Pick<NodeContentRendererProps, "theme"> & { kind: TaskKind }) {
-    return <GenerationStatus kind={kind} color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} />;
+function LoadingContent({ theme, kind, taskId, nodeId }: Pick<NodeContentRendererProps, "theme"> & { kind: TaskKind; taskId?: string; nodeId?: string }) {
+    return <GenerationStatus kind={kind} taskId={taskId} nodeId={nodeId} color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} />;
 }
 
 function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "node" | "theme" | "onRetry">) {
@@ -533,7 +540,7 @@ function MissingPluginContent({ theme, type }: Pick<NodeContentRendererProps, "t
     );
 }
 
-function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, batchExpanded, onContentChange, onStopEditing, onToggleBatch, onSetBatchPrimary }: NodeContentRendererProps) {
+function TextContent({ node, theme, isEditingContent, textareaRef, mentionReferences, batchExpanded, onContentChange, onStopEditing, onToggleBatch, onSetBatchPrimary, onRetry }: NodeContentRendererProps) {
     const { t } = useTranslation();
     const fontSize = node.metadata?.fontSize || 14;
     const textStyle = { fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.65)}px`, color: theme.node.text, boxSizing: "border-box" } as React.CSSProperties;
@@ -575,7 +582,7 @@ function TextContent({ node, theme, isEditingContent, textareaRef, mentionRefere
                         {content}
                     </div>
                 ) : primaryText ? (
-                    <TextSlotStatus text={primaryText} />
+                    <TextSlotStatus text={primaryText} taskId={node.metadata?.generationTaskId} />
                 ) : (
                     <div className="p-4 font-mono" style={{ color: theme.node.placeholder }}>
                         {t("canvas.node.editText")}
@@ -599,6 +606,11 @@ function TextContent({ node, theme, isEditingContent, textareaRef, mentionRefere
                     <ChevronRight className={`size-3.5 opacity-80 transition-transform ${batchExpanded ? "rotate-90" : ""}`} />
                 </button>
             ) : null}
+            {node.metadata?.workflowStep && node.metadata.status === "error" && onRetry && (
+                <button type="button" className="absolute bottom-2 right-2 z-30 px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} onClick={(event) => (event.stopPropagation(), onRetry(node))} onPointerDown={(event) => event.stopPropagation()}>
+                    重试未成功文本
+                </button>
+            )}
         </BatchFrame>
     );
 }
@@ -645,20 +657,20 @@ function ExpandedTextCard({ node, text, index, onSetPrimary }: { node: CanvasNod
                     </button>
                 </>
             ) : (
-                <TextSlotStatus text={text} />
+                <TextSlotStatus text={text} taskId={node.metadata?.generationTaskId} />
             )}
         </div>
     );
 }
 
-function TextSlotStatus({ text }: { text: CanvasNodeText }) {
+function TextSlotStatus({ text, taskId }: { text: CanvasNodeText; taskId?: string }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
     const failed = text.status === "error";
     const loading = text.status === "loading";
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: theme.node.fill, color: failed ? theme.node.text : theme.node.activeStroke }}>
-            {failed ? <FriendlyErrorView error={text.errorDetails || t("canvas.node.failed")} color={theme.node.text} mutedColor={theme.node.muted} compact /> : loading ? <GenerationStatus kind="text" color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} /> : <span className="text-xs">{t("apiErrors.noContent")}</span>}
+            {failed ? <FriendlyErrorView error={text.errorDetails || t("canvas.node.failed")} color={theme.node.text} mutedColor={theme.node.muted} compact /> : loading ? <GenerationStatus kind="text" taskId={taskId} color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} /> : <span className="text-xs">{t("apiErrors.noContent")}</span>}
         </div>
     );
 }
@@ -752,6 +764,7 @@ function ImageContent({
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
+    const [comparing, setComparing] = useState(false);
     const images = node.metadata?.images || [];
     const batchCount = images.length;
     const isBatchRoot = batchCount > 1;
@@ -773,10 +786,27 @@ function ImageContent({
 
     return (
         <BatchFrame batchCount={batchCount} batchExpanded={batchExpanded}>
+            <Modal title="比较候选并采用主图" open={comparing} onCancel={() => setComparing(false)} footer={null} width="min(1100px, 92vw)" styles={{ container: { background: theme.toolbar.panel, color: theme.node.text } }}>
+                <div onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+                    <p className="mb-3 text-xs" style={{ color: theme.node.muted }}>采用会更新当前图组主图；继续编辑或尺寸延展将使用这张参考。主体一致性由实际模型与参考条件决定。</p>
+                    <details className="mb-3 text-xs"><summary>查看这组候选的生成条件</summary><p className="mt-2">模型：{node.metadata?.model || "未记录"}；请求尺寸：{node.metadata?.size || "未记录"}；质量：{node.metadata?.quality || "未记录"}</p><p className="mt-1 whitespace-pre-wrap">提示词：{node.metadata?.prompt || "未记录"}</p><p className="mt-1">参考与来源请查看生成配置及画布连线。仅有提示词时可用于获取灵感；按原条件尝试还需原参考与模型。</p></details>
+                    <div className="grid max-h-[70vh] grid-cols-1 gap-4 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
+                        {images.map((image, index) => <div key={image.id} className="space-y-2">
+                            {image.content ? <img src={image.content} alt={`候选 ${index + 1}`} className="h-56 w-full object-contain" draggable={false} /> : <div className="flex h-56 items-center justify-center"><ImageSlotStatus image={image} taskId={node.metadata?.generationTaskId} /></div>}
+                            <div className="flex items-center justify-between text-xs"><span>候选 {index + 1} · {image.naturalWidth || "?"} × {image.naturalHeight || "?"}</span><span>{image.id === primaryImageId ? "当前主图" : "候选"}</span></div>
+                            {image.content && <div className="flex flex-wrap gap-2 text-xs">
+                                <button type="button" disabled={image.id === primaryImageId} className="px-2 py-1 hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50" onClick={() => { onSetBatchPrimary?.(image.id); recordLocalDiagnostic("candidate-adopted"); }}>采用为主图</button>
+                                <button type="button" className="px-2 py-1 hover:bg-black/5 dark:hover:bg-white/10" onClick={() => { onDuplicateBatchImage?.(image.id); setComparing(false); }}>创建分支副本</button>
+                                <button type="button" className="px-2 py-1 hover:bg-black/5 dark:hover:bg-white/10" onClick={() => onViewBatchImage?.(image.id)}>查看原图</button>
+                            </div>}
+                        </div>)}
+                    </div>
+                </div>
+            </Modal>
             {batchExpanded
                 ? images
                       .filter((image) => image.id !== primaryImageId)
-                      .map((image, index) => <ExpandedImageCard key={image.id} node={node} image={image} index={index} scale={scale} onView={() => onViewBatchImage?.(image.id)} onSetPrimary={() => onSetBatchPrimary?.(image.id)} onDuplicate={() => onDuplicateBatchImage?.(image.id)} onDownload={() => onDownloadBatchImage?.(image.id)} onRetry={() => onRetryBatchImage?.(image.id)} onDelete={() => onDeleteBatchImage?.(image.id)} />)
+                      .map((image, index) => <ExpandedImageCard key={image.id} node={node} image={image} index={index} scale={scale} onView={() => onViewBatchImage?.(image.id)} onSetPrimary={() => { onSetBatchPrimary?.(image.id); recordLocalDiagnostic("candidate-adopted"); }} onDuplicate={() => onDuplicateBatchImage?.(image.id)} onDownload={() => onDownloadBatchImage?.(image.id)} onRetry={() => onRetryBatchImage?.(image.id)} onDelete={() => onDeleteBatchImage?.(image.id)} />)
                 : null}
             <div className="h-full w-full overflow-hidden rounded-[14px]">
                 {primaryContent ? (
@@ -788,7 +818,7 @@ function ImageContent({
                         className={`pointer-events-none block h-full w-full select-none ${node.metadata?.freeResize ? "object-fill" : "object-contain"}`}
                     />
                 ) : (
-                    <ImageSlotStatus image={primaryImage} />
+                    <ImageSlotStatus image={primaryImage} taskId={node.metadata?.generationTaskId} />
                 )}
             </div>
             {primaryImage?.status === "error" ? <BatchImageFailureActions placement="left" onRetry={() => onRetryBatchImage?.(primaryImage.id)} onDelete={() => onDeleteBatchImage?.(primaryImage.id)} /> : null}
@@ -798,6 +828,7 @@ function ImageContent({
                     {t("common.download")}
                 </button>
             ) : null}
+            {isBatchRoot && <button type="button" className="absolute bottom-2.5 right-2.5 z-30 px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.toolbar.activeText }} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setComparing(true); }}>比较并采用</button>}
             {isBatchRoot ? (
                 <button
                     type="button"
@@ -869,7 +900,7 @@ function ExpandedImageCard({ node, image, index, scale, onView, onSetPrimary, on
                 onView();
             }}
         >
-            {image.content ? <img src={source} alt={node.title} draggable={false} className="pointer-events-none h-full w-full select-none object-contain" /> : <ImageSlotStatus image={image} />}
+            {image.content ? <img src={source} alt={node.title} draggable={false} className="pointer-events-none h-full w-full select-none object-contain" /> : <ImageSlotStatus image={image} taskId={node.metadata?.generationTaskId} />}
             {image.content ? (
                 <div className="pointer-events-none absolute inset-x-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/node:pointer-events-auto group-hover/node:opacity-100">
                     <button type="button" className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-medium shadow-[0_6px_18px_rgba(15,23,42,.16)] backdrop-blur-md transition hover:scale-[1.02]" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.activeText }} title={t("common.download")} onClick={(event) => (event.stopPropagation(), onDownload())}>
@@ -907,13 +938,13 @@ function BatchImageFailureActions({ placement, onRetry, onDelete }: { placement:
     );
 }
 
-function ImageSlotStatus({ image }: { image?: CanvasNodeImage }) {
+function ImageSlotStatus({ image, taskId }: { image?: CanvasNodeImage; taskId?: string }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
     const failed = image?.status === "error";
     return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: theme.node.fill, color: failed ? theme.node.text : theme.node.activeStroke }}>
-            {failed ? <FriendlyErrorView error={image.errorDetails || t("canvas.node.failed")} color={theme.node.text} mutedColor={theme.node.muted} compact /> : <GenerationStatus kind="image" color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} />}
+            {failed ? <FriendlyErrorView error={image.errorDetails || t("canvas.node.failed")} color={theme.node.text} mutedColor={theme.node.muted} compact /> : <GenerationStatus kind="image" taskId={taskId} color={theme.node.activeStroke} mutedColor={theme.node.muted} trackColor={theme.node.stroke} />}
         </div>
     );
 }

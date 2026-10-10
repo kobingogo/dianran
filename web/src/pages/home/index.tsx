@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import copy from "copy-to-clipboard";
 
 import { showcaseItems } from "@/pages/home/showcase";
-import { InkButton } from "@/components/ui/ink-button";
 import { InkChip } from "@/components/ui/chip";
 import { hasUsableChannel, useOnboardingStore } from "@/features/onboarding/onboarding-store";
 import { Composer } from "@/components/composer/composer";
@@ -19,6 +18,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import { TemplateGallery } from "@/pages/home/template-gallery";
 import { BRAND } from "@/constant/brand";
+import { useCapabilityReadiness } from "@/stores/use-capability-evidence-store";
 
 const base = import.meta.env.BASE_URL || "/";
 const ALBUM = [
@@ -69,14 +69,15 @@ export default function IndexPage() {
     const mode = useComposerStore((state) => state.mode);
     const setMode = useComposerStore((state) => state.setMode);
     const setPrompt = (prompt: string) => useComposerStore.getState().patch(mode, { prompt });
-    const [setupOpen, setSetupOpen] = useState(false);
     const config = useConfigStore((state) => state.config);
-    const updateConfig = useConfigStore((state) => state.updateConfig);
+    const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const recent = useRecentCanvases();
-    const connected = hasUsableChannel(config);
-    const channelName = config.channels.find((channel) => channel.baseUrl.trim() && channel.apiKey.trim() && channel.models.length)?.name;
+    const selectedModel = mode === "image" ? config.imageModel || config.model : config.videoModel;
+    const readiness = useCapabilityReadiness(config, mode, selectedModel || "");
+    const modeReady = readiness.ready;
+    const configuredChannel = hasUsableChannel(config);
     // [dianran] Local showcase instead of remote prompt sources (raw.githubusercontent.com is unreliable in mainland China).
     const locale = i18n.resolvedLanguage === "en-US" ? "en-US" : "zh-CN";
     const promptShowcase = showcaseItems.map((item) => ({ ...item, title: item.title[locale], coverUrl: item.cover }));
@@ -86,8 +87,9 @@ export default function IndexPage() {
     };
     const submitting = useRef(false);
     const submit = async (draft: ComposerSubmission) => {
-        if (!connected) {
-            setSetupOpen(true);
+        if (!modeReady) {
+            if (configuredChannel) openConfigDialog(false, "channels");
+            else useOnboardingStore.getState().show({ reason: "missing-key" });
             return;
         }
         const model = draft.parameters[draft.mode === "image" ? "imageModel" : "videoModel"];
@@ -119,15 +121,15 @@ export default function IndexPage() {
             />
             <section className="relative mx-auto min-h-full max-w-[1280px] px-5 sm:px-10 lg:px-16">
                 <div className="flex h-14 items-center justify-end gap-2.5 sm:h-16">
-                    {connected ? (
+                    {modeReady ? (
                         <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--paper-0)] px-3 text-[12.5px] text-[color:var(--ink-700)]">
                             <span className="size-2 rounded-full bg-[var(--ok)]" />
-                            已连接 · {channelName}
+                            {readiness.label}
                         </span>
                     ) : (
-                        <InkChip onClick={() => useOnboardingStore.getState().show({ reason: "manual" })}>
-                            <span className="size-2 rounded-full bg-[var(--warn)]" />
-                            未配置模型 · 去配置
+                        <InkChip onClick={() => configuredChannel ? openConfigDialog(false, "channels") : useOnboardingStore.getState().show({ reason: "missing-key" })}>
+                            <span className="size-2 rounded-full bg-[var(--dai-500)]" />
+                            {configuredChannel ? `配置${mode === "image" ? "生图" : "视频"}模型` : "首次配置向导"}
                         </InkChip>
                     )}
                     <InkChip onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="切换浅色 / 深色">
@@ -146,30 +148,16 @@ export default function IndexPage() {
                             </em>
                         </h1>
                         <div className="font-[family-name:var(--font-serif)] text-lg tracking-[0.12em] text-[color:var(--ink-700)] sm:text-[22px]">{t("home.tagline", { defaultValue: BRAND.taglineZh })}</div>
-                        <p className="mt-3 max-w-[520px] text-[15px] leading-7 text-[color:var(--ink-500)]">写下一句话，先出图；满意了，拖进画布继续串联图片、视频与文字。所有密钥与作品只存在你的浏览器里。</p>
+                        <p className="mt-3 max-w-[600px] text-[15px] leading-7 text-[color:var(--ink-500)]">写下一句话，先出图；满意了，送进画布继续串联图片、视频与文字。作品保存在当前浏览器，不会自动云同步；生成时素材与 Key 发往所选渠道。</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-[color:var(--ink-500)]">
+                            <span>离开当前浏览器或更换域名前，请分别备份画布 ZIP 与素材。</span>
+                            <button type="button" className="border-0 bg-transparent p-0 underline underline-offset-2" onClick={() => navigate("/canvas")}>备份画布</button>
+                            <button type="button" className="border-0 bg-transparent p-0 underline underline-offset-2" onClick={() => navigate("/assets")}>导出素材</button>
+                        </div>
 
                         <div className="mt-7">
                             <Composer mode={mode} onModeChange={setMode} onSubmit={(submission) => void submit(submission)} />
                         </div>
-                        {setupOpen && !connected ? (
-                            <div className="mt-3 max-w-[600px] rounded-[var(--r-lg)] border border-[var(--line)] bg-[var(--dai-100)] p-4 text-[color:var(--dai-600)]" role="region" aria-label="配置模型">
-                                <div className="font-[family-name:var(--font-serif)] text-[15px] font-semibold">还差一步：配置一个模型服务</div>
-                                <ol className="mt-2 grid gap-1 pl-0 text-[13px] sm:grid-cols-3">
-                                    {["选择服务商", "填入 API Key", "自动拉取模型"].map((step, index) => (
-                                        <li key={step} className="flex list-none items-center gap-2">
-                                            <span className="grid size-5 place-items-center rounded-full border border-current font-[family-name:var(--font-serif)] text-[11px]">{["一", "二", "三"][index]}</span>
-                                            {step}
-                                        </li>
-                                    ))}
-                                </ol>
-                                <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    <InkButton size={32} variant="ink" onClick={() => useOnboardingStore.getState().show({ reason: "missing-key" })}>
-                                        开始配置（约 1 分钟）
-                                    </InkButton>
-                                    <span className="text-xs opacity-80">Key 只保存在本机浏览器；配置完回来再点「落笔生成」。</span>
-                                </div>
-                            </div>
-                        ) : null}
                         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--ink-400)]">
                             <span>试试：</span>
                             <button type="button" className="ml-auto border-0 bg-transparent text-xs text-[color:var(--ink-500)]" onClick={() => navigate("/canvas?mode=new")}>

@@ -5,11 +5,15 @@ import { saveAs } from "file-saver";
 import { useTranslation } from "react-i18next";
 
 import { useCopyText } from "@/hooks/use-copy-text";
+import { useAssetMutation } from "@/hooks/use-asset-mutation";
+import { AssetSaveStatus } from "@/components/assets/asset-save-status";
+import { showErrorToast } from "@/features/errors/error-toast";
 import { formatBytes, readFileAsDataUrl } from "@/lib/image-utils";
 import { getMediaBlob } from "@/services/file-storage";
 import { getImageBlob, getImagePreviewRevision, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
 import { cn } from "@/lib/utils";
 import { assetCoverUrl, useAssetStore, type Asset, type AssetKind, type ImageAsset } from "@/stores/use-asset-store";
+import { useAssetSaveStore } from "@/stores/use-asset-save-store";
 import { exportAssets, readAssetPackage } from "./asset-transfer";
 
 type AssetFormValues = {
@@ -30,6 +34,7 @@ export default function AssetsPage() {
     const { message } = App.useApp();
     const { t } = useTranslation();
     const copyText = useCopyText();
+    const mutateAsset = useAssetMutation();
     const [form] = Form.useForm<AssetFormValues>();
     const coverInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +43,8 @@ export default function AssetsPage() {
     const addAsset = useAssetStore((state) => state.addAsset);
     const updateAsset = useAssetStore((state) => state.updateAsset);
     const removeAsset = useAssetStore((state) => state.removeAsset);
+    const saveStatus = useAssetSaveStore((state) => state.status);
+    const readFailed = useAssetSaveStore((state) => state.readFailed);
     const [keyword, setKeyword] = useState("");
     const [kindFilter, setKindFilter] = useState<AssetKind | "all">("all");
     const [page, setPage] = useState(1);
@@ -108,20 +115,14 @@ export default function AssetsPage() {
             metadata: editingAsset?.metadata || { source: "manual" },
         };
 
-        if (values.kind === "text") {
-            const asset = { ...base, kind: "text" as const, data: { content: (values.content || "").trim() } };
-            editingAsset ? updateAsset(editingAsset.id, asset) : addAsset(asset);
-        } else {
-            if (!imageDraft) {
-                message.error(t("assets.selectImage"));
-                return;
-            }
-            const asset = { ...base, kind: "image" as const, data: imageDraft };
-            editingAsset ? updateAsset(editingAsset.id, asset) : addAsset(asset);
+        if (values.kind !== "text" && !imageDraft) {
+            message.error(t("assets.selectImage"));
+            return;
         }
-
-        message.success(editingAsset ? t("assets.updated") : t("assets.saved"));
-        setIsAssetOpen(false);
+        const asset = values.kind === "text" ? { ...base, kind: "text" as const, data: { content: (values.content || "").trim() } } : { ...base, kind: "image" as const, data: imageDraft! };
+        const before = useAssetStore.getState().assets;
+        const saved = await mutateAsset(() => editingAsset ? updateAsset(editingAsset.id, asset) : addAsset(asset), editingAsset ? t("assets.updated") : t("assets.saved"));
+        if (saved || useAssetStore.getState().assets !== before) setIsAssetOpen(false);
     };
 
     const readCoverFile = async (file?: File) => {
@@ -164,32 +165,31 @@ export default function AssetsPage() {
             message.warning(t("assets.noneToExport"));
             return;
         }
-        await exportAssets(validAssets, t("assets.packageName"));
+        try { await exportAssets(validAssets, t("assets.packageName")); }
+        catch (error) { showErrorToast(message, error, "素材导出失败，未生成完整素材包"); }
     };
 
     const importAssetZip = async (file?: File) => {
         if (!file) return;
         try {
             const importedAssets = await readAssetPackage(file);
-            importedAssets.forEach((asset) => {
+            await mutateAsset(() => Promise.all(importedAssets.map((asset) => {
                 const payload = { ...asset } as Record<string, unknown>;
                 delete payload.id;
                 delete payload.createdAt;
                 delete payload.updatedAt;
-                addAsset(payload as Parameters<typeof addAsset>[0]);
-            });
-            message.success(t("assets.imported", { count: importedAssets.length }));
-        } catch {
-            message.error(t("assets.importFailed"));
+                return addAsset(payload as Parameters<typeof addAsset>[0]);
+            })), t("assets.imported", { count: importedAssets.length }));
+        } catch (error) {
+            showErrorToast(message, error, t("assets.importFailed"));
         } finally {
             if (assetInputRef.current) assetInputRef.current.value = "";
         }
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!deletingAsset) return;
-        removeAsset(deletingAsset.id);
-        message.success(t("assets.deleted"));
+        await mutateAsset(() => removeAsset(deletingAsset.id), t("assets.deleted"));
         setDeletingAsset(null);
     };
 
@@ -200,6 +200,7 @@ export default function AssetsPage() {
                     <div className="mx-auto max-w-5xl text-center">
                         <h1 className="text-4xl font-semibold tracking-tight text-stone-950 dark:text-stone-100">{t("assets.title")}</h1>
                         <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">{t("assets.description")}</p>
+                        <div className="mt-3"><AssetSaveStatus /></div>
                     </div>
 
                     <div className="mx-auto mt-8 w-full max-w-2xl">
@@ -293,7 +294,7 @@ export default function AssetsPage() {
                 </div>
             </main>
 
-            <Modal title={editingAsset ? t("assets.edit") : t("assets.add")} open={isAssetOpen} width={980} onCancel={() => setIsAssetOpen(false)} onOk={() => void saveAsset()} okText={t("common.save")} cancelText={t("common.cancel")} destroyOnHidden>
+            <Modal title={editingAsset ? t("assets.edit") : t("assets.add")} open={isAssetOpen} width={980} onCancel={() => setIsAssetOpen(false)} onOk={() => void saveAsset()} confirmLoading={saveStatus === "saving"} okButtonProps={{ disabled: saveStatus === "loading" || readFailed }} okText={t("common.save")} cancelText={t("common.cancel")} destroyOnHidden>
                 <div className="grid gap-6 pt-1 lg:grid-cols-[minmax(0,1fr)_320px]">
                     <Form form={form} layout="vertical" requiredMark={false} initialValues={{ kind: "text", tags: [] }}>
                         <Form.Item name="kind" label={t("assets.type")}>

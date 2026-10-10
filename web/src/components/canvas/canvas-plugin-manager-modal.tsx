@@ -4,7 +4,7 @@ import { AlertTriangle, Download, Puzzle, RefreshCw, Trash2 } from "lucide-react
 import { useTranslation } from "react-i18next";
 
 import { canvasThemes } from "@/lib/canvas-theme";
-import { installPluginFromUrl, setPluginEnabled, uninstallPlugin, updatePlugin } from "@/lib/canvas/plugin-loader";
+import { installPluginFromUrl, setPluginEnabled, uninstallPlugin, updatePlugin, type AuthorizePlugin } from "@/lib/canvas/plugin-loader";
 import { fetchOfficialPlugins, hasUpgrade, type OfficialPluginEntry } from "@/lib/canvas/plugin-registry";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { usePluginStore, type InstalledPlugin } from "@/stores/canvas/use-plugin-store";
@@ -13,7 +13,13 @@ import { showErrorToast } from "@/features/errors/error-toast";
 export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     const { t } = useTranslation();
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
+    const authorize: AuthorizePlugin = (review) => new Promise((resolve) => {
+        modal.confirm({ title: "授权安装并执行插件", okText: "授权并执行", cancelText: "取消", width: 720,
+            content: <div className="space-y-2 break-all"><p>插件拥有当前网页权限，可读取本地作品、配置与 Key，并发送网络请求；这不是沙箱。</p><p>来源：{review.url}</p><p>源码：{review.source.length} 字符；SHA-256：{review.digest}</p><p>{review.previousDigest ? (review.previousDigest === review.digest ? "源码未改变" : `源码已改变，原摘要：${review.previousDigest}`) : "首次授权此源码"}</p><details><summary>查看完整源码</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs">{review.source}</pre></details></div>,
+            onOk: () => resolve(true), onCancel: () => resolve(false), afterClose: () => resolve(false),
+        });
+    });
     const plugins = usePluginStore((state) => state.plugins);
     const [url, setUrl] = useState("");
     const [installing, setInstalling] = useState(false);
@@ -49,7 +55,8 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
         if (!target) return;
         setInstalling(true);
         try {
-            const plugin = await installPluginFromUrl(target);
+            const plugin = await installPluginFromUrl(target, { authorize });
+            if (!plugin) return;
             message.success(t("canvas.plugins.installedPlugin", { name: plugin.name }));
             setUrl("");
         } catch (error) {
@@ -62,7 +69,8 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
     const handleInstallOfficial = async (entry: OfficialPluginEntry) => {
         setBusyId(entry.id);
         try {
-            const plugin = await installPluginFromUrl(entry.url, { official: true });
+            const plugin = await installPluginFromUrl(entry.url, { official: true, authorize });
+            if (!plugin) return;
             message.success(t("canvas.plugins.installed", { name: plugin.name }));
         } catch (error) {
             showErrorToast(message, error, t("canvas.plugins.installFailedTitle"));
@@ -71,10 +79,10 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
         }
     };
 
-    const runOnPlugin = async (record: InstalledPlugin, action: () => Promise<void>, successText: string) => {
+    const runOnPlugin = async (record: InstalledPlugin, action: () => Promise<void | boolean>, successText: string) => {
         setBusyId(record.id);
         try {
-            await action();
+            if (await action() === false) return;
             message.success(successText);
         } catch (error) {
             showErrorToast(message, error, t("canvas.plugins.actionFailed"));
@@ -87,8 +95,8 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
     // Highlight the update action when a newer remote version is available.
     const installedControls = (record: InstalledPlugin, upgradable = false) => (
         <>
-            <Switch size="small" checked={record.enabled} loading={busyId === record.id} onChange={(checked) => runOnPlugin(record, () => setPluginEnabled(record, checked), t(checked ? "canvas.plugins.enabled" : "canvas.plugins.disabled"))} />
-            {!record.local && (
+            <Switch size="small" checked={record.enabled} loading={busyId === record.id} onChange={(checked) => runOnPlugin(record, () => setPluginEnabled(record, checked, authorize), t(checked ? "canvas.plugins.enabled" : "canvas.plugins.disabled"))} />
+            {(
                 <>
                     <Button
                         type={upgradable ? "primary" : "text"}
@@ -96,7 +104,7 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
                         icon={<RefreshCw className="size-4" />}
                         loading={busyId === record.id}
                         title={t(upgradable ? "canvas.plugins.upgradeAvailable" : "canvas.plugins.updateFromSource")}
-                        onClick={() => runOnPlugin(record, async () => void (await updatePlugin(record)), t("canvas.plugins.updated"))}
+                        onClick={() => runOnPlugin(record, async () => Boolean(await updatePlugin(record, authorize)), t("canvas.plugins.updated"))}
                     />
                     <Popconfirm title={t("canvas.plugins.uninstallTitle")} okText={t("canvas.plugins.uninstall")} cancelText={t("canvas.editors.cancel")} onConfirm={() => uninstallPlugin(record.id)}>
                         <Button type="text" size="small" danger icon={<Trash2 className="size-4" />} title={t("canvas.plugins.uninstall")} />
@@ -144,6 +152,7 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
                     </div>
                 ) : null}
             </div>
+            {plugins.some((item) => item.id === key) && <Button type="text" size="small" onClick={() => modal.info({ title: "已安装源码快照", width: 720, content: <div className="break-all"><p>{plugins.find((item) => item.id === key)?.url}</p><p>{plugins.find((item) => item.id === key)?.sourceDigest || "尚未授权"}</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs">{plugins.find((item) => item.id === key)?.source}</pre></div> })}>源码</Button>}
             {right}
         </div>
     );
@@ -217,6 +226,7 @@ export function CanvasPluginManagerModal({ open, onClose }: { open: boolean; onC
     return (
         <Modal title={t("canvas.plugins.title")} open={open} onCancel={onClose} footer={null} centered width={640}>
             <div className="space-y-3">
+                <div className="space-y-1 py-2" style={{ color: theme.node.text }}><p>点染素材处理 · 随应用提供</p><p className="text-xs" style={{ color: theme.node.muted }}>去背景、AI 放大、裁剪、尺寸适配、格式转换与打包导出。在画布添加工具节点并连接原图；处理步骤可进入工作流。</p></div>
                 <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-5" style={{ borderColor: "#f59e0b55", background: "#f59e0b14", color: theme.node.text }}>
                     <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
                     <span>{t("canvas.plugins.warning")}</span>

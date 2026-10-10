@@ -25,3 +25,12 @@ test("generation flow still creates a prompt node for prose prompts", () => {
     const config = ops.find((op) => op.type === "add_node" && op.nodeType === "config");
     assert.match(String(config?.metadata?.prompt), /@\[node:text-/);
 });
+
+
+test("registered plugin node metadata survives MCP operation conversion without executing", () => {
+    const parameters = { width: 1200, height: 800, fit: "contain", background: "#ffffff" };
+    const ops = opsOf("canvas_create_node", { nodeType: "dianran-image-tools:resize", metadata: { pluginActionParameters: parameters } });
+    assert.equal(ops[0].nodeType, "dianran-image-tools:resize");
+    assert.deepEqual(ops[0].metadata.pluginActionParameters, parameters);
+    assert.equal(ops.some((op) => op.type === "run_generation"), false);
+});

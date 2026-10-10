@@ -1,3 +1,4 @@
+import { recordCapabilityEvidence } from "@/stores/use-capability-evidence-store";
 // [dianran] 3-step first-run guide: pick provider -> paste key -> auto-fetch models & assign defaults.
 import { useEffect, useMemo, useState } from "react";
 import { App, Button, Input, Modal, Segmented, Select, Steps, Switch, Tag } from "antd";
@@ -128,6 +129,7 @@ export function OnboardingWizard() {
         }
         if (next.imageModel) next.model = next.imageModel;
         (Object.keys(next) as Array<keyof AiConfig>).forEach((key) => state.updateConfig(key, next[key] as never));
+        if (fetchState.status === "done") void recordCapabilityEvidence(channel, "models", "").catch(() => {});
         setFinished(true);
         message.success(t("onboarding.saved", { name: channel.name }));
     };
@@ -377,7 +379,7 @@ export function OnboardingWizard() {
         >
             <div data-onboarding-step={finished ? "done" : step}>
                 {!finished ? <Steps size="small" current={step} className="!mb-5 !mt-2" items={[{ title: t("onboarding.steps.provider") }, { title: t("onboarding.steps.key") }, { title: t("onboarding.steps.models") }]} /> : null}
-                {finished ? done : step === 0 ? stepProvider : step === 1 ? stepKey : stepModels}
+                {finished ? <>{done}<p className="mt-3 text-sm text-stone-500 dark:text-stone-400">已配置{fetchState.status === "done" ? "并读取模型" : ""}，尚未验证生成能力。请选择你要创作的模式，主动提交第一件作品；仅有文本模型不能生图或生成视频。</p></> : step === 0 ? stepProvider : step === 1 ? stepKey : stepModels}
             </div>
         </Modal>
     );

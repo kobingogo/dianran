@@ -244,6 +244,30 @@ if (!additiveOnly) for (const lib of libs) {
     data[lib.id] = keep;
 }
 
+// New items from every source (including GitHub, which only skips an nsfw tag at merge)
+// pass the same content gate before they can be written. Already-published rows are left
+// for the weekly retirement pass; likeness stays strict only for brand-new rows.
+report.contentRejected = [];
+{
+    const excludeAuthors = config("x-watchlist.json").excludeAuthors || [];
+    const addedIds = new Set(report.added.map((a) => a.id));
+    if (addedIds.size) {
+        for (const lib of libs) {
+            const keep = [];
+            for (const item of data[lib.id]) {
+                if (!addedIds.has(item.id)) { keep.push(item); continue; }
+                const reason = contentReject(String(item.prompt || "").toLowerCase(), { author: item.author, excludeAuthors, likeness: true });
+                if (!reason) { keep.push(item); continue; }
+                report.contentRejected.push({ id: item.id, library: lib.id, title: item.title, model: item.model, sourceUrl: item.sourceUrl, reason, prompt: String(item.prompt || "").slice(0, 240) });
+                addedIds.delete(item.id);
+            }
+            data[lib.id] = keep;
+        }
+        report.added = report.added.filter((a) => addedIds.has(a.id));
+        if (report.contentRejected.length) log(`content gate: held ${report.contentRejected.length} new item(s)`);
+    }
+}
+
 // ---------- scoring ----------
 const scores = {};
 for (const lib of libs) for (const item of data[lib.id]) {
