@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: kobingogo/dianran-prompts
+          ref: ${{ vars.PROMPT_CHECK_RESOURCE_REF || 'codex/prompt-published' }}
           path: prompt-resources
       - uses: actions/setup-node@v4
         with:

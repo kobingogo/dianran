@@ -160,7 +160,7 @@ for (const lib of libs.filter((l) => l.source === "github")) {
 }
 
 // ---------- merge X + Civitai candidates ----------
-for (const [libId, file, maxNew] of [["x-trending", "x.json", Infinity], ["civitai-trending", "civitai.json", cfg.civitai.maxNewPerRun]]) {
+for (const [libId, file] of [["x-trending", "x.json"], ["civitai-trending", "civitai.json"]]) {
     const lib = libs.find((l) => l.id === libId);
     const path = resolve(CANDIDATE_DIR, file);
     if (!existsSync(path)) { log(`${libId}: no candidates file`); continue; }
@@ -176,7 +176,7 @@ for (const [libId, file, maxNew] of [["x-trending", "x.json", Infinity], ["civit
         fresh.push({ ...cand, status: "active" });
     }
     const accepted = [];
-    await pool(fresh.slice(0, maxNew === Infinity ? fresh.length : maxNew), 6, async (item) => {
+    await pool(fresh, 6, async (item) => {
         if (await addWithCover(item)) accepted.push(item);
     });
     for (const item of accepted) {
