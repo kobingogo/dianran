@@ -4,6 +4,7 @@ async(page)=>{
   await page.goto('http://127.0.0.1:4317/image');
   await page.evaluate(async () => { window.testWriteOwnership = (await import('/src/lib/write-ownership.ts')).writeOwnership; });
   await page.waitForFunction(() => window.testWriteOwnership.canWrite());
+  await page.getByRole('textbox',{name:'提示词',exact:true}).waitFor();
   const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=32;c.height=32;c.getContext('2d').fillRect(0,0,32,32);return c.toDataURL('image/png').split(',')[1];});
   const bodies=[];
   await page.unroute('https://retry-mock.example/**');
@@ -17,10 +18,12 @@ async(page)=>{
     const {useConfigStore,defaultConfig}=await import('/src/stores/use-config-store.ts');
     const config={...defaultConfig,count:'1',size:'1:1',channels:[{id:'retry',name:'mock',baseUrl:'https://retry-mock.example/v1',apiKey:'mock-key',apiFormat:'openai',models:[{name:'gpt-image-1',capability:'image'}]}],imageModel:'retry::gpt-image-1',model:'retry::gpt-image-1'};
     useConfigStore.setState({config});
-    const {createComposerSubmission}=await import('/src/lib/composer.ts');
-    const {useWorkbenchAgentStore}=await import('/src/stores/use-workbench-agent-store.ts');
-    useWorkbenchAgentStore.getState().dispatchImage({submission:createComposerSubmission('image','原始提交',[],config),run:true});
+    const {selectImageSource}=await import('/src/stores/use-agent-media-store.ts');selectImageSource('api');
+    const {useComposerStore}=await import('/src/stores/use-composer-store.ts');
+    useComposerStore.getState().patch('image',{prompt:'原始提交'});
   });
+  await page.getByRole('button',{name:'落笔生成',exact:true}).click();
+  await page.getByRole('button',{name:'查看原任务 / 恢复结果',exact:true}).click();
   await page.getByText('结果未知',{exact:true}).waitFor();
   await page.getByRole('button',{name:'新建生成请求',exact:true}).waitFor();
   await page.getByText(/原请求可能已被接受，新请求可能再次计费/).waitFor();

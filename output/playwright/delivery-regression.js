@@ -4,6 +4,7 @@ async (page) => {
   await page.goto(base+'/image');
   await page.evaluate(async () => { window.testWriteOwnership = (await import('/src/lib/write-ownership.ts')).writeOwnership; });
   await page.waitForFunction(() => window.testWriteOwnership.canWrite());
+  await page.getByRole('textbox',{name:'提示词',exact:true}).waitFor();
   const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=32;c.height=32;c.getContext('2d').fillRect(0,0,32,32);return c.toDataURL('image/png');});
   await page.route('https://delivery-mock.example/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({data:[{b64_json:png.split(',')[1]}]}),headers:{'Access-Control-Allow-Origin':'*'}}));
   await page.evaluate(async(png)=>{
@@ -12,11 +13,12 @@ async (page) => {
     useConfigStore.setState({config});
     const {uploadImage}=await import('/src/services/image-storage.ts');
     const image=await uploadImage(png);
-    const {createComposerSubmission}=await import('/src/lib/composer.ts');
-    const {useWorkbenchAgentStore}=await import('/src/stores/use-workbench-agent-store.ts');
-    const submission=createComposerSubmission('image','@[ref:source] 春山',[{id:'source',name:'原始参考图',type:'image/png',dataUrl:image.url,storageKey:image.storageKey}],config);
-    useWorkbenchAgentStore.getState().dispatchImage({submission,run:true});
+    const {selectImageSource}=await import('/src/stores/use-agent-media-store.ts');selectImageSource('api');
+    const {useComposerStore}=await import('/src/stores/use-composer-store.ts');
+    useComposerStore.getState().patch('image',{prompt:'@[ref:source] 春山'});
+    useComposerStore.getState().setReferences('image',[{id:'source',name:'原始参考图',type:'image/png',dataUrl:image.url,storageKey:image.storageKey}]);
   },png);
+  await page.getByRole('button',{name:'落笔生成',exact:true}).click();
   await page.getByRole('button',{name:'送入画布',exact:true}).waitFor();
   await page.getByRole('button',{name:'送入画布',exact:true}).click();
   await page.getByRole('checkbox',{name:'连同创作过程送入画布',exact:true}).check();
