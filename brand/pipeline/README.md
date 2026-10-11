@@ -5,7 +5,7 @@
 Weekly, fully scripted maintenance of `prompt-sources/` in the independent resource repository.
 **No model test runs**: ranking uses popularity, freshness and anonymous on-site usage only. The weekly run
 opens a PR and does not deploy; after it merges, publish with `brand/pipeline/deploy.sh prompts`. The
-twice-daily run publishes qualified changes automatically; the per-run Civitai addition limit remains in place, with no cumulative publication cap.
+twice-daily run publishes qualified changes automatically; there is no per-run addition gate or cumulative publication cap.
 
 ```bash
 export DIANRAN_PROMPT_PIPELINE_ROOT=/绝对路径/dianran-prompts
@@ -21,7 +21,7 @@ brand/pipeline/deploy.sh prompts          # after the weekly PR merges
 | GitHub upstream re-sync (yukkcat/image-prompts registry) | `fetch-github.mjs` | `candidates/github/*.json` |
 | Civitai fetch (images, Most Reactions / Week, `withMeta=true`) | `fetch-civitai.mjs` | `candidates/civitai.json` |
 | Usage counts (Vercel Blob, see below) | `usage-read.mjs` | `data/usage.json` |
-| Merge + metadata + checks + scoring + retire + caps | `merge.mjs` | libraries, `data/scores.json`, `data/retired.json` |
+| Merge + metadata + integrity checks + scoring + weekly retire/caps | `merge.mjs` | libraries, `data/scores.json`, `data/retired.json` |
 | 点染精选 rebuild | `picks.mjs` | `dianran-picks.json`, `data/picks-archive.json` |
 | Prune covers, manifest counts, snapshot time | `finalize.mjs` | `manifest.json` `generatedAt` |
 | Chinese changelog / PR body | `changelog.mjs` | `reports/YYYY-MM-DD.md/.json` |
@@ -60,14 +60,14 @@ Vite 开发服务、两份 Vercel 配置及 Docker Nginx 均使用 `/prompt-sour
 | 频率 | 每天早晚各一次（cron `30 6,18 * * *`，Asia/Taipei） | 每周一次 |
 | X 抓取窗口 | `X_WINDOW_DAYS=1.5`（`since:` 按 UTC 日期截断，实际大约 1.5–2.5 天） | `windowDays=8` |
 | merge 模式 | `--additive-only`：新增候选与筛选上游更新，不删除已有条目 | 全量：上游移除、下架、限量都执行 |
-| 发布方式 | 公开资源或审核清单变化时提交资源 PR；有可见变化才 `deploy.sh prompts <提交>`。同一档重跑更新同一个未合并 PR | 只开 PR。合并后手动 `deploy.sh prompts` |
+| 发布方式 | 资源或统计记录变化时提交资源 PR；有可见变化才 `deploy.sh prompts <提交>`。同一档重跑更新同一个未合并 PR | 只开 PR。合并后手动 `deploy.sh prompts` |
 | 不发布 | 条目、精选名单和封面都没变；三个抓取源都失败 | 满足采集规则的条目自动入库并发布 |
 
 一次早晚运行只落在一种结果上：`无变化`、`已发布`或`失败`。日志最后一行是这句结果，PR 正文同一段。`generatedAt` 只有在条目、精选名单或封面变化时才前进，浏览器才重新拉库。
 
 `deploy.sh prompts` 发布的是某次提交，不是工作区里没提交的文件。上传后最多等 2 分钟、每 5 秒看一次 https://dianran.vercel.app/prompt-sources/manifest.json ，时间一致且一张封面返回 `image/webp` 才算发布成功。超时视为这次失败，分支保留。
 
-增量模式保留已有条目，Git 分支和 PR 都在资源仓库；PR 尚未合并时也可发布该分支提交。它发布的是静态项目 `dianran-prompts`；网站 `dianran.vercel.app` 把 `/prompt-sources/*` 反代过去，浏览器仍用站内路径。`dianran-next` 不再部署。每周 PR 仍是下架与限量的人工闸门，合并后才执行 `brand/pipeline/deploy.sh prompts`。网站本身用 `brand/pipeline/deploy.sh app` 部署到项目 `dianran`。仓库不安装 cron；要无人值守时，在一台已登录的机器上挂上面的 crontab。
+增量模式保留已有条目，Git 分支和 PR 都在资源仓库；PR 尚未合并时也可发布该分支提交。它发布的是静态项目 `dianran-prompts`；网站 `dianran.vercel.app` 把 `/prompt-sources/*` 反代过去，浏览器仍用站内路径。`dianran-next` 不再部署。每周 PR 仍是下架与限量的人工闸门，合并后才执行 `brand/pipeline/deploy.sh prompts`。网站本身用 `brand/pipeline/deploy.sh app` 部署到项目 `dianran`。本机脚本不安装 cron；云端由下述 GitHub Actions 定时运行，工作流合入默认分支后才会生效。
 
 ## Unified metadata (every record)
 
@@ -86,7 +86,7 @@ No candidate quarantine, review queue, approval endpoint or deployment content g
 ## Scoring (`config/pipeline.json`)
 
 ```
-eng   = likes + 2·bookmarks + 3·reposts      (missing bookmarks/reposts imputed from likes: ×0.8 / ×0.12)
+eng   = likes + 2·bookmarks + 3·reposts      (only X posts impute missing bookmarks/reposts from likes: ×0.8 / ×0.12)
 score = 0.6·log10(1+eng) + 0.8·log10(1 + 100·eng / max(1000, followers))   (× source multiplier; unknown followers = 20k)
       + 2.0 · 0.5^(age_days / 45)                                            freshness
       + 1.5 · log10(1 + copies_30d + 2·uses_30d)                            on-site usage
@@ -171,10 +171,10 @@ Civitai 继续使用公共 REST API 的 Most Reactions / Week、4 页 × 100 条
 - `PROMPT_VERCEL_TOKEN`：资源项目部署凭据。
 - 可选 `CIVITAI_API_TOKEN`、`BLOB_READ_WRITE_TOKEN`。
 
-首次设置 Actions Variable `PROMPT_BASELINE_COMMIT` 为已核验的线上资源提交；本项目现有已批准提交为 `80a1d0ee85d91d5d7882b56ccd3ae0ef2a95bc7f`。脚本先核对线上 manifest，再建立资源仓库 `codex/prompt-published` 基线分支。以后只在资源发布核对通过时，以普通快进推送更新基线；不合并 main、不 force-push。main 与基线分叉或线上版本不一致时拒绝继续。跨天仍从该基线采集，不丢失已发布的条目；新条目不再受累计数量上限限制。
+首次设置 Actions Variable `PROMPT_BASELINE_COMMIT` 为已核验的线上资源提交；本轮核验的已发布提交为 `be9af54d6c1b176452fa989922d0cb8c6af0c2b7`。脚本先核对线上 manifest，再建立资源仓库 `codex/prompt-published` 基线分支。以后只在资源发布核对通过时，以普通快进推送更新基线；不合并 main、不 force-push。main 与基线分叉或线上版本不一致时拒绝继续。跨天仍从该基线采集，不丢失已发布的条目；新条目不再受累计数量上限限制。
 
 页面云端模式：维护者 Agent 设置 `DIANRAN_PROMPT_PIPELINE_GITHUB_REPO=kobingogo/dianran`，并确保 `gh` 对该仓库有 Actions 读写权限。不再要求本机资源目录。先保存 UUID 再提交 workflow_dispatch，以运行标题关联身份；请求不确定、断线、Agent 重启都只查询原任务，不重复 dispatch。最终从 Actions 的 `prompt-pipeline-result` Artifact 读取回执，网页仍需核对自己的资源快照。Artifacts 使用 GitHub 默认保留周期；记录过期或缺失时不会重新采集，显示失败/未知供人工核对。
 
 ## 首版入库与发布
 
-满足现有时间、互动数、有效提示词、媒体及去重条件的候选直接进入入库流程，不按敏感词、短裙、泳装、真人/换脸或作者黑名单剔除；不生成待审清单。封面下载失败、重复、提示词无效等仍不会入库。Civitai 每轮最多新增 60 条；发布流程不再设置跨轮累计新增上限。历史待审清单仅为旧验证记录，不会自动转换成新候选；需按新规则重新采集完整条目后入库。
+满足现有时间、互动数、有效提示词、媒体及去重条件的候选直接进入入库流程，不按敏感词、短裙、泳装、真人/换脸或作者黑名单剔除；不生成待审清单。封面下载失败、重复、提示词无效等仍不会入库。Civitai 不设置每轮新增 60 条门槛；早晚发布也不设置跨轮累计新增上限。每周维护仍保留原有库容量与下架规则，只开 PR 供审阅。历史待审清单仅为旧验证记录，不会自动转换成新候选；需按新规则重新采集完整条目后入库。

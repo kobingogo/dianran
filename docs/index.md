@@ -71,3 +71,6 @@
 - [统一 Agent 创作入口](AGENT-CREATION-ENTRY.md)：主输入框与协作详情的共享会话、结果归属和本地验收。
 - [创作输入与讨论设计](CREATION-CONVERSATION-DESIGN.md)：已确认的统一输入、云端/本机多轮讨论、方案版本确认、工作台记录流和画布就地创作规则；首轮实现待验收。
 - [创作输入与讨论实施](CREATION-CONVERSATION-IMPLEMENTATION.md)：本轮入口、讨论适配、方案版本、任务作品绑定、画布接续及验证边界。
+
+- [提示词资源仓库职责](PROMPT-RESOURCE-REPOSITORY.md)：代码／数据分离、发布基线与 Actions 配置。
+- [PR #1／#4／#5 审阅与云端准备](PR-PROMPT-ACTIONS-REVIEW.md)：需求价值、实现质量、CI 与真实发布验收边界。
