@@ -8,7 +8,6 @@
 # After upload it polls the live site for up to 2 minutes, every 5 seconds, until
 # /prompt-sources/manifest.json shows that commit's generatedAt and one cover is
 # image/webp. A timeout fails the script; the deployment may still finish later.
-# New rows that fail the content gate are not uploaded.
 #
 # The website is only https://dianran.vercel.app. It reverse-proxies /prompt-sources/*
 # to https://dianran-prompts.vercel.app, so prompt publishes do not rebuild the app.
@@ -32,9 +31,13 @@ STAGE="$(mktemp -d)"
 cleanup() { cd "$ROOT"; rm -rf "$STAGE"; }
 trap cleanup EXIT
 
+vercel_cmd() {
+    if [ -n "${VERCEL_TOKEN:-}" ]; then vercel --token "$VERCEL_TOKEN" "$@"; else vercel "$@"; fi
+}
+
 link_exact() {
     local project="$1"
-    vercel link --yes --project "$project" --scope "$SCOPE" >/dev/null
+    vercel_cmd link --yes --project "$project" --scope "$SCOPE" >/dev/null
     local name
     name="$(node -p "JSON.parse(require('fs').readFileSync('.vercel/project.json','utf8')).projectName")"
     [ "$name" = "$project" ] || die "refusing to deploy: linked project is $name, expected $project"
@@ -45,23 +48,17 @@ manifest_at() {
 }
 
 if [ "$WHAT" = "prompts" ]; then
+    source "$ROOT/brand/pipeline/environment.sh"
     SHA="$(git -C "$ROOT" rev-parse --verify "${REF}^{commit}")" || die "bad revision $REF"
-    if [ "$REF" = "HEAD" ] && [ -n "$(git -C "$ROOT" status --porcelain -uall -- web/public/prompt-sources)" ]; then
+    if [ "$REF" = "HEAD" ] && [ -n "$(git -C "$ROOT" status --porcelain -uall -- prompt-sources)" ]; then
         die "prompt-sources has uncommitted changes; deploy publishes commit $SHA"
     fi
     git -C "$ROOT" fetch -q origin main
-    HITS_JSON="$(node "$ROOT/brand/pipeline/content-gate.mjs" "$SHA" origin/main)"
-    HITS="$(node -e 'const j=JSON.parse(process.argv[1]); if(j.error){console.error(j.error); process.exit(2)}; process.stdout.write(String(j.hits.length))' "$HITS_JSON")" || die "content gate could not read $SHA"
-    if [ "$HITS" != "0" ]; then
-        node -e 'const j=JSON.parse(process.argv[1]); for (const h of j.hits) console.error(`${h.library} ${h.id} ${h.reason}`)' "$HITS_JSON" >&2
-        die "refusing to publish $SHA: $HITS new item(s) failed the content gate"
-    fi
-
-    git -C "$ROOT" archive "$SHA" web/public/prompt-sources | tar -x -C "$STAGE"
+    git -C "$ROOT" archive "$SHA" prompt-sources | tar -x -C "$STAGE"
     OUT="$STAGE/site"
     mkdir -p "$OUT"
-    cp -a "$STAGE/web/public/prompt-sources/." "$OUT/"
-    cp "$ROOT/brand/pipeline/prompt-host/vercel.json" "$OUT/vercel.json"
+    cp -a "$STAGE/prompt-sources/." "$OUT/"
+    cp "$CODE_ROOT/brand/pipeline/prompt-host/vercel.json" "$OUT/vercel.json"
     EXPECT="$(node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).generatedAt||""))' "$OUT/manifest.json")"
     [ -n "$EXPECT" ] || die "manifest.json in $SHA has no generatedAt"
     COVER="$(node -e '
@@ -77,7 +74,7 @@ for (const file of fs.readdirSync(dir)) {
     cd "$OUT"
     link_exact dianran-prompts
     DEPLOY_LOG="$STAGE/deploy.log"
-    vercel deploy --prod --yes --scope "$SCOPE" | tee "$DEPLOY_LOG"
+    vercel_cmd deploy --prod --yes --scope "$SCOPE" | tee "$DEPLOY_LOG"
     DEPLOY_URL="$(grep -oE 'https://[^[:space:]]+\.vercel\.app' "$DEPLOY_LOG" | grep -v 'dianran-prompts\.vercel\.app$' | head -1 || true)"
     echo "deployed $SHA ($EXPECT)${DEPLOY_URL:+ from $DEPLOY_URL}"
 
@@ -103,5 +100,5 @@ else
     git -C "$ROOT" archive HEAD | tar -x -C "$STAGE"
     cd "$STAGE"
     link_exact dianran
-    vercel deploy --prod --yes --scope "$SCOPE"
+    vercel_cmd deploy --prod --yes --scope "$SCOPE"
 fi

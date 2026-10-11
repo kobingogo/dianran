@@ -12,7 +12,7 @@ export async function preparePromptSnapshot({ repository, ref = "HEAD", output }
     });
     const commit = (await git(["rev-parse", "--verify", `${ref}^{commit}`])).toString().trim();
     if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error("Unsupported Git commit identity");
-    const prefix = "web/public/prompt-sources/";
+    const prefix = "prompt-sources/";
     const paths = (await git(["ls-tree", "-r", "--format=%(objectmode) %(path)", "-z", commit, "--", prefix])).toString().split("\0").filter(Boolean);
     const resources = [];
     for (const entry of paths) {
@@ -41,8 +41,10 @@ export async function preparePromptSnapshot({ repository, ref = "HEAD", output }
     return report;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    const args = process.argv.slice(2); const options = { repository: path.resolve(fileURLToPath(new URL("../..", import.meta.url))) };
-    for (let index = 0; index < args.length; index++) { const flag = args[index]; if (flag === "--ref") options.ref = args[++index]; else if (flag === "--write-dir") options.output = path.resolve(args[++index]); else if (flag !== "--dry-run") throw new Error(`Unknown argument: ${flag}`); }
+    const args = process.argv.slice(2); const options = {};
+    if (process.env.DIANRAN_PROMPT_PIPELINE_ROOT) options.repository = path.resolve(process.env.DIANRAN_PROMPT_PIPELINE_ROOT);
+    for (let index = 0; index < args.length; index++) { const flag = args[index]; if (flag === "--repository") options.repository = path.resolve(args[++index]); else if (flag === "--ref") options.ref = args[++index]; else if (flag === "--write-dir") options.output = path.resolve(args[++index]); else if (flag !== "--dry-run") throw new Error(`Unknown argument: ${flag}`); }
     if(args.includes("--dry-run") && options.output)throw new Error("--dry-run cannot be combined with --write-dir");
+    if (!options.repository) throw new Error("请通过 --repository 或 DIANRAN_PROMPT_PIPELINE_ROOT 指定提示词资源仓库");
     console.log(JSON.stringify(await preparePromptSnapshot(options), null, 2));
 }

@@ -8,8 +8,14 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      DIANRAN_PROMPT_PIPELINE_ROOT: ${{ github.workspace }}/prompt-resources
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: kobingogo/dianran-prompts
+          path: prompt-resources
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -22,7 +28,8 @@ jobs:
         working-directory: web
       - run: npm ci && npm test
         working-directory: canvas-agent
-      - run: node --test brand/pipeline/prompt-key.test.mjs && node brand/pipeline/validate.mjs
+      - run: npm ci --prefix brand --no-audit --no-fund
+      - run: node --test brand/pipeline/prompt-key.test.mjs brand/pipeline/redfox-x.test.mjs brand/pipeline/review-integration.test.mjs brand/pipeline/publication-flow.test.mjs && node brand/pipeline/validate.mjs
       - run: bash scripts/check-browser.sh
       - uses: actions/upload-artifact@v4
         if: always()

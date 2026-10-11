@@ -1,17 +1,21 @@
 import { spawn, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Express } from "express";
 import { z } from "zod";
+import { installGithubPromptPipelineRoutes } from "./prompt-pipeline-github.js";
 import { CONFIG_DIR } from "../config.js";
 
 const requestIdSchema = z.string().uuid();
-const resultSchema = z.object({ status: z.enum(["published", "unchanged", "held", "failed"]), snapshot: z.string(), added: z.number(), sources: z.string() });
+const resultSchema = z.object({ status: z.enum(["published", "unchanged", "held", "failed"]), snapshot: z.string(), added: z.number(), sources: z.string(), prUrl: z.string().optional(), runUrl: z.string().optional() });
 type Job = { id: string; status: "running" | "unknown" | z.infer<typeof resultSchema>["status"]; phase: string; snapshot?: string; added?: number; sources?: string };
 
 /** Only the locally configured maintainer checkout can run the fixed publication script. */
 export function installPromptPipelineRoutes(app: Express, directory = path.join(CONFIG_DIR, "prompt-pipeline-jobs")) {
     mkdirSync(directory, { recursive: true });
+    const githubRepo = process.env.DIANRAN_PROMPT_PIPELINE_GITHUB_REPO;
+    if (githubRepo) return installGithubPromptPipelineRoutes(app, directory, githubRepo);
     const fileOf = (id: string) => path.join(directory, `${id}.json`);
     const save = (job: Job) => {
         const file = fileOf(job.id);
@@ -23,7 +27,7 @@ export function installPromptPipelineRoutes(app: Express, directory = path.join(
     for (const file of readdirSync(directory).filter(file => /^[0-9a-f-]+\.json$/i.test(file))) {
         const job = JSON.parse(readFileSync(path.join(directory, file), "utf8")) as Job;
         requestIdSchema.parse(job.id);
-        if (job.status === "running") save({ ...job, status: "unknown", phase: "Agent 已重启，请核对本机流水线日志和线上快照；不会自动重新发布" });
+        if (job.status === "running" && !(job as Job & { mode?: string }).mode) save({ ...job, status: "unknown", phase: "Agent 已重启，请核对本机流水线日志和线上快照；不会自动重新发布" });
     }
     let active: Job | null = null;
     app.get("/agent/prompt-pipeline/jobs/:id", (req, res) => {
@@ -39,17 +43,21 @@ export function installPromptPipelineRoutes(app: Express, directory = path.join(
             if (previous) return void res.json({ ok: true, data: previous });
             if (active) return void res.status(409).json({ error: "已有采集发布任务运行中，请等待完成" });
             const configuredRoot = process.env.DIANRAN_PROMPT_PIPELINE_ROOT;
-            if (!configuredRoot) return void res.status(409).json({ error: "请为维护者 Agent 配置 DIANRAN_PROMPT_PIPELINE_ROOT，指向独立且干净的点染采集仓库" });
-            const root = path.resolve(configuredRoot);
-            const script = path.join(root, "brand/pipeline/run-twicedaily.sh");
-            if (!existsSync(script)) return void res.status(409).json({ error: "配置的采集仓库缺少 run-twicedaily.sh，请先更新仓库" });
-            if (!readFileSync(script, "utf8").includes("DIANRAN_PIPELINE_RESULT_FILE")) return void res.status(409).json({ error: "采集仓库脚本尚不支持发布回执，请先更新仓库" });
-            if (execFileSync("git", ["status", "--porcelain", "-uall"], { cwd: root, encoding: "utf8" }).trim()) return void res.status(409).json({ error: "采集仓库存在未提交或未跟踪文件，请使用干净的独立仓库；不会覆盖改动" });
+            if (!configuredRoot) return void res.status(409).json({ error: "请为维护者 Agent 配置 DIANRAN_PROMPT_PIPELINE_ROOT，指向独立且干净的提示词资源仓库" });
+            if (!existsSync(configuredRoot)) return void res.status(409).json({ error: "配置的提示词资源仓库不存在，请检查路径" });
+            const root = realpathSync(configuredRoot);
+            const codeRoot = path.resolve(process.env.DIANRAN_PROMPT_PIPELINE_CODE_ROOT || fileURLToPath(new URL("../../../", import.meta.url)));
+            const script = path.join(codeRoot, "brand/pipeline/run-twicedaily.sh");
+            if (!existsSync(script)) return void res.status(409).json({ error: "找不到采集脚本，请配置 DIANRAN_PROMPT_PIPELINE_CODE_ROOT 指向最新点染主仓库" });
+            if (root === realpathSync(codeRoot) || execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim() !== root) return void res.status(409).json({ error: "提示词资源路径必须是独立 Git 仓库根目录，不能使用点染主仓库" });
+            if (!existsSync(path.join(root, "prompt-sources/manifest.json"))) return void res.status(409).json({ error: "资源仓库缺少 prompt-sources/manifest.json，请先初始化资源仓库" });
+            if (!existsSync(path.join(codeRoot, "brand/pipeline/environment.sh")) || !readFileSync(script, "utf8").includes("DIANRAN_PIPELINE_RESULT_FILE")) return void res.status(409).json({ error: "采集脚本版本不支持独立资源仓库与发布回执，请更新点染主仓库" });
+            if (execFileSync("git", ["status", "--porcelain", "-uall"], { cwd: root, encoding: "utf8" }).trim()) return void res.status(409).json({ error: "提示词资源仓库存在未提交或未跟踪文件；不会覆盖改动" });
             const resultFile = path.join(directory, `${id}.result`);
             const job: Job = { id, status: "running", phase: "正在启动采集与发布" };
             save(job);
             active = job;
-            const child = spawn("bash", [script], { cwd: root, env: { ...process.env, DIANRAN_PIPELINE_RESULT_FILE: resultFile }, stdio: ["ignore", "pipe", "ignore"] });
+            const child = spawn("bash", [script], { cwd: root, env: { ...process.env, DIANRAN_PROMPT_PIPELINE_ROOT: root, DIANRAN_PIPELINE_RESULT_FILE: resultFile }, stdio: ["ignore", "pipe", "ignore"] });
             let pending = "";
             child.stdout.setEncoding("utf8");
             child.stdout.on("data", (chunk: string) => {

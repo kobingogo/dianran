@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // [dianran] Merge fetched candidates into the bundled libraries, backfill the unified metadata, score every entry,
-// retire stale/broken ones and apply the per-library caps. Writes the libraries in web/public/prompt-sources,
-// brand/pipeline/data/{scores,retired,cover-failures}.json and the run report candidates/merge-report.json.
+// retire stale/broken ones and apply the per-library caps. Writes the libraries in 资源仓库 prompt-sources,
+// 资源仓库 data/{scores,retired,cover-failures}.json and the run report candidates/merge-report.json.
 // Unified metadata (added to every record, old fields untouched so the app stays backward compatible):
 //   source, sourceUrl, author, postedAt, fetchedAt, engagement {likes, bookmarks, reposts}, authorFollowers, model, status
 // Usage: node brand/pipeline/merge.mjs [--no-network-checks] [--additive-only]
@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-    CANDIDATE_DIR, DATA_DIR, ageDays, config, contentReject, libPath, libraries, log, modelLabel, nowIso, readJson, scoreEntry, snowflakeDate, toIso,
+    CANDIDATE_DIR, DATA_DIR, ageDays, config, libPath, libraries, log, modelLabel, nowIso, readJson, scoreEntry, snowflakeDate, toIso,
     tweetIdFromUrl, writeJson, promptKey,
 } from "./lib/common.mjs";
 import { coverFileOf, createLocalizer, pool } from "./lib/covers.mjs";
@@ -137,7 +137,6 @@ for (const lib of libs.filter((l) => l.source === "github")) {
             continue;
         }
         if (retiredArchive[up.id]) continue;
-        if ((up.tags || []).some((t) => /nsfw/i.test(t))) continue;
         toAdd.push(normalize({ ...up, sourceId: lib.id, fetchedAt }, lib, { fetchedAt }));
     }
     await pool(toAdd, 8, async (item) => {
@@ -228,11 +227,6 @@ if (!additiveOnly) for (const lib of libs) {
         if (goneIds.has(item.id)) { retire(lib, item, "source-deleted", "原帖已删除或不可访问"); continue; }
         const dep = isDeprecated(item);
         if (dep) { retire(lib, item, "deprecated-model", dep.reason); continue; }
-        if (lib.source === "x" || lib.source === "civitai") {
-            const reason = contentReject(String(item.prompt).toLowerCase(), { author: item.author, excludeAuthors: config("x-watchlist.json").excludeAuthors, likeness: false });
-            // (the stricter "keep the uploaded face" likeness rule only gates new candidates; published entries were reviewed by hand)
-            if (reason) { retire(lib, item, "content-filter", reason); continue; }
-        }
         const age = ageDays(item.postedAt, now);
         const used = usage.totals?.[item.id] && ageDays(usage.totals[item.id].last, now) <= cfg.cleanup.maxAgeDays;
         if (age !== null && age > cfg.cleanup.maxAgeDays && !used) {
@@ -242,30 +236,6 @@ if (!additiveOnly) for (const lib of libs) {
         keep.push(item);
     }
     data[lib.id] = keep;
-}
-
-// New items from every source (including GitHub, which only skips an nsfw tag at merge)
-// pass the same content gate before they can be written. Already-published rows are left
-// for the weekly retirement pass; likeness stays strict only for brand-new rows.
-report.contentRejected = [];
-{
-    const excludeAuthors = config("x-watchlist.json").excludeAuthors || [];
-    const addedIds = new Set(report.added.map((a) => a.id));
-    if (addedIds.size) {
-        for (const lib of libs) {
-            const keep = [];
-            for (const item of data[lib.id]) {
-                if (!addedIds.has(item.id)) { keep.push(item); continue; }
-                const reason = contentReject(String(item.prompt || "").toLowerCase(), { author: item.author, excludeAuthors, likeness: true });
-                if (!reason) { keep.push(item); continue; }
-                report.contentRejected.push({ id: item.id, library: lib.id, title: item.title, model: item.model, sourceUrl: item.sourceUrl, reason, prompt: String(item.prompt || "").slice(0, 240) });
-                addedIds.delete(item.id);
-            }
-            data[lib.id] = keep;
-        }
-        report.added = report.added.filter((a) => addedIds.has(a.id));
-        if (report.contentRejected.length) log(`content gate: held ${report.contentRejected.length} new item(s)`);
-    }
 }
 
 // ---------- scoring ----------

@@ -1,7 +1,7 @@
 import { readFile, access, readdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { ROOT } from "./lib/common.mjs";
 import path from 'node:path';
-const root = fileURLToPath(new URL('../../web/public/', import.meta.url));
+const root = ROOT;
 const manifest = JSON.parse(await readFile(path.join(root, 'prompt-sources/manifest.json'), 'utf8'));
 let count = 0;
 const sources = new Map(manifest.sources.map((source) => [source.path, source]));
@@ -15,7 +15,7 @@ for (const file of files) {
         if (!row.id || ids.has(row.id)) throw new Error(`${source.id}: duplicate/missing id ${row.id}`);
         ids.add(row.id);
         for (const url of [row.coverUrl, ...(row.referenceImageUrls || [])].filter(Boolean)) {
-            if (!url.startsWith('/') && !url.startsWith('//') && !url.split('/').includes('..')) throw new Error(`${row.id}: non-local image ${url}`);
+            if (!url.startsWith('/prompt-sources/') || url.startsWith('//') || url.split('/').includes('..')) throw new Error(`${row.id}: non-local image ${url}`);
             await access(path.join(root, url));
         }
     }

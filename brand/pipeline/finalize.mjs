@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
-import { COVER_DIR, LIB_DIR, ROOT, libPath, log, nowIso, readJson, writeJson } from "./lib/common.mjs";
+import { CANDIDATE_DIR, COVER_DIR, DATA_DIR, LIB_DIR, ROOT, libPath, log, nowIso, readJson, writeJson } from "./lib/common.mjs";
 import { PUBLIC_PREFIX } from "./lib/covers.mjs";
 
 // Fields a visitor can actually see. Engagement, fetch time and pick score churn must not
@@ -29,11 +29,11 @@ function headJson(rel) {
     }
 }
 function publicChanged() {
-    const covers = execFileSync("git", ["status", "--porcelain", "-uall", "--", "web/public/prompt-sources/covers"], { cwd: ROOT, encoding: "utf8" });
+    const covers = execFileSync("git", ["status", "--porcelain", "-uall", "--", "prompt-sources/covers"], { cwd: ROOT, encoding: "utf8" });
     if (covers.trim()) return true;
     for (const file of readdirSync(LIB_DIR).filter((f) => f.endsWith(".json") && f !== "manifest.json")) {
         const current = readJson(resolve(LIB_DIR, file), []);
-        const previous = headJson(`web/public/prompt-sources/${file}`);
+        const previous = headJson(`prompt-sources/${file}`);
         if (!previous || digestItems(current) !== digestItems(previous)) return true;
     }
     return false;
@@ -45,7 +45,7 @@ for (const file of readdirSync(LIB_DIR).filter((f) => f.endsWith(".json") && f !
     counts[file.replace(/\.json$/, "")] = items.length;
     for (const item of items) for (const url of [item.coverUrl, ...(item.referenceImageUrls || [])]) if (url?.startsWith(PUBLIC_PREFIX)) referenced.add(url.slice(PUBLIC_PREFIX.length));
 }
-for (const entry of Object.values(readJson(resolve(ROOT, "brand/pipeline/data/picks-archive.json"), {}))) if (entry.coverUrl?.startsWith(PUBLIC_PREFIX)) referenced.add(entry.coverUrl.slice(PUBLIC_PREFIX.length));
+for (const entry of Object.values(readJson(resolve(DATA_DIR, "picks-archive.json"), {}))) if (entry.coverUrl?.startsWith(PUBLIC_PREFIX)) referenced.add(entry.coverUrl.slice(PUBLIC_PREFIX.length));
 let pruned = 0;
 for (const file of readdirSync(COVER_DIR)) if (file.endsWith(".webp") && !referenced.has(file)) { rmSync(resolve(COVER_DIR, file)); pruned++; }
 
@@ -59,4 +59,4 @@ if (changed) {
     writeJson(libPath("manifest"), manifest);
 }
 log(`finalize: snapshot ${changed ? `${previousVersion} -> ${version}` : `${version} (unchanged)`}; pruned ${pruned} unreferenced covers; counts ${JSON.stringify(counts)}`);
-writeJson(resolve(ROOT, "brand/pipeline/candidates/finalize.json"), { version, previousVersion, changed, pruned, counts });
+writeJson(resolve(CANDIDATE_DIR, "finalize.json"), { version, previousVersion, changed, pruned, counts });

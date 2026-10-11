@@ -12,18 +12,25 @@ test("publication identity is idempotent, held runs are not success, and dirty c
     const fixture = mkdtempSync(path.join(os.tmpdir(), "dianran-prompt-bridge-"));
     const root = path.join(fixture, "checkout");
     const jobs = path.join(fixture, "jobs");
-    mkdirSync(path.join(root, "brand/pipeline"), { recursive: true });
+    const codeRoot = path.join(fixture, "code");
+    mkdirSync(path.join(codeRoot, "brand/pipeline"), { recursive: true });
+    mkdirSync(path.join(root, "prompt-sources"), { recursive: true });
+    writeFileSync(path.join(root, "prompt-sources/manifest.json"), "{}");
+    writeFileSync(path.join(codeRoot, "brand/pipeline/environment.sh"), "# fixture");
+    writeFileSync(path.join(codeRoot, "user-work.txt"), "code changes must stay untouched");
+    const previousCodeRoot = process.env.DIANRAN_PROMPT_PIPELINE_CODE_ROOT;
+    process.env.DIANRAN_PROMPT_PIPELINE_CODE_ROOT = codeRoot;
     const previousRoot = process.env.DIANRAN_PROMPT_PIPELINE_ROOT;
     process.env.DIANRAN_PROMPT_PIPELINE_ROOT = root;
     // A fixture writes a receipt only; it never invokes real collection or deployment.
-    const script = path.join(root, "brand/pipeline/run-twicedaily.sh");
+    const script = path.join(codeRoot, "brand/pipeline/run-twicedaily.sh");
     const writeRunner = (status: string) => {
         writeFileSync(script, `#!/bin/bash\nset -e\necho run >> "$PWD/runs"\nprintf '%s' '{"status":"${status}","snapshot":"fixture","added":2,"sources":"fixture"}' > "$DIANRAN_PIPELINE_RESULT_FILE"\n`);
-        execFileSync("git", ["add", "."], { cwd: root });
-        execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", status], { cwd: root });
     };
     execFileSync("git", ["init", "-q"], { cwd: root });
     writeFileSync(path.join(root, ".gitignore"), "runs\n");
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "resources"], { cwd: root });
     writeRunner("published");
     const app = express();
     app.use(express.json());
@@ -48,6 +55,10 @@ test("publication identity is idempotent, held runs are not success, and dirty c
         assert.equal((await finish(id)).status, "published");
         assert.equal((await (await start(id)).json()).data.status, "published");
         assert.equal(readFileSync(path.join(root, "runs"), "utf8"), "run\n");
+        assert.equal(readFileSync(path.join(codeRoot, "user-work.txt"), "utf8"), "code changes must stay untouched");
+        process.env.DIANRAN_PROMPT_PIPELINE_ROOT = path.join(root, "prompt-sources");
+        assert.equal((await start(randomUUID())).status, 409);
+        process.env.DIANRAN_PROMPT_PIPELINE_ROOT = root;
         writeRunner("held");
         const held = randomUUID();
         assert.equal((await start(held)).status, 202);
@@ -68,6 +79,8 @@ test("publication identity is idempotent, held runs are not success, and dirty c
         await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
         if (previousRoot === undefined) delete process.env.DIANRAN_PROMPT_PIPELINE_ROOT;
         else process.env.DIANRAN_PROMPT_PIPELINE_ROOT = previousRoot;
+        if (previousCodeRoot === undefined) delete process.env.DIANRAN_PROMPT_PIPELINE_CODE_ROOT;
+        else process.env.DIANRAN_PROMPT_PIPELINE_CODE_ROOT = previousCodeRoot;
         rmSync(fixture, { recursive: true, force: true });
     }
 });

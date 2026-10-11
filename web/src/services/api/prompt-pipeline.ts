@@ -5,7 +5,7 @@ import { fetchAgentJson } from "./canvas-agent";
 import i18n from "@/i18n";
 import { verifyPublishedPromptSnapshot } from "./prompts";
 
-export type PromptPipelineJob = { id: string; status: "running" | "published" | "unchanged" | "held" | "failed" | "unknown"; phase: string; snapshot?: string; added?: number; sources?: string };
+export type PromptPipelineJob = { id: string; status: "running" | "published" | "unchanged" | "held" | "failed" | "unknown"; phase: string; snapshot?: string; added?: number; sources?: string; prUrl?: string; runUrl?: string };
 const receipts = localforage.createInstance({ name: STORAGE_NS, storeName: "prompt_pipeline" });
 type Receipt = { id: string; terminal: boolean };
 

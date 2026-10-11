@@ -1,17 +1,15 @@
 #!/usr/bin/env node
 // [dianran] Localize prompt-library cover images: download them once, shrink to small WebP thumbnails under
-// web/public/prompt-sources/covers/, and rewrite the snapshot JSON to point at our own domain.
+// 资源仓库 prompt-sources/covers/, and rewrite the snapshot JSON to point at our own domain.
 // Covers hosted on X (pbs.twimg.com), GitHub's camo proxy, linux.do and similar hosts are fetched through a list of
 // candidate URLs (X "small" renditions, the decoded camo target, the forum's original upload); only images that are
 // truly gone (deleted posts, 404) are dropped from the snapshot, as are NSFW-tagged entries. Run after sync-prompts.mjs.
 // Usage: node brand/sync-prompt-covers.mjs
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { CANDIDATE_DIR, LIB_DIR as srcDir } from "./pipeline/lib/common.mjs";
 import { createLocalizer, pool } from "./pipeline/lib/covers.mjs";
 
-const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const srcDir = resolve(root, "web/public/prompt-sources");
 const outDir = resolve(srcDir, "covers");
 const manifest = JSON.parse(readFileSync(resolve(srcDir, "manifest.json"), "utf8"));
 const { localize, stats, failedUrls } = createLocalizer();
@@ -44,4 +42,7 @@ for (const source of [{ path: "dianran-picks.json" }, { path: "x-trending.json" 
     console.log(`${source.path}: done`, JSON.stringify(stats));
 }
 console.log("covers ->", outDir, stats);
-if (failedUrls.length) writeFileSync(resolve(root, "brand/.cover-failures.txt"), failedUrls.join("\n") + "\n");
+if (failedUrls.length) {
+    mkdirSync(CANDIDATE_DIR, { recursive: true });
+    writeFileSync(resolve(CANDIDATE_DIR, "cover-failures.txt"), failedUrls.join("\n") + "\n");
+}

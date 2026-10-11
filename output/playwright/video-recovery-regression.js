@@ -16,6 +16,7 @@ async (page) => {
     return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'mock polling interruption'}}),headers:{'Access-Control-Allow-Origin':'*'}});
   });
   await page.goto(base+'/canvas');
+  await page.waitForFunction(async () => (await import('/src/lib/write-ownership.ts')).writeOwnership.canWrite());
   const id=await page.evaluate(async()=>{
     const {useConfigStore,defaultConfig}=await import('/src/stores/use-config-store.ts');
     useConfigStore.setState({config:{...defaultConfig,channels:[{id:'video',name:'mock',baseUrl:'https://video-mock.example/v1',apiKey:'mock-key',apiFormat:'openai',models:[{name:'sora-2',capability:'video'}]}],videoModel:'video::sora-2'}});
