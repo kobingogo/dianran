@@ -123,10 +123,14 @@ for (const lib of libs.filter((l) => l.source === "github")) {
     const byUrl = new Map(current.filter((i) => tweetIdFromUrl(i.sourceUrl) && urlCount.get(i.sourceUrl) === 1).map((i) => [i.sourceUrl, i]));
     const byPrompt = new Map(current.map((i) => [promptKey(i.prompt), i]));
     const matched = new Set();
+    const seenUpstream = new Set();
     const next = [];
     const toAdd = [];
     for (const up of upstream) {
+        if (seenUpstream.has(up.id)) continue;
+        seenUpstream.add(up.id);
         const hit = byId.get(up.id) || (tweetIdFromUrl(up.sourceUrl) && byUrl.get(up.sourceUrl)) || byPrompt.get(promptKey(up.prompt));
+        if (hit && matched.has(hit.id)) continue;
         if (hit && !matched.has(hit.id)) {
             matched.add(hit.id);
             for (const k of ["title", "prompt", "description", "tags", "author", "sourceUrl", "imageModel"]) if (up[k] !== undefined && JSON.stringify(up[k]) !== JSON.stringify(hit[k])) { hit[k] = up[k]; report.updated++; }

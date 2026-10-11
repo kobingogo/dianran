@@ -20,6 +20,8 @@ test("merge accepts new and changed prompts without content quarantine", () => {
         json(`prompt-sources/${lib}.json`, [current]);
         json(`candidates/github/${lib}.json`, { fetchedAt: new Date().toISOString(), items: [
             { ...current, prompt: "nsfw portrait" },
+            { ...current, id: "alias", prompt: current.prompt },
+            { id: "blocked", prompt: "nsfw photo", coverUrl: "/prompt-sources/covers/fixture.webp", sourceUrl: "https://example.com/blocked" },
             { id: "blocked", prompt: "nsfw photo", coverUrl: "/prompt-sources/covers/fixture.webp", sourceUrl: "https://example.com/blocked" },
             { id: "qualified", title: "海报", prompt: "A cinematic city poster with beautiful lighting", coverUrl: current.coverUrl },
         ] });
@@ -29,6 +31,8 @@ test("merge accepts new and changed prompts without content quarantine", () => {
         assert.equal(rows.find(row => row.id === "existing").prompt, "nsfw portrait");
         assert.ok(rows.some(row => row.id === "qualified"));
         assert.ok(rows.some(row => row.id === "blocked"));
+        assert.equal(new Set(rows.map(row => row.id)).size, rows.length);
+        assert.equal(rows.length, 3);
         assert.equal(read("candidates/merge-report.json").coverStats.failed, 0);
         assert.ok(!existsSync(resolve(root, "data/review-queue.json")));
         assert.ok(!existsSync(resolve(root, "reports/review-queue.md")));
