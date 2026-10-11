@@ -28,6 +28,7 @@ jobs:
         if: always()
         with:
           name: browser-evidence
+          include-hidden-files: true
           path: |
             .playwright-cli/*.result.json
             .playwright-cli/vite.log

@@ -27,10 +27,12 @@ async (page) => {
       check();
     });
     await canvasIndexedStorage.ready();
-    // Proxy reads return the write barrier, not the underlying driver method.
-    // Restoring that wrapper onto the target would recurse into itself.
-    window.restoreCanvasWrite = Object.getOwnPropertyDescriptor(canvasIndexedStorage, 'setItem');
-    canvasIndexedStorage.setItem = async () => { throw new DOMException('test quota', 'QuotaExceededError'); };
+    // The write barrier uses an atomic IDB transaction for canvas records.
+    window.restoreCanvasWrite = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (this.name === 'app_state' && String(key).endsWith(':canvas_store')) throw new DOMException('test quota', 'QuotaExceededError');
+      return window.restoreCanvasWrite.apply(this, arguments);
+    };
     useCanvasStore.getState().renameProject(id, '失败后保留的标题');
     await flushCanvasSave().catch(() => {});
     const { useCanvasSaveStore } = await import('/src/stores/canvas/use-canvas-save-store.ts');
@@ -41,8 +43,7 @@ async (page) => {
   const backup = await download;
   if (!backup.suggestedFilename().endsWith('.zip')) throw new Error('missing backup');
   await page.evaluate(async () => {
-    const { canvasIndexedStorage } = await import('/src/lib/localforage-storage.ts');
-    Object.defineProperty(canvasIndexedStorage, 'setItem', window.restoreCanvasWrite);
+    IDBObjectStore.prototype.put = window.restoreCanvasWrite;
     delete window.restoreCanvasWrite;
   });
   await page.getByRole('button', {name:'重试保存',exact:true}).click();
