@@ -14,13 +14,13 @@
 ## PR #4 修复范围
 
 - 保存失败注入改为实际 IndexedDB 写事务；浏览器 fixture 等待数据加载后可写，沿用项目当前直接编辑状态。
-- Playwright CLI 的 modal state 会让长脚本在 beforeunload 时提前返回空结果；CI 改为使用相同固定版本依赖的 Playwright API，直接等待七组 fixture，并保留失败截图与控制台日志。
+- Playwright CLI 的 modal state 会让长脚本在 beforeunload 时提前返回空结果；CI 改为使用相同固定版本依赖的 Playwright API，直接等待七组 fixture，并保留失败截图与控制台日志。轮询读取状态改为同步谓词，预览文案与当前本机／API 计费说明一致；过程投递与结果未知恢复从当前创作输入框提交，避免旧 Agent 命令绕过创作记录。
 - 修复 Actions job env 不支持 `runner` context，临时账户库通过步骤中的 `$RUNNER_TEMP` 注入。
 - 完成独立资源 checkout、云端 twscrape、部署 Token、执行回执与默认分支 schedule；无变化不部署，失败不推进发布基线。
 - 用户确认的取消过滤／数量门槛纳入；上游重复身份及同条目别名重复合并已修复，保留既有数据完整性检查。
 
 ## 验证状态
 
-验证只在 GitHub CI 执行，本机没有运行测试、类型／语法检查或构建。前端、Agent、流水线测试与资源完整性已通过此前运行；浏览器全部通过前仍不能将 PR #4 标为可合并。CI 暂以 `PROMPT_CHECK_RESOURCE_REF` 指向资源草稿提交，验证新增数据；完成后恢复默认已发布资源分支并验证最终 PR 提交。
+验证只在 GitHub CI 执行，本机没有运行测试、类型／语法检查或构建。此前运行已通过前端类型检查、构建、195 项测试／261 断言、Agent 170 项测试、6 项流水线回归；默认已发布快照验证 9 库、1714 条唯一记录及本地图片引用。资源草稿通过 [候选校验](https://github.com/kobingogo/dianran/actions/runs/38152270656)，为 9 库、1772 条；该运行最终因浏览器初始化问题失败，不能当作整条 CI 通过。临时 `PROMPT_CHECK_RESOURCE_REF` 已删除，后续恢复默认已发布分支。七组浏览器及最终提交状态以 [PR #4 checks](https://github.com/kobingogo/dianran/pull/4/checks) 为准，全部通过才可准备合并。
 
 真实外部依赖尚未验收：云端 X Cookie、GitHub 资源写权限、Vercel 部署、资源 PR 与当前网站 snapshot。合并 #4 到 main 前须说明最终 CI、风险和冲突并取得明确同意；合并后才能启用／手动运行并记录结果。取消过滤可能让符合其余采集条件的 NSFW／真人内容自动入库，此行为已由用户确认。没有新增重试、超时或生产数量上限。
