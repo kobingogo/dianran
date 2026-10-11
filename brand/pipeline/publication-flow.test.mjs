@@ -33,6 +33,7 @@ test("daily publication continues the remote baseline, skips unchanged runs and 
         cli("node", `#!/usr/bin/env node
 const fs=require('node:fs');const path=require('node:path');const cp=require('node:child_process');const args=process.argv.slice(2);const name=path.basename(args[0]||'');const root=process.env.DIANRAN_PROMPT_PIPELINE_ROOT;
 const write=(file,x)=>{const f=path.join(root,file);fs.mkdirSync(path.dirname(f),{recursive:true});fs.writeFileSync(f,JSON.stringify(x));};
+if(name.startsWith('fetch-')&&process.env.DIANRAN_PIPELINE_PUBLISH_ONLY==='1')throw Error('Publish retry must not collect');
 if(name==='fetch-x.mjs'){write('candidates/x.json',{stats:{errors:[]},items:[]});process.exit(0);}
 if(name.startsWith('fetch-')||name==='picks.mjs'||name==='validate.mjs')process.exit(0);
 if(name==='usage-read.mjs'){write('data/usage.json',{status:'unavailable'});process.exit(0);}
@@ -46,10 +47,10 @@ const result=cp.spawnSync(${JSON.stringify(process.execPath)},args,{stdio:'inher
         // Use an absolute Node shebang: this stub must not recursively invoke itself.
         const nodeFile = path.join(bins, "node"); put(nodeFile, readFileSync(nodeFile, "utf8").replace("#!/usr/bin/env node", `#!${process.execPath}`)); chmodSync(nodeFile, 0o755);
         const deploy = path.join(code, "brand/pipeline/deploy.sh");
-        put(deploy, '#!/bin/bash\ngit -C "$DIANRAN_PROMPT_PIPELINE_ROOT" show "$2:prompt-sources/manifest.json" > "$FIXTURE_LIVE"\necho deploy >> "$FIXTURE_DEPLOYS"\n'); chmodSync(deploy, 0o755);
-        const run = (day, mode, additions = 1) => {
+        put(deploy, '#!/bin/bash\n[ "$FIXTURE_FAIL_DEPLOY" != 1 ] || exit 1\ngit -C "$DIANRAN_PROMPT_PIPELINE_ROOT" show "$2:prompt-sources/manifest.json" > "$FIXTURE_LIVE"\necho deploy >> "$FIXTURE_DEPLOYS"\n'); chmodSync(deploy, 0o755);
+        const run = (day, mode, additions = 1, overrides = {}) => {
             const receipt = path.join(temp, "result.json");
-            try { execFileSync("bash", [path.join(code, "brand/pipeline/run-twicedaily.sh")], { env: { ...process.env, PATH: `${bins}:${process.env.PATH}`, PIPELINE_ENV: path.join(temp, "absent.env"), DIANRAN_PROMPT_PIPELINE_ROOT: root, DIANRAN_PIPELINE_RESULT_FILE: receipt, FIXTURE_LIVE: live, FIXTURE_DEPLOYS: path.join(temp, "deploys"), FIXTURE_DAY: day, FIXTURE_MODE: mode, FIXTURE_ADDITIONS: String(additions) }, stdio: "pipe" }); } catch (error) { throw new Error(`${error.message}\n${error.stdout}\n${error.stderr}`); }
+            try { execFileSync("bash", [path.join(code, "brand/pipeline/run-twicedaily.sh")], { env: { ...process.env, PATH: `${bins}:${process.env.PATH}`, PIPELINE_ENV: path.join(temp, "absent.env"), DIANRAN_PROMPT_PIPELINE_ROOT: root, DIANRAN_PIPELINE_RESULT_FILE: receipt, FIXTURE_LIVE: live, FIXTURE_DEPLOYS: path.join(temp, "deploys"), FIXTURE_DAY: day, FIXTURE_MODE: mode, FIXTURE_ADDITIONS: String(additions), ...overrides }, stdio: "pipe" }); } catch (error) { throw new Error(`${error.message}\n${error.stdout}\n${error.stderr}`); }
             return JSON.parse(readFileSync(receipt));
         };
         assert.equal(run("2026-01-01", "add").status, "published");
@@ -61,5 +62,40 @@ const result=cp.spawnSync(${JSON.stringify(process.execPath)},args,{stdio:'inher
         assert.equal(run("2026-01-04", "unchanged").status, "unchanged");
         assert.equal(readFileSync(path.join(temp, "deploys"), "utf8"), "deploy\ndeploy\ndeploy\n");
         assert.equal(git("branch", "--show-current"), "main"); assert.equal(git("status", "--porcelain"), "");
+        assert.throws(() => run("2026-01-05", "add", 1, { FIXTURE_FAIL_DEPLOY: "1" }));
+        assert.equal(JSON.parse(readFileSync(live)).generatedAt, "2026-01-04");
+        assert.equal(run("2026-01-05", "unchanged", 1, { DIANRAN_PIPELINE_PUBLISH_ONLY: "1" }).status, "published");
+        assert.equal(JSON.parse(git("show", "origin/codex/prompt-published:prompt-sources/x-trending.json")).length, 64);
+        assert.throws(() => run("2026-01-06", "unchanged", 1, { DIANRAN_PIPELINE_PUBLISH_ONLY: "1" }));
+    } finally { rmSync(temp, { recursive: true, force: true }); }
+});
+
+test("project-scoped deployment avoids account lookup and rejects an unexpected project", () => {
+    const temp = mkdtempSync(path.join(os.tmpdir(), "dianran-scoped-deploy-"));
+    const root = path.join(temp, "resources"), code = path.join(temp, "code"), bins = path.join(temp, "bin");
+    const put = (file, text) => { mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, text); };
+    const cli = (name, text) => { const file = path.join(bins, name); put(file, text); chmodSync(file, 0o755); };
+    const git = (...args) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
+    try {
+        for (const file of ["environment.sh", "deploy.sh", "prompt-host/vercel.json"]) cpSync(`brand/pipeline/${file}`, path.join(code, `brand/pipeline/${file}`), { recursive: true });
+        put(path.join(root, "prompt-sources/manifest.json"), '{"generatedAt":"scoped-snapshot"}');
+        put(path.join(root, "prompt-sources/test.json"), '[{"coverUrl":"/prompt-sources/covers/test.webp"}]');
+        git("init", "-q", "-b", "main"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid"); git("add", "."); git("commit", "-qm", "snapshot");
+        execFileSync("git", ["init", "-q", "--bare", path.join(temp, "remote.git")]);
+        git("remote", "add", "origin", path.join(temp, "remote.git")); git("push", "-qu", "origin", "main");
+        const log = path.join(temp, "deploy.log");
+        cli("vercel", '#!/bin/bash\n[[ "$*" != *--scope* && "$*" != *link* ]] || exit 91\n[ "$VERCEL_PROJECT_ID" = prj_fixture ] && [ "$VERCEL_ORG_ID" = team_fixture ] || exit 92\necho deploy >> "$FIXTURE_DEPLOYS"\necho https://fixture.vercel.app\n');
+        cli("curl", '#!/bin/bash\nif [[ "$*" == *manifest.json* ]]; then echo \'{"generatedAt":"scoped-snapshot"}\'; else echo "200 image/webp"; fi\n');
+        const preload = path.join(temp, "project-api.cjs");
+        put(preload, `global.fetch = async (url, options) => {
+            if (url !== 'https://api.vercel.com/v9/projects/dianran-prompts' || options.headers.Authorization !== 'Bearer fixture-token') throw Error('Unexpected credential destination');
+            return { ok: process.env.FIXTURE_PROJECT !== 'forbidden', status: 403, json: async () => ({ name: process.env.FIXTURE_PROJECT, id: 'prj_fixture', accountId: 'team_fixture' }) };
+        };`);
+        const run = (name) => execFileSync("bash", [path.join(code, "brand/pipeline/deploy.sh"), "prompts"], { env: { ...process.env, PATH: `${bins}:${process.env.PATH}`, NODE_OPTIONS: `--require=${preload}`, PIPELINE_ENV: path.join(temp, "absent.env"), DIANRAN_PROMPT_PIPELINE_ROOT: root, VERCEL_TOKEN: "fixture-token", VERCEL_PROJECT_ID: "prj_wrong", VERCEL_ORG_ID: "team_wrong", FIXTURE_PROJECT: name, FIXTURE_DEPLOYS: log }, stdio: "pipe" });
+        run("dianran-prompts");
+        assert.equal(readFileSync(log, "utf8"), "deploy\n");
+        assert.throws(() => run("dianran"));
+        assert.throws(() => run("forbidden"));
+        assert.equal(readFileSync(log, "utf8"), "deploy\n");
     } finally { rmSync(temp, { recursive: true, force: true }); }
 });
