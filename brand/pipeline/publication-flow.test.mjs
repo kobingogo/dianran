@@ -17,7 +17,7 @@ test("daily publication continues the remote baseline, skips unchanged runs and 
     try {
         mkdirSync(root); mkdirSync(path.join(code, "brand/node_modules/sharp"), { recursive: true });
         cpSync("brand/pipeline/config", path.join(code, "brand/pipeline/config"), { recursive: true });
-        for (const file of ["environment.sh", "run-twicedaily.sh", "pending-additions.mjs", "prompt-key.test.mjs", "lib/common.mjs"]) cpSync(`brand/pipeline/${file}`, path.join(code, `brand/pipeline/${file}`), { recursive: true });
+        for (const file of ["environment.sh", "run-twicedaily.sh", "prompt-key.test.mjs", "lib/common.mjs"]) cpSync(`brand/pipeline/${file}`, path.join(code, `brand/pipeline/${file}`), { recursive: true });
         put(path.join(root, ".gitignore"), "candidates/\n");
         const ids = ["x-trending", "civitai-trending", ...JSON.parse(readFileSync("brand/pipeline/config/github-sources.json")).sources.map(row => row.id)];
         for (const id of ids) put(path.join(root, `prompt-sources/${id}.json`), "[]");
