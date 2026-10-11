@@ -108,6 +108,15 @@ if [ "$PARENT" != "$MAIN_SHA" ]; then
     MOVED=1
 fi
 
+if [ "${DIANRAN_PIPELINE_PUBLISH_ONLY:-0}" = 1 ]; then
+    [ "$PARENT" != "$BASE_SHA" ] || die "当前时段没有待重新发布的开放资源分支"
+    FETCH_LINE="复用已提交资源，本轮未重新采集"
+    ADDED=0
+    ADDED_LINE="0（仅发布已有提交）"
+    CHANGED=false
+    VERSION="$(git show "$PARENT:prompt-sources/manifest.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).generatedAt||""))')"
+    node "$CODE_ROOT/brand/pipeline/validate.mjs"
+else
 export X_WINDOW_DAYS
 [ -d "$CODE_ROOT/brand/node_modules/sharp" ] || (cd "$CODE_ROOT/brand" && npm ci --no-audit --no-fund)
 
@@ -160,6 +169,7 @@ const parts=Object.entries(r.perLibrary||{}).filter(([,v])=>v.added).map(([k,v])
 process.stdout.write(String(r.added.length)+(parts.length?"（"+parts.join("，")+"）":""));
 ' "$LOG_DIR/merge-report.json")"
 say "new items this run: $ADDED; public changed: $CHANGED"
+fi
 
 back_to_main() {
     if [ "$(git branch --show-current)" != "main" ]; then

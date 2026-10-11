@@ -9,6 +9,10 @@ on:
       request_id:
         description: Maintainer request identity (leave empty for a GitHub manual run)
         type: string
+      publish_existing_slot:
+        description: 仅重试当前时段已有待发布资源，不重新采集
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -29,6 +33,7 @@ jobs:
       DIANRAN_PIPELINE_RESULT_FILE: ${{ github.workspace }}/pipeline-result/result.json
       DIANRAN_PIPELINE_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
       X_PROVIDER: twscrape
+      DIANRAN_PIPELINE_PUBLISH_ONLY: ${{ inputs.publish_existing_slot && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
         with:

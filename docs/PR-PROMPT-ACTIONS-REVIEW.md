@@ -1,6 +1,6 @@
 # PR 审阅与提示词 Actions 准备
 
-本轮基于 `main` 的 `ff457998`，修复在独立 worktree 准备并普通推送到 PR #4。原开发工作区的未提交改动与 index 未改动。没有合并 main、关闭 PR、force-push 或真实采集／部署；用户仅确认将已准备的取消门槛和内容过滤改动纳入。
+本轮基于 `main` 的 `ff457998`，修复在独立 worktree 准备并普通推送到 PR #4。用户确认纳入取消门槛与过滤改动，并明确同意合并及真实 Actions 验收；PR #4 已以 `eeffbad1` 合并。原开发工作区的未提交改动与 index 未改动；没有关闭 PR 或 force-push。
 
 ## 需求价值与实现质量
 
@@ -23,4 +23,8 @@
 
 验证只在 GitHub CI 执行，本机没有运行测试、类型／语法检查或构建。此前运行已通过前端类型检查、构建、195 项测试／261 断言、Agent 170 项测试、6 项流水线回归；默认已发布快照验证 9 库、1714 条唯一记录及本地图片引用。资源草稿通过 [候选校验](https://github.com/kobingogo/dianran/actions/runs/38152270656)，为 9 库、1772 条；该运行最终因浏览器初始化问题失败，不能当作整条 CI 通过。临时 `PROMPT_CHECK_RESOURCE_REF` 已删除，后续恢复默认已发布分支。七组浏览器及最终提交状态以 [PR #4 checks](https://github.com/kobingogo/dianran/pull/4/checks) 为准，全部通过才可准备合并。
 
-真实外部依赖尚未验收：云端 X Cookie、GitHub 资源写权限、Vercel 部署、资源 PR 与当前网站 snapshot。合并 #4 到 main 前须说明最终 CI、风险和冲突并取得明确同意；合并后才能启用／手动运行并记录结果。取消过滤可能让符合其余采集条件的 NSFW／真人内容自动入库，此行为已由用户确认。没有新增重试、超时或生产数量上限。
+PR #4 合并前最终 [CI](https://github.com/kobingogo/dianran/actions/runs/38153187909) 全部通过；合并后 [检查](https://github.com/kobingogo/dianran/actions/runs/38154049579) 的七组浏览器中六组通过，结果未知恢复一组超时，继续根据失败现场定位。
+
+首次 [真实采集](https://github.com/kobingogo/dianran/actions/runs/38154080334) 验证云端 X Cookie 与 GitHub 资源写权限：X、GitHub、Civitai 均成功，新增 237 条，9 库 1951 条通过完整性检查，保存至 [资源 PR #4](https://github.com/kobingogo/dianran-prompts/pull/4)。部署在 Vercel 项目关联的账号身份读取处失败（404），线上快照与 `codex/prompt-published` 未推进；资源分支保留可恢复内容。[修复 PR #6](https://github.com/kobingogo/dianran/pull/6) 改为项目 API 校验后按项目／团队 ID 部署，独立分支实际验收进行中，尚未合并。
+
+取消过滤可能让符合其余采集条件的 NSFW／真人内容自动入库，此行为已由用户确认。没有新增重试、超时或生产数量上限。
