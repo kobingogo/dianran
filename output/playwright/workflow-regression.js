@@ -43,7 +43,7 @@ async (page) => {
   await page.keyboard.press('Control+a');
   await page.getByRole('button',{name:'工作流',exact:true}).click();
   await page.getByRole('button',{name:'预览选定节点',exact:true}).click();
-  await page.getByText('2 步 · 共 2 次生成请求 · 费用由配置的渠道计费',{exact:true}).waitFor();
+  await page.getByText('2 步 · 共 2 次生成请求 · API 按渠道计费，本机 Codex 按账户规则计费',{exact:true}).waitFor();
   if(calls.length) throw new Error('Preview submitted a paid request');
   await page.getByRole('button',{name:'保存为模板',exact:true}).click();
   await page.getByText('模板已保存到本机',{exact:true}).waitFor();
