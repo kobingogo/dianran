@@ -6,6 +6,7 @@ import vm from 'node:vm';
 const require = createRequire(path.join(process.argv[2], 'package.json'));
 const { chromium } = require('playwright');
 const browser = await chromium.launch({ channel: 'chrome' });
+let failed = false;
 try {
     for (const name of ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry']) {
         const context = await browser.newContext();
@@ -25,7 +26,8 @@ try {
         } catch (error) {
             await fs.writeFile(resultFile, JSON.stringify({ error: error.stack }));
             await page.screenshot({ path: `output/playwright/evidence/${name}-failure.png` }).catch(() => {});
-            throw error;
+            failed = true;
+            console.error(`${name}:`, error);
         } finally {
             await fs.writeFile(`output/playwright/evidence/${name}.log`, logs.join('\n'));
             await context.close();
@@ -34,3 +36,4 @@ try {
 } finally {
     await browser.close();
 }
+if (failed) process.exitCode = 1;
