@@ -58,8 +58,8 @@ const result=cp.spawnSync(${JSON.stringify(process.execPath)},args,{stdio:'inher
         assert.equal(run("2026-01-03", "unchanged").status, "unchanged");
         assert.equal(readFileSync(path.join(temp, "deploys"), "utf8"), "deploy\ndeploy\n");
         assert.equal(run("2026-01-04", "add", 61).status, "published");
-        assert.equal(run("2026-01-04", "unchanged").status, "published");
-        assert.equal(readFileSync(path.join(temp, "deploys"), "utf8"), "deploy\ndeploy\ndeploy\ndeploy\n");
+        assert.equal(run("2026-01-04", "unchanged").status, "unchanged");
+        assert.equal(readFileSync(path.join(temp, "deploys"), "utf8"), "deploy\ndeploy\ndeploy\n");
         assert.equal(git("branch", "--show-current"), "main"); assert.equal(git("status", "--porcelain"), "");
     } finally { rmSync(temp, { recursive: true, force: true }); }
 });
