@@ -2,7 +2,8 @@ async(page)=>{
   if(new URL(page.url()).origin!=='http://127.0.0.1:4317') throw Error('Use isolated 127.0.0.1:4317');
   page.on('dialog',dialog=>{if(dialog.type()==='beforeunload') void dialog.accept().catch(()=>{});});
   await page.goto('http://127.0.0.1:4317/image');
-  await page.waitForFunction(async () => (await import('/src/lib/write-ownership.ts')).writeOwnership.canWrite());
+  await page.evaluate(async () => { window.testWriteOwnership = (await import('/src/lib/write-ownership.ts')).writeOwnership; });
+  await page.waitForFunction(() => window.testWriteOwnership.canWrite());
   const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=32;c.height=32;c.getContext('2d').fillRect(0,0,32,32);return c.toDataURL('image/png').split(',')[1];});
   const bodies=[];
   await page.unroute('https://retry-mock.example/**');
