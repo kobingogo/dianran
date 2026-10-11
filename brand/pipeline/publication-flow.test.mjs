@@ -63,3 +63,33 @@ const result=cp.spawnSync(${JSON.stringify(process.execPath)},args,{stdio:'inher
         assert.equal(git("branch", "--show-current"), "main"); assert.equal(git("status", "--porcelain"), "");
     } finally { rmSync(temp, { recursive: true, force: true }); }
 });
+
+test("project-scoped deployment avoids account lookup and rejects an unexpected project", () => {
+    const temp = mkdtempSync(path.join(os.tmpdir(), "dianran-scoped-deploy-"));
+    const root = path.join(temp, "resources"), code = path.join(temp, "code"), bins = path.join(temp, "bin");
+    const put = (file, text) => { mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, text); };
+    const cli = (name, text) => { const file = path.join(bins, name); put(file, text); chmodSync(file, 0o755); };
+    const git = (...args) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
+    try {
+        for (const file of ["environment.sh", "deploy.sh", "prompt-host/vercel.json"]) cpSync(`brand/pipeline/${file}`, path.join(code, `brand/pipeline/${file}`), { recursive: true });
+        put(path.join(root, "prompt-sources/manifest.json"), '{"generatedAt":"scoped-snapshot"}');
+        put(path.join(root, "prompt-sources/test.json"), '[{"coverUrl":"/prompt-sources/covers/test.webp"}]');
+        git("init", "-q", "-b", "main"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid"); git("add", "."); git("commit", "-qm", "snapshot");
+        execFileSync("git", ["init", "-q", "--bare", path.join(temp, "remote.git")]);
+        git("remote", "add", "origin", path.join(temp, "remote.git")); git("push", "-qu", "origin", "main");
+        const log = path.join(temp, "deploy.log");
+        cli("vercel", '#!/bin/bash\n[[ "$*" != *--scope* && "$*" != *link* ]] || exit 91\n[ "$VERCEL_PROJECT_ID" = prj_fixture ] && [ "$VERCEL_ORG_ID" = team_fixture ] || exit 92\necho deploy >> "$FIXTURE_DEPLOYS"\necho https://fixture.vercel.app\n');
+        cli("curl", '#!/bin/bash\nif [[ "$*" == *manifest.json* ]]; then echo \'{"generatedAt":"scoped-snapshot"}\'; else echo "200 image/webp"; fi\n');
+        const preload = path.join(temp, "project-api.cjs");
+        put(preload, `global.fetch = async (url, options) => {
+            if (url !== 'https://api.vercel.com/v9/projects/dianran-prompts' || options.headers.Authorization !== 'Bearer fixture-token') throw Error('Unexpected credential destination');
+            return { ok: process.env.FIXTURE_PROJECT !== 'forbidden', status: 403, json: async () => ({ name: process.env.FIXTURE_PROJECT, id: 'prj_fixture', accountId: 'team_fixture' }) };
+        };`);
+        const run = (name) => execFileSync("bash", [path.join(code, "brand/pipeline/deploy.sh"), "prompts"], { env: { ...process.env, PATH: `${bins}:${process.env.PATH}`, NODE_OPTIONS: `--require=${preload}`, PIPELINE_ENV: path.join(temp, "absent.env"), DIANRAN_PROMPT_PIPELINE_ROOT: root, VERCEL_TOKEN: "fixture-token", VERCEL_PROJECT_ID: "prj_wrong", VERCEL_ORG_ID: "team_wrong", FIXTURE_PROJECT: name, FIXTURE_DEPLOYS: log }, stdio: "pipe" });
+        run("dianran-prompts");
+        assert.equal(readFileSync(log, "utf8"), "deploy\n");
+        assert.throws(() => run("dianran"));
+        assert.throws(() => run("forbidden"));
+        assert.equal(readFileSync(log, "utf8"), "deploy\n");
+    } finally { rmSync(temp, { recursive: true, force: true }); }
+});

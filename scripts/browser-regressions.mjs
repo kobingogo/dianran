@@ -25,6 +25,7 @@ try {
             console.log(resultFile, JSON.stringify(result));
         } catch (error) {
             await fs.writeFile(resultFile, JSON.stringify({ error: error.stack }));
+            await fs.writeFile(`output/playwright/evidence/${name}-failure.txt`, await page.locator('body').innerText()).catch(() => {});
             await page.screenshot({ path: `output/playwright/evidence/${name}-failure.png` }).catch(() => {});
             failed = true;
             console.error(`${name}:`, error);

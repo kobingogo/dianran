@@ -171,6 +171,8 @@ Civitai 继续使用公共 REST API 的 Most Reactions / Week、4 页 × 100 条
 - `PROMPT_VERCEL_TOKEN`：资源项目部署凭据。
 - 可选 `CIVITAI_API_TOKEN`、`BLOB_READ_WRITE_TOKEN`。
 
+使用部署 Token 时，脚本先通过项目 API 校验目标名称并取得项目／团队 ID，再用 `VERCEL_PROJECT_ID`、`VERCEL_ORG_ID` 部署；不额外查询账号身份或团队列表。项目读取失败或名称不符即停止。无 Token 的本机登录方式仍按 `VERCEL_SCOPE` 关联项目。
+
 首次设置 Actions Variable `PROMPT_BASELINE_COMMIT` 为已核验的线上资源提交；本轮核验的已发布提交为 `be9af54d6c1b176452fa989922d0cb8c6af0c2b7`。脚本先核对线上 manifest，再建立资源仓库 `codex/prompt-published` 基线分支。以后只在资源发布核对通过时，以普通快进推送更新基线；不合并 main、不 force-push。main 与基线分叉或线上版本不一致时拒绝继续。跨天仍从该基线采集，不丢失已发布的条目；新条目不再受累计数量上限限制。
 
 页面云端模式：维护者 Agent 设置 `DIANRAN_PROMPT_PIPELINE_GITHUB_REPO=kobingogo/dianran`，并确保 `gh` 对该仓库有 Actions 读写权限。不再要求本机资源目录。先保存 UUID 再提交 workflow_dispatch，以运行标题关联身份；请求不确定、断线、Agent 重启都只查询原任务，不重复 dispatch。最终从 Actions 的 `prompt-pipeline-result` Artifact 读取回执，网页仍需核对自己的资源快照。Artifacts 使用 GitHub 默认保留周期；记录过期或缺失时不会重新采集，显示失败/未知供人工核对。

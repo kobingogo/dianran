@@ -37,10 +37,27 @@ vercel_cmd() {
 
 link_exact() {
     local project="$1"
+    if [ -n "${VERCEL_TOKEN:-}" ]; then
+        node --input-type=module - "$project" <<'JS'
+import { mkdirSync, writeFileSync } from 'node:fs';
+const name = process.argv[2];
+const response = await fetch(`https://api.vercel.com/v9/projects/${encodeURIComponent(name)}`, { headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` } });
+if (!response.ok) throw new Error(`Cannot read deployment project: HTTP ${response.status}`);
+const project = await response.json();
+if (project.name !== name || !project.id || !project.accountId) throw new Error('Deployment project identity mismatch');
+mkdirSync('.vercel', { recursive: true });
+writeFileSync('.vercel/project.json', JSON.stringify({ projectName: name, projectId: project.id, orgId: project.accountId }));
+JS
+        export VERCEL_PROJECT_ID="$(node -p "JSON.parse(require('fs').readFileSync('.vercel/project.json','utf8')).projectId")"
+        export VERCEL_ORG_ID="$(node -p "JSON.parse(require('fs').readFileSync('.vercel/project.json','utf8')).orgId")"
+        DEPLOY_SCOPE=()
+        return
+    fi
     vercel_cmd link --yes --project "$project" --scope "$SCOPE" >/dev/null
     local name
     name="$(node -p "JSON.parse(require('fs').readFileSync('.vercel/project.json','utf8')).projectName")"
     [ "$name" = "$project" ] || die "refusing to deploy: linked project is $name, expected $project"
+    DEPLOY_SCOPE=(--scope "$SCOPE")
 }
 
 manifest_at() {
@@ -74,7 +91,7 @@ for (const file of fs.readdirSync(dir)) {
     cd "$OUT"
     link_exact dianran-prompts
     DEPLOY_LOG="$STAGE/deploy.log"
-    vercel_cmd deploy --prod --yes --scope "$SCOPE" | tee "$DEPLOY_LOG"
+    vercel_cmd deploy --prod --yes "${DEPLOY_SCOPE[@]}" | tee "$DEPLOY_LOG"
     DEPLOY_URL="$(grep -oE 'https://[^[:space:]]+\.vercel\.app' "$DEPLOY_LOG" | grep -v 'dianran-prompts\.vercel\.app$' | head -1 || true)"
     echo "deployed $SHA ($EXPECT)${DEPLOY_URL:+ from $DEPLOY_URL}"
 
@@ -100,5 +117,5 @@ else
     git -C "$ROOT" archive HEAD | tar -x -C "$STAGE"
     cd "$STAGE"
     link_exact dianran
-    vercel_cmd deploy --prod --yes --scope "$SCOPE"
+    vercel_cmd deploy --prod --yes "${DEPLOY_SCOPE[@]}"
 fi
