@@ -1,3 +1,7 @@
+import { generationError } from "@/lib/generation-outcome";
+import { observeGeneration, recordCapabilityEvidence } from "@/stores/use-capability-evidence-store";
+import { proxyFetch } from "@/services/api/proxy-transport";
+import { businessOperation } from "@/lib/write-ownership";
 import axios from "axios";
 
 import i18n from "@/i18n";
@@ -20,7 +24,7 @@ function aiHeaders(config: AiConfig) {
     };
 }
 
-export async function requestAudioGeneration(config: AiConfig, prompt: string, options?: RequestOptions): Promise<Blob> {
+async function requestAudioGenerationOwned(config: AiConfig, prompt: string, options?: RequestOptions): Promise<Blob> {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.audioModel);
     const model = requestConfig.model.trim();
     const format = normalizeAudioFormatValue(config.audioFormat);
@@ -40,7 +44,7 @@ export async function requestAudioGeneration(config: AiConfig, prompt: string, o
             });
             return await audioPluginBlob(result, format);
         } catch (error) {
-            throw new Error(readAxiosError(error, apiText("audioGenerationFailed")));
+            throw generationError(error, readAxiosError(error, apiText("audioGenerationFailed")));
         }
     }
     assertAudioConfig(requestConfig, model);
@@ -62,7 +66,7 @@ export async function requestAudioGeneration(config: AiConfig, prompt: string, o
         await assertAudioBlob(response.data);
         return response.data.type.startsWith("audio/") ? response.data : new Blob([response.data], { type: audioMimeType(format) });
     } catch (error) {
-        throw new Error(readAxiosError(error, apiText("audioGenerationFailed")));
+        throw generationError(error, readAxiosError(error, apiText("audioGenerationFailed")));
     }
 }
 
@@ -76,11 +80,11 @@ async function audioPluginBlob(result: unknown, format: string): Promise<Blob> {
     }
     if (!source) throw new Error(apiText("scriptNoAudio"));
     const url = source.startsWith("data:") || /^https?:/i.test(source) ? source : `data:${audioMimeType(format)};base64,${source}`;
-    const blob = await (await fetch(withLocalProxy(url))).blob();
+    const blob = await (await proxyFetch(withLocalProxy(url))).blob();
     return blob.type.startsWith("audio/") ? blob : new Blob([blob], { type: audioMimeType(format) });
 }
 
-export async function storeGeneratedAudio(blob: Blob, format = "mp3"): Promise<UploadedFile> {
+async function storeGeneratedAudioOwned(blob: Blob, format = "mp3"): Promise<UploadedFile> {
     const audio = blob.type.startsWith("audio/") ? blob : new Blob([blob], { type: audioMimeType(format) });
     return uploadMediaFile(audio, "audio");
 }
@@ -155,3 +159,7 @@ function statusMessage(status: number | undefined, fallback: string) {
     if (status === 503) return apiText("serviceBusy");
     return status ? apiText("httpFailed", { status }) : fallback;
 }
+
+export const requestAudioGeneration = businessOperation((...args: Parameters<typeof requestAudioGenerationOwned>) => observeGeneration(args[0], "audio", args[0].model || args[0].audioModel, async () => { const blob = await requestAudioGenerationOwned(...args); if (!blob.size) throw generationError({}, "渠道返回空音频，没有可确认作品"); return blob; }));
+
+export const storeGeneratedAudio = businessOperation(storeGeneratedAudioOwned);

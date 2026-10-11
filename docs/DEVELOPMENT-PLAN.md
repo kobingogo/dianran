@@ -1,5 +1,7 @@
 # 点染项目分析与后续开发计划
 
+> 当前执行优先级见 [产品改进实施计划](IMPLEMENTATION-PLAN.md)，依据 [产品分析报告](PRODUCT-REVIEW.md) 先处理作品保全、请求和权限边界，再完善创作闭环。四模式工作流及创作辅助已在草稿 [PR #1](https://github.com/kobingogo/dianran/pull/1) 开发，尚未合并；本文件下文保留原审查背景，不把历史未实现项或旧 PR 状态作为当前执行清单。
+
 ## 当前推进结果
 
 用户已确认顺序：整合 PR 与检查 → 保存/快照/恢复 → 完整创作过程投递 → 工作流、模板与 Agent 计划。原有 #3–#7 已按依赖合并，初次审查修复也已进入 main（`2066793`）。后续实现放在 `feat/creation-reliability-workflows`，新增持续集成、可靠性、过程投递及工作流 MVP；完成项进入 Pending Tests，用户验收后才更新正式功能说明。

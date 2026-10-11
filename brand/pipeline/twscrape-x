@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+TWSCRAPE_PYTHON="${TWSCRAPE_PYTHON:-$HOME/.local/share/dianran/twscrape/bin/python}"
+exec "$TWSCRAPE_PYTHON" "$(dirname "$0")/twscrape-x.py" "$@"

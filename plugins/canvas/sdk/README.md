@@ -75,3 +75,14 @@ await buildPlugin(import.meta.url);
 - **React 单例**:JSX 与 hooks 惰性读取 `globalThis.InfiniteCanvasRuntime.React`(宿主在加载插件前注入),react 全程 external,绝不打包第二份。
 - **重依赖**:three、marked 等在源码里 `await import("https://esm.sh/...")` 动态加载,esbuild 自动 external,不进 bundle。
 - **类型真源**:`src/types.ts` 是宿主 `web/src/types/canvas-plugin.ts` 公开契约的镜像;宿主契约变更时同步此处。
+
+
+## 可审阅的图片处理动作
+
+节点定义可提供 `workflowAction`，包含 id、version、title、description、validate 与 execute。validate 接收未知参数并返回扁平的字符串/数字/布尔对象；execute 接收原图 Blob 数组、冻结参数和进度回调，返回与输入逐张对应的图片 Blob 数组。不要覆盖输入文件；结果由宿主另存为图片节点、登记任务并保存回执后交给下游。
+
+节点按钮调用 `ctx.previewWorkflow(parameters)` 打开审阅，不直接执行。宿主核对已授权源码 SHA-256 和动作版本；插件更新、停用或参数变化后要求重新预览。保存失败只重试原结果；刷新中断且没有保存输出时，不自动重新运行。当前动作契约只支持图片输入/输出，不支持任意脚本步骤；ZIP 交付使用独立的手动下载节点。
+
+点染随应用提供「素材处理」：去背景、AI 放大 2 倍、裁剪、尺寸适配、PNG/JPEG/WebP 转换与原图 ZIP。选中已保存的图片，在工具栏点击「素材处理」创建并连接工具节点。去背景和放大在浏览器 Worker 内处理，首次下载模型与推理运行时；其余动作使用浏览器图像编码。网络、浏览器能力或设备内存不足时报告失败，保留原图。已保存作品随画布备份；尚未保存的处理回执留在当前浏览器来源中。
+
+模型来源：[ORMBG ONNX](https://huggingface.co/onnx-community/ormbg-ONNX)、[Swin2SR 2×](https://huggingface.co/Xenova/swin2SR-lightweight-x2-64)。当前为工作区开发版本，需配套更新前端与 Canvas Agent；尚未发布新版插件包。

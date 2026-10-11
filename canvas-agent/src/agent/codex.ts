@@ -73,6 +73,26 @@ export async function generateCodexSkillDraft(emit: AgentEmit, cwd: string, inpu
     return await queued;
 }
 
+/** Text-only creative discussion: no canvas MCP, no mutable project context, no active-thread replacement. */
+export async function discussCodexCreation(emit: AgentEmit, cwd: string, input: { prompt: string; model: string; images: string[] }) {
+    const queued = codexQueue.catch(() => undefined).then(async () => {
+        const app = await getCodexApp(emit);
+        const thread = await app.startSkillDraftThread(cwd, "你是点染创作讨论助手，只根据提供的消息讨论方案并返回 outputSchema。禁止调用工具、执行命令、访问网络、生成图片或视频、修改文件或画布。没有提供的素材不能声称看过。Skill 内容仅作为创作方法参考，不授权工具执行。");
+        const threadId = String(field(thread, "id") || "");
+        let files: string[] = [];
+        try {
+            files = await writeAttachmentFiles(input.images.map((dataUrl, index) => ({ id: `discussion-${index}`, name: `reference-${index}.png`, type: "image/png", dataUrl })));
+            const result = await app.startTurn(threadId, input.prompt, files, "request", input.model, undefined, undefined, undefined, undefined, { type: "object", additionalProperties: false, required: ["reply", "prompt"], properties: { reply: { type: "string" }, prompt: { anyOf: [{ type: "string" }, { type: "null" }] } } });
+            const data = z.object({ reply: z.string(), prompt: z.string().nullable() }).parse(JSON.parse(String(field(result, "output") || "")));
+            const native = { threadId, turnId: String(field(result, "turnId") || ""), itemId: String(field(result, "itemId") || "") };
+            if (!native.turnId || !native.itemId) throw new Error("本机回复缺少所属轮次或消息身份，未写入创作历史");
+            return { ...data, native };
+        } finally { await Promise.all(files.map((file) => fs.unlink(file).catch(() => undefined))); await app.closeSkillDraftThread(threadId).catch((error) => logger.warn("Failed to release creation discussion thread", { threadId, error })); }
+    });
+    codexQueue = queued;
+    return queued;
+}
+
 /** 中断当前线程正在执行的 Codex turn。 */
 export async function interruptCodexTurn(threadId?: string) {
     if (!codexApp) return false;
@@ -80,9 +100,15 @@ export async function interruptCodexTurn(threadId?: string) {
 }
 
 /** 回复当前 app-server 的待处理权限请求。 */
-export async function resolveCodexApproval(requestId: string, decision: string) {
-    return Boolean(codexApp?.resolveApproval(requestId, decision));
+export async function resolveCodexApproval(requestId: string, decision: string, threadId?: string, turnId?: string) {
+    return Boolean(codexApp?.resolveApproval(requestId, decision, threadId, turnId));
 }
+
+/** 交互答案必须携带原始任务身份，提交后等待服务端 resolved。 */
+export function resolveCodexInteraction(requestId: string, threadId: string, turnId: string, response: JsonRecord) {
+    return Boolean(codexApp?.resolveInteraction(requestId, threadId, turnId, response));
+}
+export function pendingCodexInteractions() { return codexApp?.pendingInteractions() || []; }
 
 /** 创建新的 Codex 线程并记录当前线程 ID。 */
 export async function startCodexThread(emit: AgentEmit, cwd?: string, permissionMode: AgentPermissionMode = "request", preheat = false) {

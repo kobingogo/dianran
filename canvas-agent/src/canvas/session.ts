@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { ServerResponse } from "node:http";
 
 import type { AgentAttachment } from "../agent/types.js";
@@ -6,10 +7,11 @@ import { LEGACY_MCP_SERVER_NAME, MCP_SERVER_NAME } from "../names.js";
 import { logger } from "../utils/logger.js";
 import { buildCanvasToolRequest, fitAttachmentNodeSize } from "./operations.js";
 import type { ToolName } from "./schemas.js";
-import { compactCanvasState, compactNode, isToolName, nextCanvasX, parseToolInput } from "./tools.js";
-import type { CanvasSnapshot } from "./types.js";
+import { compactCanvasState, compactNode, isToolName, nextCanvasX, parseToolInput, readableNode } from "./tools.js";
+import type { CanvasSnapshot, CanvasTarget } from "./types.js";
 
-type PendingRequest = { clientId: string; resolve: (value: unknown) => void; reject: (error: Error) => void };
+export type ToolRequestStatus = "awaiting" | "claimed" | "executing" | "succeeded" | "failed" | "cancelled" | "expired" | "unknown";
+type PendingRequest = { clientId: string; target?: CanvasTarget; status: ToolRequestStatus; name: ToolName; input?: Record<string,unknown>; result?: unknown; error?: string; resolve: (value: unknown) => void; reject: (error: Error) => void };
 type TurnAttachment = { clientId: string; id: string; name: string; type: string; size: number; width: number; height: number; dataUrl: string };
 type ReplayEvent = { type: string; payload: Record<string, unknown> };
 export type CodexState = { busy: boolean; threadId: string; turnId: string };
@@ -24,7 +26,7 @@ export type ConversationState = {
     error?: string;
 };
 type McpInventoryItem = { name: string; authStatus?: string };
-export const AGENT_PROTOCOL_VERSION = 6;
+export const AGENT_PROTOCOL_VERSION = 7;
 
 const SITE_TOOLS = new Set<ToolName>([
     "site_navigate",
@@ -44,6 +46,8 @@ export class CanvasSession {
     private clients = new Map<string, ServerResponse>();
     private clientFocusOrder = new Map<string, number>();
     private pending = new Map<string, PendingRequest>();
+    private completedRequests = new Map<string, { clientId: string; status: ToolRequestStatus; target?: CanvasTarget; result?: unknown; error?: string }>();
+    private boundProjectId = "";
     private pendingApprovals = new Map<string, Record<string, unknown>>();
     private canvasStates = new Map<string, CanvasSnapshot>();
     private turnAttachments = new Map<string, TurnAttachment>();
@@ -291,11 +295,7 @@ export class CanvasSession {
             this.clients.delete(clientId);
             this.clientFocusOrder.delete(clientId);
             this.canvasStates.delete(clientId);
-            this.pending.forEach((item, requestId) => {
-                if (item.clientId !== clientId) return;
-                this.pending.delete(requestId);
-                item.reject(new Error("请求页面已断开"));
-            });
+            this.cancelRequests(clientId, "请求页面已断开");
             if (this.activeClientId === clientId) this.activeClientId = [...this.clients.keys()].sort((a, b) => (this.clientFocusOrder.get(b) || 0) - (this.clientFocusOrder.get(a) || 0))[0] || "";
         });
     }
@@ -313,6 +313,9 @@ export class CanvasSession {
         if (!targetClientId || !this.clients.has(targetClientId)) return;
         const state = { ...((body && typeof body === "object" && !Array.isArray(body) ? body : {}) as Record<string, unknown>), clientId: targetClientId } as CanvasSnapshot;
         this.canvasStates.set(targetClientId, state);
+        this.pending.forEach((item, id) => {
+            if (item.clientId === targetClientId && item.target && item.status !== "executing" && (state.projectId !== item.target.projectId || state.revision !== item.target.revision)) this.finishRequest(id, "cancelled", undefined, "画布项目或修订已变化，请重新读取并审阅操作");
+        });
         logger.debug("Canvas state updated", { clientId: targetClientId, nodes: state.nodes?.length || 0, connections: state.connections?.length || 0 });
     }
 
@@ -328,12 +331,17 @@ export class CanvasSession {
     bindClient(clientId: string) {
         if (!this.clients.has(clientId)) throw new Error("当前网页未连接");
         this.boundClientId = clientId;
+        this.boundProjectId = this.canvasStates.get(clientId)?.projectId || "";
         logger.debug("Canvas client bound to turn", { clientId });
     }
 
     /** 解除当前 Agent turn 的网页绑定。 */
     releaseClient(clientId: string) {
-        if (this.boundClientId === clientId) this.boundClientId = "";
+        if (this.boundClientId === clientId) {
+            this.cancelRequests(clientId, "当前任务已结束或停止");
+            this.boundClientId = "";
+            this.boundProjectId = "";
+        }
         logger.debug("Canvas client released from turn", { clientId });
     }
 
@@ -373,14 +381,94 @@ export class CanvasSession {
         return attachment;
     }
 
-    /** 接收网页返回的工具调用结果。 */
-    resolveResult(clientId: string, body: { requestId?: string; error?: string; result?: unknown }) {
+    /** 查询终态，响应丢失时只查回执，不重放变更。 */
+    requestStatus(clientId: string, requestId: string) {
+        const item = this.pending.get(requestId) || this.completedRequests.get(requestId);
+        if (!item || item.clientId !== clientId) throw new Error("找不到属于当前页面的请求");
+        return { requestId, status: item.status, target: item.target, result: item.result, error: item.error };
+    }
+
+    /** 批准只领取一次；真正执行前还需 validateRequest。 */
+    claimRequest(clientId: string, requestId: string) {
+        const item = this.pending.get(requestId);
+        if (!item || item.clientId !== clientId || item.status !== "awaiting") throw new Error("请求已领取、过期或取消，请查询原回执");
+        if (item.target) this.assertTarget(item.target, item.name === "site_navigate");
+        item.status = "claimed";
+        return this.requestStatus(clientId, requestId);
+    }
+
+    validateRequest(clientId: string, requestId: string) {
+        const item = this.pending.get(requestId);
+        if (!item || item.clientId !== clientId || item.status !== "claimed") throw new Error("请求不可执行，请查询原回执");
+        if (item.target) this.assertTarget(item.target, item.name === "site_navigate");
+        item.status = "executing";
+        return this.requestStatus(clientId, requestId);
+    }
+
+    assertExecutingRequest(clientId: string, requestId: string, name: ToolName, input: Record<string,unknown>) {
+        const item=this.pending.get(requestId);
+        if(!item || item.clientId!==clientId || item.status!=="executing" || item.name!==name || !isDeepStrictEqual(item.input,input) || !item.target)throw new Error("文件授权请求未执行、归属错误或输入发生变化");
+        this.assertTarget(item.target);
+        return {target:structuredClone(item.target),input:structuredClone(item.input)};
+    }
+    cancelRequests(clientId?: string, reason = "请求已取消") {
+        this.pending.forEach((item, id) => {
+            if (!clientId || item.clientId === clientId) this.finishRequest(id, item.status === "executing" ? "unknown" : "cancelled", undefined, reason);
+        });
+    }
+
+    private finishRequest(requestId: string, status: ToolRequestStatus, result?: unknown, error?: string) {
+        const item = this.pending.get(requestId);
+        if (!item) return;
+        this.pending.delete(requestId);
+        this.completedRequests.set(requestId, { clientId: item.clientId, target: item.target, status, result, error });
+        const client = this.clients.get(item.clientId);
+        if (client) sendEvent(client, "tool_resolved", { requestId, status, result, error });
+        error ? item.reject(new Error(error)) : item.resolve(result);
+    }
+
+    /** 只接受已领取并执行的回执；同步接收权威快照后下一次读取可观察结果。 */
+    resolveResult(clientId: string, body: { requestId?: string; error?: string; result?: unknown; state?: CanvasSnapshot }) {
         const item = body.requestId ? this.pending.get(body.requestId) : null;
-        if (!item || !body.requestId || item.clientId !== clientId) return false;
-        this.pending.delete(body.requestId);
-        logger.debug("Canvas tool result received", { clientId, requestId: body.requestId, error: body.error, result: body.result });
-        body.error ? item.reject(new Error(body.error)) : item.resolve(body.result);
+        if (!item || !body.requestId || item.clientId !== clientId) {
+            const completed = body.requestId ? this.completedRequests.get(body.requestId) : null;
+            if (!completed || !body.requestId || completed.clientId !== clientId || completed.status !== "unknown") return false;
+            if (completed.target && body.state?.projectId !== completed.target.projectId) return false;
+            const status = body.error ? "failed" : "succeeded";
+            // A late original receipt settles uncertainty but cannot replace a newer snapshot.
+            this.completedRequests.set(body.requestId, { ...completed, status, result: body.result, error: body.error });
+            const client = this.clients.get(clientId);
+            if (client) sendEvent(client, "tool_resolved", { requestId: body.requestId, status, result: body.result, error: body.error });
+            return true;
+        }
+        if (body.error && (item.status === "awaiting" || item.status === "claimed")) {
+            this.finishRequest(body.requestId, "cancelled", undefined, body.error);
+            return true;
+        }
+        if (item.status !== "executing") return false;
+        if (body.state) {
+            if (item.target && item.name !== "site_navigate" && body.state.projectId !== item.target.projectId) return false;
+            this.updateState(body.state, clientId);
+            if (item.name === "site_navigate" && !body.error && this.boundClientId === clientId) this.boundProjectId = body.state.projectId || "";
+        }
+        this.finishRequest(body.requestId, body.error ? "failed" : "succeeded", body.result, body.error);
         return true;
+    }
+
+    targetForClient(clientId: string): CanvasTarget {
+        const state = this.canvasStateForClient(clientId);
+        if (!state?.projectId || !state.revision) throw new Error("当前没有已连接画布或有效修订");
+        return { clientId, projectId: state.projectId, revision: state.revision };
+    }
+
+    get boundTaskTarget() {
+        return this.boundClientId && this.boundProjectId ? { clientId: this.boundClientId, projectId: this.boundProjectId } : null;
+    }
+
+    assertTarget(target: CanvasTarget, navigation = false) {
+        const state = this.canvasStateForClient(target.clientId);
+        if (!state || state.projectId !== target.projectId || state.revision !== target.revision) throw new Error("画布项目或修订已变化，请重新读取并审阅操作");
+        if (!navigation && this.boundClientId && (target.clientId !== this.boundClientId || (this.boundProjectId && target.projectId !== this.boundProjectId))) throw new Error("目标不属于当前任务绑定的画布项目");
     }
 
     /** 向全部已连接网页广播事件。 */
@@ -443,29 +531,49 @@ export class CanvasSession {
         if (!isToolName(name)) throw new Error(`未知工具：${String(name)}`);
         logger.info("MCP tool called", { name, input: rawInput, targetClientId: this.targetClientId });
         const input = parseToolInput(name, rawInput) as Record<string, unknown>;
+        if (name === "canvas_get_request_status") return this.requestStatus(String(input.clientId), String(input.requestId));
+        const boundState = this.boundClientId ? this.canvasStateForClient(this.boundClientId) : null;
+        const target = (input.target as CanvasTarget | undefined) || (this.boundClientId && this.boundProjectId && boundState?.projectId && boundState.revision ? this.targetForClient(this.boundClientId) : undefined);
+        const clientId = target?.clientId || this.targetClientId;
+        const state = this.canvasStateForClient(clientId);
+        const readTool = ["canvas_get_state", "canvas_get_selection", "canvas_export_snapshot", "canvas_get_node_content", "canvas_get_capabilities"].includes(name);
+        if (target) this.assertTarget(target, name === "site_navigate");
+        if (this.boundClientId && !SITE_TOOLS.has(name) && (!state || (this.boundProjectId && state.projectId !== this.boundProjectId))) throw new Error("当前任务绑定的画布项目已切换，请显式导航并重新读取");
         if (SITE_TOOLS.has(name)) {
-            if (!this.clients.size) throw new Error("当前没有已连接网页");
-            return await this.requestCanvasTool(name, input);
+            if (!this.clients.has(clientId)) throw new Error("当前没有已连接网页");
+            return await this.requestCanvasTool(name, input, clientId, target);
         }
-        const readTool = ["canvas_get_state", "canvas_get_selection", "canvas_export_snapshot"].includes(name);
-        if (readTool && (!this.clients.size || !this.canvasState)) throw new Error("当前没有已连接画布");
-        if (name === "canvas_get_state" || name === "canvas_export_snapshot") return compactCanvasState(this.canvasState);
+        if (!state || !this.clients.has(clientId)) throw new Error("当前没有已连接画布");
+        if (name === "canvas_get_state") return compactCanvasState(state);
+        if (name === "canvas_export_snapshot") return { ...state, nodes: (state.nodes || []).map(readableNode), contentScope: "full-text-no-media", target: { clientId, projectId: state.projectId, revision: state.revision } };
         if (name === "canvas_get_selection") {
-            const ids = new Set(this.canvasState?.selectedNodeIds || []);
-            return { nodes: (this.canvasState?.nodes || []).filter((node) => ids.has(node.id)).map(compactNode) };
+            const ids = new Set(state.selectedNodeIds || []);
+            return { target: { clientId, projectId: state.projectId, revision: state.revision }, contentScope: "summary", nodes: (state.nodes || []).filter((node) => ids.has(node.id)).map(compactNode) };
         }
-        if (name === "canvas_create_attachment_nodes") return await this.createAttachmentNodes(input as { attachmentIds: string[]; x?: number; y?: number; gap?: number; direction?: "row" | "column" });
-        if (!this.clients.size) throw new Error("当前没有已连接画布");
-        const request = buildCanvasToolRequest(name, input, this.canvasState);
-        return await this.requestCanvasTool(request.name, request.input);
+        if (name === "canvas_get_capabilities") return await this.requestCanvasTool(name, input, clientId, target || this.targetForClient(clientId));
+        if (name === "canvas_get_node_content") {
+            const node = state.nodes?.find((node) => node.id === input.nodeId);
+            if (!node) throw new Error("找不到指定节点");
+            if (input.includeMedia) {
+                if (node.type !== "image") throw new Error("仅支持经授权读取图片原文件；视频/音频完整内容读取未实现");
+                return await this.requestCanvasTool(name, input, clientId, target || { clientId, projectId: state.projectId!, revision: state.revision! });
+            }
+            return { target: { clientId, projectId: state.projectId, revision: state.revision }, contentScope: "full-text-no-media", node: readableNode(node) };
+        }
+        if (!readTool && !target) throw new Error("画布写入必须携带读取返回的 target（clientId/projectId/revision）");
+        if (name === "canvas_preview_workflow") return await this.requestCanvasTool(name, input, clientId, target!);
+        if (name === "media_register_artifact") return await this.requestCanvasTool(name,input,clientId,target!);
+        if (name === "canvas_create_attachment_nodes") return await this.createAttachmentNodes(input as { attachmentIds: string[]; x?: number; y?: number; gap?: number; direction?: "row" | "column" }, target!);
+        const request = buildCanvasToolRequest(name, input, state);
+        return await this.requestCanvasTool(request.name, request.input, clientId, target);
     }
 
     /** 将当前 turn 的附件转换为画布图片节点。 */
-    private async createAttachmentNodes(input: { attachmentIds: string[]; x?: number; y?: number; gap?: number; direction?: "row" | "column" }) {
-        const clientId = this.targetClientId;
+    private async createAttachmentNodes(input: { attachmentIds: string[]; x?: number; y?: number; gap?: number; direction?: "row" | "column" }, target: CanvasTarget) {
+        const clientId = target.clientId;
         if (!this.clients.has(clientId)) throw new Error("当前没有已连接画布");
         const attachments = input.attachmentIds.map((id) => this.getTurnAttachment(clientId, id));
-        const x = Number(input.x ?? nextCanvasX(this.canvasState));
+        const x = Number(input.x ?? nextCanvasX(this.canvasStateForClient(clientId)));
         const y = Number(input.y ?? 0);
         const gap = Number(input.gap ?? 40);
         const direction = input.direction || "row";
@@ -483,25 +591,22 @@ export class CanvasSession {
             offset += (direction === "row" ? size.width : size.height) + gap;
             return node;
         });
-        await this.requestCanvasTool("canvas_create_attachment_nodes", { nodes });
-        return { nodes: nodes.map(({ id, attachmentId, title }) => ({ id, attachmentId, title })) };
+        const receipt = await this.requestCanvasTool("canvas_create_attachment_nodes", { nodes }, clientId, target);
+        return { ...recordValue(receipt), nodes: nodes.map(({ id, attachmentId, title }) => ({ id, attachmentId, title })) };
     }
 
     /** 向目标网页发送工具请求并等待调用结果。 */
-    private async requestCanvasTool(name: ToolName, input: Record<string, unknown>) {
+    private async requestCanvasTool(name: ToolName, input: Record<string, unknown>, clientId = this.targetClientId, target?: CanvasTarget) {
         const requestId = crypto.randomUUID();
-        const clientId = this.targetClientId;
         const client = this.clients.get(clientId);
         if (!client) throw new Error("当前没有已连接画布");
-        sendEvent(client, "tool_call", { requestId, name, input });
-        logger.debug("Canvas tool request sent", { requestId, name, input, clientId });
         return await new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
-                this.pending.delete(requestId);
-                logger.warn("Canvas tool request timed out", { requestId, name, clientId });
-                reject(new Error("画布操作超时"));
+                const item = this.pending.get(requestId);
+                if (item) this.finishRequest(requestId, item.status === "executing" ? "unknown" : "expired", undefined, `画布操作超时；requestId=${requestId}，clientId=${clientId}；请用 canvas_get_request_status 查询，不要重复提交`);
             }, 30000);
-            this.pending.set(requestId, { clientId, resolve: (value) => (clearTimeout(timer), resolve(value)), reject: (error) => (clearTimeout(timer), reject(error)) });
+            this.pending.set(requestId, { clientId, target, name, input:structuredClone(input), status: "awaiting", resolve: (value) => (clearTimeout(timer), resolve(value)), reject: (error) => (clearTimeout(timer), reject(error)) });
+            sendEvent(client, "tool_call", { requestId, name, input, target });
         });
     }
 }

@@ -1,9 +1,12 @@
 import { create } from "zustand";
 import i18n from "@/i18n";
+import { writeOwnership } from "@/lib/write-ownership";
 import { useComposerStore } from "@/stores/use-composer-store";
 
-import type { CanvasAgentOp, CanvasAgentSnapshot } from "@/lib/canvas/canvas-agent-ops";
+import type { CanvasAgentOp, CanvasAgentSnapshot, CanvasAgentTarget } from "@/lib/canvas/canvas-agent-ops";
+import type { CanvasNodeData } from "@/types/canvas";
 import type { CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+import type { CodexInteractionRequest } from "@/components/agent/codex-interaction-form";
 
 export type AgentChatRole = "user" | "assistant" | "system" | "tool" | "error";
 export type AgentAttachment = { id: string; name: string; type: string; size: number; width: number; height: number; url: string; dataUrl: string };
@@ -12,7 +15,7 @@ export type AgentCanvasReference = Pick<CanvasResourceReference, "nodeId" | "lab
 export type AgentSkillReference = { name: string; path: string; displayName?: string };
 export type AgentChatItem = { id: string; itemId?: string; clientMessageId?: string; threadId?: string; turnId?: string; role: AgentChatRole; title?: string; text: string; meta?: string; detail?: unknown; attachments?: AgentMessageAttachment[]; canvasReferences?: AgentCanvasReference[]; skill?: AgentSkillReference; streamId?: string; activityItems?: Record<string, string> };
 export type AgentEventLog = { id: string; time: string; title: string; text: string; raw?: unknown };
-export type AgentPendingToolCall = { requestId: string; name: string; input?: { ops?: CanvasAgentOp[]; path?: string } & Record<string, unknown> };
+export type AgentPendingToolCall = { requestId: string; name: string; target?: CanvasAgentTarget; input?: { ops?: CanvasAgentOp[]; path?: string } & Record<string, unknown> };
 export type AgentPermissionMode = "request" | "automatic" | "full";
 export type AgentReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 export type AgentModel = {
@@ -25,7 +28,7 @@ export type AgentModel = {
 };
 export type AgentApprovalDecision = "accept" | "acceptForSession" | "decline";
 export type AgentPendingApproval = { requestId: string; method: string; threadId?: string; turnId?: string; itemId?: string; reason?: string; command?: unknown; cwd?: string; grantRoot?: string; networkApprovalContext?: unknown; permissions?: unknown; deciding?: AgentApprovalDecision };
-export type AgentCanvasContext = { snapshot: CanvasAgentSnapshot; applyOps: (ops?: CanvasAgentOp[]) => CanvasAgentSnapshot; undoOps: () => CanvasAgentSnapshot | null; canUndo: boolean };
+export type AgentCanvasContext = { snapshot: CanvasAgentSnapshot; getSnapshot: () => CanvasAgentSnapshot; applyOps: (ops?: CanvasAgentOp[]) => Promise<CanvasAgentSnapshot>; undoOps: () => Promise<CanvasAgentSnapshot | null>; importMediaNodes: (nodes: CanvasNodeData[]) => Promise<void>; canUndo: boolean };
 export type AgentThreadSummary = { id: string; preview: string; name?: string | null; cwd?: string; status?: string; source?: unknown; createdAt?: number; updatedAt?: number };
 export type AgentTokenUsage = { input: number; cached: number; output: number };
 export type AgentBootstrapStatus = { key: string; text: string; detail: string; status: "running" | "ready" | "error" };
@@ -38,13 +41,27 @@ export type AgentConversationState = {
     sourceClientId?: string;
     error?: string;
 };
-export type AgentPanelTab = "chat" | "setup" | "history" | "skills" | "log";
+export type AgentPanelTab = "chat" | "setup" | "history" | "skills" | "log" | "media";
 
 const CONNECT_TIMEOUT_MS = 6000;
 let agentSource: EventSource | null = null;
 let connectTimer: ReturnType<typeof setTimeout> | null = null;
 
+export type AgentComposerActions = {
+    submit: () => Promise<void>;
+    stop: () => Promise<void>;
+    addFiles: (files: FileList | File[] | null) => Promise<void>;
+    removeAttachment: (id: string) => void;
+    changePermission: (mode: AgentPermissionMode) => void;
+    approveTool: () => void;
+    rejectTool: () => void;
+    decideApproval: (approval: AgentPendingApproval, decision: AgentApprovalDecision) => void;
+};
+
 type AgentStore = {
+    creationContext: { projectId: string; targetId?: string; scope: string; mode: "image" | "video" } | null;
+    composerAgentMode: boolean;
+    composerActions: AgentComposerActions | null;
     width: number;
     panelOpen: boolean;
     panelMounted: boolean;
@@ -83,6 +100,7 @@ type AgentStore = {
     connectError: string;
     pendingTool: AgentPendingToolCall | null;
     pendingApprovals: AgentPendingApproval[];
+    pendingInteractions: CodexInteractionRequest[];
     setAgentState: (patch: Partial<Omit<AgentStore, "setAgentState" | "connectAgent" | "disconnectAgent" | "addMessage" | "addEventLog" | "clearEventLogs" | "openPanel" | "closePanel" | "togglePanel" | "setCanvasContext">>) => void;
     openPanel: () => void;
     closePanel: () => void;
@@ -101,6 +119,9 @@ const PANEL_OPEN_KEY = "canvas-agent-panel-open";
 const rememberPanelOpen = (open: boolean) => typeof window !== "undefined" && localStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
+    creationContext: null,
+    composerAgentMode: false,
+    composerActions: null,
     width: typeof window === "undefined" ? 440 : Number(localStorage.getItem("canvas-agent-panel-width")) || 440,
     panelOpen: typeof window !== "undefined" && localStorage.getItem(PANEL_OPEN_KEY) === "1",
     panelMounted: true,
@@ -138,17 +159,18 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     connectError: "",
     pendingTool: null,
     pendingApprovals: [],
+    pendingInteractions: [],
     setAgentState: (patch) => {
         const current = get();
         const drafts = useComposerStore.getState();
         const key = current.url + ":" + current.activeThreadId;
         if (patch.activeThreadId !== undefined && patch.activeThreadId !== current.activeThreadId) {
-            drafts.saveAgentDraft(key, { prompt: current.prompt, attachments: current.attachments, canvasReferences: current.canvasReferences });
+            if (writeOwnership.canWrite()) drafts.saveAgentDraft(key, { prompt: current.prompt, attachments: current.attachments, canvasReferences: current.canvasReferences });
             const next = drafts.agentDrafts[current.url + ":" + patch.activeThreadId];
             set({ prompt: next?.prompt || "", attachments: next?.attachments || [], canvasReferences: next?.canvasReferences || [], ...patch });
         } else set(patch);
         const state = get();
-        if (patch.prompt !== undefined || patch.attachments !== undefined || patch.canvasReferences !== undefined)
+        if (writeOwnership.canWrite() && (patch.prompt !== undefined || patch.attachments !== undefined || patch.canvasReferences !== undefined))
             useComposerStore.getState().saveAgentDraft(state.url + ":" + state.activeThreadId, { prompt: state.prompt, attachments: state.attachments, canvasReferences: state.canvasReferences });
     },
     openPanel: () => set({ panelOpen: true, panelMounted: true, panelClosing: false }),

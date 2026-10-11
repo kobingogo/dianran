@@ -2,6 +2,8 @@ async(page)=>{
   page.on('dialog',dialog=>{if(dialog.type()==='beforeunload') void dialog.accept().catch(()=>{});});
   const base='http://127.0.0.1:4317';
   await page.goto(base+'/canvas');
+  await page.evaluate(async () => { window.testWriteOwnership = (await import('/src/lib/write-ownership.ts')).writeOwnership; });
+  await page.waitForFunction(() => window.testWriteOwnership.canWrite());
   const id=await page.evaluate(async()=>{
     const {useConfigStore,defaultConfig}=await import('/src/stores/use-config-store.ts');
     useConfigStore.setState({config:{...defaultConfig,channels:[{id:'plan',name:'mock',baseUrl:'https://agent-plan-mock.example/v1',apiKey:'mock-key',apiFormat:'openai',models:[{name:'gpt-image-1',capability:'image'}]}],imageModel:'plan::gpt-image-1'}});
@@ -19,7 +21,7 @@ async(page)=>{
   });
   await page.getByRole('button',{name:'审阅创作计划',exact:true}).click();
   await page.getByRole('dialog',{name:'工作流 · 预览后执行',exact:true}).waitFor();
-  await page.getByText('2 步 · 共 2 次生成请求 · 费用由配置的渠道计费',{exact:true}).waitFor();
+  await page.getByText('2 步 · 共 2 次生成请求 · API 按渠道计费，本机 Codex 按账户规则计费',{exact:true}).waitFor();
   const state=await page.evaluate(async(id)=>{
     const {useCanvasStore}=await import('/src/stores/canvas/use-canvas-store.ts');
     const {useWorkflowStore}=await import('/src/stores/canvas/use-workflow-store.ts');

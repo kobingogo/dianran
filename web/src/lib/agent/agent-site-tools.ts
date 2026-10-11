@@ -1,3 +1,4 @@
+import { businessOperation } from "@/lib/write-ownership";
 import type { NavigateFunction } from "react-router-dom";
 
 import i18n from "@/i18n";
@@ -51,10 +52,10 @@ export const SITE_TOOL_LABELS: Record<SiteToolName, string> = {
 
 type SiteToolInput = Record<string, unknown>;
 type SiteToolContext = { canvasSnapshot?: CanvasAgentSnapshot | null };
-type GenerationStatus = "idle" | "queued" | "running" | "succeeded" | "failed";
+type GenerationStatus = "idle" | "queued" | "running" | "succeeded" | "failed" | "unknown";
 type GenerationStatusItem = { id: string; source: "canvas" | "image" | "video"; status: GenerationStatus; kind?: string; title?: string; prompt?: string; projectId?: string; createdAt?: string; updatedAt?: string; successCount?: number; failCount?: number; error?: string };
 
-export async function runSiteTool(name: SiteToolName, input: SiteToolInput, navigate: NavigateFunction, context: SiteToolContext = {}): Promise<unknown> {
+async function runSiteToolOwned(name: SiteToolName, input: SiteToolInput, navigate: NavigateFunction, context: SiteToolContext = {}): Promise<unknown> {
     switch (name) {
         case "canvas_list_projects":
             return listCanvasProjects(input);
@@ -107,9 +108,9 @@ function getGenerationStatus(input: SiteToolInput, canvasSnapshot?: CanvasAgentS
     }
 
     tasks.sort((a, b) => generationStatusOrder(a.status) - generationStatusOrder(b.status) || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
-    const summary: Record<GenerationStatus, number> = { idle: 0, queued: 0, running: 0, succeeded: 0, failed: 0 };
+    const summary: Record<GenerationStatus, number> = { idle: 0, queued: 0, running: 0, succeeded: 0, failed: 0, unknown: 0 };
     tasks.forEach((task) => (summary[task.status] += 1));
-    return { total: tasks.length, summary, tasks: tasks.slice(0, limit) };
+    return { total: tasks.length, summary, tasks: tasks.slice(0, limit), ...(taskId && !tasks.length ? { found: false, certainty: "not-observed", note: "当前网页没有此任务记录；不能证明原请求未执行，请核对工作台历史与渠道任务，勿直接重复提交" } : {}) };
 }
 
 function generationStatusOrder(status: GenerationStatus) {
@@ -184,7 +185,7 @@ function runImageWorkbench(input: SiteToolInput, navigate: NavigateFunction) {
     const run = input.run !== false;
     navigate("/image");
     const taskId = useWorkbenchAgentStore.getState().dispatchImage({ prompt, run });
-    return { ok: true, navigated: "/image", prompt, run, taskId, applied, note: siteText(run ? "imageGenerationStarted" : "imageConfigApplied") };
+    return { ok: true, navigated: "/image", prompt, run, taskId, applied, receipt: { configurationApplied: true, generation: run ? "queued" : "not-requested", intentSaved: false, submitted: false, completed: false }, note: run ? "生成指令已排队，尚未确认意图保存或渠道提交；请用 generation_get_status 查询 taskId" : siteText("imageConfigApplied") };
 }
 
 function getVideoConfig() {
@@ -250,7 +251,7 @@ function runVideoWorkbench(input: SiteToolInput, navigate: NavigateFunction) {
     const run = input.run !== false;
     navigate("/video");
     const taskId = useWorkbenchAgentStore.getState().dispatchVideo({ prompt, run });
-    return { ok: true, navigated: "/video", prompt, run, taskId, applied, note: siteText(run ? "videoGenerationStarted" : "videoConfigApplied") };
+    return { ok: true, navigated: "/video", prompt, run, taskId, applied, receipt: { configurationApplied: true, generation: run ? "queued" : "not-requested", intentSaved: false, submitted: false, completed: false }, note: run ? "生成指令已排队，尚未确认意图保存或渠道提交；请用 generation_get_status 查询 taskId" : siteText("videoConfigApplied") };
 }
 
 async function searchPrompts(input: SiteToolInput) {
@@ -305,8 +306,8 @@ async function addAsset(input: SiteToolInput) {
     if (kind === "text") {
         const content = String(input.content || "").trim();
         if (!content) throw new Error(siteText("textContentRequired"));
-        const id = store.addAsset({ kind: "text", title, coverUrl: "", tags, source, note, data: { content } });
-        return { ok: true, id, kind: "text" };
+        const id = await store.addAsset({ kind: "text", title, coverUrl: "", tags, source, note, data: { content } });
+        return { ok: true, id, kind: "text", receipt: { saved: true } };
     }
     if (kind === "image") {
         const imageUrl = String(input.imageUrl || "").trim();
@@ -317,8 +318,8 @@ async function addAsset(input: SiteToolInput) {
         } catch {
             throw new Error(siteText("imageReadFailed"));
         }
-        const id = store.addAsset({ kind: "image", title, coverUrl: stored.url, tags, source, note, data: { dataUrl: stored.url, storageKey: stored.storageKey, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType } });
-        return { ok: true, id, kind: "image" };
+        const id = await store.addAsset({ kind: "image", title, coverUrl: stored.url, tags, source, note, data: { dataUrl: stored.url, storageKey: stored.storageKey, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType } });
+        return { ok: true, id, kind: "image", receipt: { saved: true } };
     }
     throw new Error(siteText("assetKindUnsupported"));
 }
@@ -330,3 +331,5 @@ function paginate(input: SiteToolInput, total: number, defaultSize: number) {
     const start = (page - 1) * pageSize;
     return { page, pageSize, start, end: start + pageSize };
 }
+
+export const runSiteTool = businessOperation(runSiteToolOwned);

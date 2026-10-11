@@ -16,7 +16,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     }, [pathname, search]);
 
     return (
-        <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+        <div className="flex h-full overflow-hidden bg-background text-foreground">
             <AppRail />
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <AppTopNav />

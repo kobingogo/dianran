@@ -1,4 +1,5 @@
-import { unzipSync, zipSync } from "fflate";
+import { unzipSync } from "fflate";
+import { createZipWorker } from "./zip-worker-client";
 
 type ZipFile = {
     name: string;
@@ -12,7 +13,14 @@ export async function createZip(files: ZipFile[]) {
             return [file.name, data] as const;
         }),
     );
-    return new Blob([zipSync(Object.fromEntries(entries), { level: 0 })], { type: "application/zip" });
+    const archive = await new Promise<Uint8Array<ArrayBuffer>>((resolve, reject) => {
+        const worker = createZipWorker();
+        worker.onmessage = ({ data }) => { worker.terminate(); resolve(data); };
+        worker.onerror = () => { worker.terminate(); reject(new Error("备份打包失败，作品仍在本机，请重试导出")); };
+        try { worker.postMessage(entries, entries.map(([, data]) => data.buffer)); }
+        catch (error) { worker.terminate(); reject(error); }
+    });
+    return new Blob([archive], { type: "application/zip" });
 }
 
 export async function readZip(file: Blob) {

@@ -8,6 +8,16 @@ import type { CanvasResourceKind } from "@/lib/canvas/canvas-resource-references
 // Resource emitted when a plugin node is consumed as an upstream input.
 export type CanvasNodeResource = { kind: CanvasResourceKind; text?: string; url?: string };
 
+export type PluginActionParameters = Record<string, string | number | boolean>;
+export type CanvasPluginAction = {
+    id: string;
+    version: string;
+    title: string;
+    description: string;
+    validate: (parameters: unknown) => PluginActionParameters;
+    execute: (images: Blob[], parameters: PluginActionParameters, progress: (message: string) => void) => Promise<Blob[]>;
+};
+
 // AI generation capabilities injected by the host, reusing its model and credential configuration.
 export type GenerateOptions = { signal?: AbortSignal; references?: string[]; model?: string };
 export type GenerateImageOptions = GenerateOptions & { count?: number; size?: string };
@@ -65,6 +75,7 @@ export type CanvasNodeContext = {
     closePanel: () => void;
     // Plugin-private persistence isolated by namespace.
     storage: PluginStorage;
+    previewWorkflow: (parameters?: PluginActionParameters) => void;
 };
 
 export type PluginStorage = {
@@ -88,6 +99,7 @@ export type CanvasPluginHost = {
     // Opens or closes the custom panel below a specified node.
     openPanel: (nodeId: string) => void;
     closePanel: () => void;
+    previewWorkflow: (nodeId: string, parameters?: PluginActionParameters) => void;
 };
 
 // Configuration for reusing the host's built-in generation panel; see SDK CanvasBuiltinPanelConfig.
@@ -118,6 +130,7 @@ export type CanvasNodeDefinition = {
     forceInteractive?: (node: CanvasNodeData) => boolean;
     keepAspectRatio?: (node: CanvasNodeData) => boolean;
     resource?: (node: CanvasNodeData) => CanvasNodeResource | null;
+    workflowAction?: CanvasPluginAction;
     // Built-ins use canvas-node's internal renderer and may omit Content.
     Content?: ComponentType<{ ctx: CanvasNodeContext }>;
     Panel?: ComponentType<{ ctx: CanvasNodeContext; onClose: () => void }>;

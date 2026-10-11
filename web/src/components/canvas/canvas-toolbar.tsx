@@ -1,13 +1,16 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Segmented, Switch, Tooltip } from "antd";
-import { CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, Moon, MoreHorizontal, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+import { CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, Moon, MoreHorizontal, MousePointer2, Music2, Palette, Plus, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video, X } from "lucide-react";
+import { useParams } from "react-router-dom";
 
 import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
 import { getNodePluginId, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { useTranslation } from "react-i18next";
+import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
+import { useWorkflowStore } from "@/stores/canvas/use-workflow-store";
 
 const ICON = { className: "size-[18px]", strokeWidth: 1.7 } as const;
 
@@ -58,6 +61,10 @@ export function CanvasToolbar({
 }) {
     const wrapRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslation();
+    const { id } = useParams();
+    const [guideDismissed, setGuideDismissed] = useState(false);
+    const isEmptyCanvas = useCanvasStore((state) => state.projects.find((project) => project.id === id)?.nodes.length === 0);
+    useEffect(() => setGuideDismissed(false), [id]);
     const rootRef = useRef<HTMLDivElement>(null);
     const colorTheme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
@@ -314,6 +321,30 @@ export function CanvasToolbar({
                     </div>
                 </div>
             ) : null}
+
+            {isEmptyCanvas && !guideDismissed ? (
+                <section
+                    aria-labelledby="canvas-empty-guide-title"
+                    className="pointer-events-auto fixed left-1/2 top-16 z-20 w-[min(34rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-[var(--r-lg)] border p-3 shadow-[var(--sh-2)] backdrop-blur sm:p-4 md:absolute md:top-16"
+                    style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h2 id="canvas-empty-guide-title" className="text-sm font-medium">{t("canvas.emptyGuide.title")}</h2>
+                            <p className="mt-1 text-xs opacity-65">{t("canvas.emptyGuide.description")}</p>
+                        </div>
+                        <button type="button" aria-label={t("canvas.emptyGuide.dismiss")} title={t("canvas.emptyGuide.dismiss")} className="grid size-7 shrink-0 place-items-center rounded-md opacity-60 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10" onClick={() => setGuideDismissed(true)}>
+                            <X className="size-4" />
+                        </button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                        <GuideAction icon={<Type className="size-4" />} label={t("canvas.toolbar.text")} onClick={onAddText} />
+                        <GuideAction icon={<ImageIcon className="size-4" />} label={t("canvas.toolbar.image")} onClick={onAddImage} />
+                        <GuideAction icon={<Settings2 className="size-4" />} label={t("canvas.toolbar.config")} onClick={onAddConfig} />
+                        <GuideAction icon={<Plus className="size-4" />} label={t("canvas.emptyGuide.workflow")} onClick={() => useWorkflowStore.setState({ panelOpen: true })} />
+                    </div>
+                </section>
+            ) : null}
         </div>
     );
 }
@@ -348,10 +379,11 @@ function ToolbarButton({
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
 
     return (
-        <Tooltip title={vertical ? label : undefined} placement="right" mouseEnterDelay={0.25}>
+        <Tooltip title={label} placement={vertical ? "right" : "top"} mouseEnterDelay={0.25}>
             <Button
                 type="text"
                 aria-label={label}
+                title={label}
                 aria-pressed={active ? true : undefined}
                 className="!h-9 !w-9 !min-w-9 !rounded-[10px] !p-0"
                 disabled={disabled}
@@ -362,6 +394,15 @@ function ToolbarButton({
                 onClick={onClick}
             />
         </Tooltip>
+    );
+}
+
+function GuideAction({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+    return (
+        <button type="button" className="inline-flex min-h-8 items-center gap-1.5 rounded-md bg-transparent px-1 text-left transition hover:opacity-70" onClick={onClick}>
+            {icon}
+            <span>{label}</span>
+        </button>
     );
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // [dianran] Build the Chinese changelog / PR body for a pipeline run from the candidate + merge + picks reports.
-// Writes brand/pipeline/reports/<date>.md and <date>.json. Usage: node brand/pipeline/changelog.mjs [YYYY-MM-DD] [seconds]
+// Writes 资源仓库 reports/<date>.md and <date>.json. Usage: node brand/pipeline/changelog.mjs [YYYY-MM-DD] [seconds]
 import { resolve } from "node:path";
 import { CANDIDATE_DIR, REPORT_DIR, libraries, readJson, today, writeJson } from "./lib/common.mjs";
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -32,7 +32,7 @@ md.push("");
 md.push("## 抓取结果", "");
 if (x) md.push(`- **X**（twscrape，${x.since} 起）：原始 ${x.stats.raw} 条 / 去重 ${x.stats.unique} 条 → 候选 **${x.stats.candidates}** 条（无图/视频 ${x.stats.noMedia}，无提示词 ${x.stats.noPrompt}，无模型 ${x.stats.noModel}，重复 ${x.stats.duplicate}，过滤 ${Object.entries(x.stats.rejected).map(([k, v]) => `${k} ${v}`).join("、") || 0}）`);
 if (gh) md.push(`- **GitHub 上游**：${Object.entries(gh.summary).map(([id, s]) => (s.error ? `${id} 失败（${s.error}）` : `${id} ${s.upstream}`)).join("，")}`);
-if (civ) md.push(`- **Civitai**（本周最多反应，仅 SFW）：扫描 ${civ.stats.raw} 张 → 候选 **${civ.stats.candidates}** 条（无提示词 ${civ.stats.noPrompt}，非 SFW ${civ.stats.notSfw}，反应数不足 ${civ.stats.lowReactions}，过滤 ${Object.entries(civ.stats.rejected).map(([k, v]) => `${k} ${v}`).join("、") || 0}）`);
+if (civ) md.push(`- **Civitai**（本周最多反应）：扫描 ${civ.stats.raw} 张 → 候选 **${civ.stats.candidates}** 条（无提示词 ${civ.stats.noPrompt}，非图片 ${civ.stats.notImage}，反应数不足 ${civ.stats.lowReactions}）`);
 md.push("");
 md.push("## 各库数量", "", "| 库 | 之前 | 新增 | 下架 | 之后 |", "| --- | ---: | ---: | ---: | ---: |");
 for (const [id, p] of Object.entries(merge.perLibrary)) md.push(`| ${libName[id] || id} | ${p.before} | ${p.added} | ${p.retired} | ${p.after} |`);

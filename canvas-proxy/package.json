@@ -1,6 +1,6 @@
 {
   "name": "@kobinflow/canvas-proxy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Minimal local forwarding proxy that lets the Dianran (点染) web app call AI provider APIs without CORS restrictions.",
   "license": "MIT",
   "type": "module",
@@ -11,6 +11,7 @@
   },
   "files": [
     "index.js",
+    "policy.js",
     "README.md",
     "LICENSE"
   ],
@@ -18,7 +19,7 @@
     "start": "node index.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18.2"
   },
   "publishConfig": {
     "access": "public"

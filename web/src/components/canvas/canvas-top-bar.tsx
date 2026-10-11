@@ -2,7 +2,7 @@ import { useWorkflowStore } from "@/stores/canvas/use-workflow-store";
 import { CanvasSaveStatus } from "./canvas-save-status";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Bot, Download, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { BookOpen, Bot, Columns2, Download, Menu, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 import { Dropdown, Modal, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import type { TFunction } from "i18next";
@@ -23,6 +23,7 @@ const flatIconButton =
     "shrink-0 place-items-center rounded-md transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] dark:hover:bg-white/10";
 
 export function CanvasTopBar({
+    onCompare,
     title,
     titleDraft,
     isTitleEditing,
@@ -43,6 +44,7 @@ export function CanvasTopBar({
     compactAgentStatus,
     onToggleAgent,
 }: {
+    onCompare: () => void;
     title: string;
     titleDraft: string;
     isTitleEditing: boolean;
@@ -117,6 +119,8 @@ export function CanvasTopBar({
     }, [goBack]);
 
     const actionItems: MenuProps["items"] = [
+        { key: "workflow", label: "工作流", onClick: () => useWorkflowStore.setState({ panelOpen: true }) },
+        { key: "compare", icon: <Columns2 className="size-4" />, label: "比较所选结果", onClick: onCompare },
         { key: "new", icon: <Plus className="size-4" />, label: t("canvas.create"), onClick: onCreateProject },
         { key: "delete", danger: true, icon: <Trash2 className="size-4" />, label: t("canvas.deleteCurrent"), onClick: onDeleteProject },
         { type: "divider" },
@@ -252,6 +256,7 @@ export function CanvasTopBar({
                         )}
                         <CanvasSaveStatus />
                         <button type="button" className="shrink-0 rounded px-2 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.muted }} onClick={() => useWorkflowStore.setState({ panelOpen: true })}>工作流</button>
+                        <button type="button" aria-label="比较所选结果" title="比较所选结果" className={`${flatIconButton} grid size-7`} style={{ color: theme.node.muted }} onClick={onCompare}><Columns2 className="size-4" /></button>
                     </div>
                 </div>
 

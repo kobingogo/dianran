@@ -1,20 +1,31 @@
 #!/usr/bin/env node
-// [dianran] X fetcher: keyword searches + an author watchlist via the local `twscrape-x` CLI (no API key, uses the
-// logged-in twscrape account DB). Keeps only original posts with real prompt text and an image or video, applies the
-// content filters (no real-person likeness, NSFW or face-swap), dedupes against the published libraries, and writes
-// candidates to brand/pipeline/candidates/x.json. Nothing is published here.
-// Usage: node brand/pipeline/fetch-x.mjs [--dry]   (config: brand/pipeline/config/x-watchlist.json)
+// [dianran] X fetcher: twscrape-x keyword searches; RedFox is an explicit alternative.
+// Keeps real prompt text with an image or video, applies the
+// prompt-quality rules, dedupes against the published libraries, and writes
+// candidates to the resource repository candidates/x.json. Nothing is published here.
+// Usage: node brand/pipeline/fetch-x.mjs [--verify-search|--replay-search]   (config: brand/pipeline/config/x-watchlist.json)
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
-import { CANDIDATE_DIR, autoTitle, config, contentReject, detectModel, qualityReject, libPath, libraries, log, nowIso, readJson, writeJson } from "./lib/common.mjs";
+import { redfoxX, parseXPage } from "./lib/redfox-x.mjs";
+import { CANDIDATE_DIR, autoTitle, config, detectModel, qualityReject, libPath, libraries, log, nowIso, readJson, writeJson, promptKey } from "./lib/common.mjs";
 
 const cfg = config("x-watchlist.json");
-const BIN = process.env.TWSCRAPE_BIN || "twscrape-x";
+const verifyOnly = process.argv.includes("--verify-search");
+const replayOnly = process.argv.includes("--replay-search");
+const BIN = process.env.TWSCRAPE_BIN || resolve(import.meta.dirname, "twscrape-x");
+const provider = process.env.X_PROVIDER || "twscrape";
+if (!["redfox", "twscrape"].includes(provider)) throw new Error("X_PROVIDER 必须是 redfox 或 twscrape");
 // [dianran] X_WINDOW_DAYS overrides the config window for high-frequency runs (e.g. twice-daily fast path).
 const windowDays = Number(process.env.X_WINDOW_DAYS) || cfg.windowDays;
 const since = new Date(Date.now() - windowDays * 86_400_000).toISOString().slice(0, 10);
 
 function twscrape(args, timeoutMs = 20 * 60_000) {
+    if (replayOnly) {
+        if (args[0] !== "search") return { code: 0, rows: [], err: "" };
+        const sample = readJson(resolve(CANDIDATE_DIR, "redfox-search-sample.json"));
+        return { code: 0, rows: parseXPage(sample.data).rows, err: "" };
+    }
+    if (provider === "redfox") return redfoxX(args, timeoutMs, fetch, verifyOnly, sample => writeJson(resolve(CANDIDATE_DIR, "redfox-search-sample.json"), sample));
     return new Promise((resolvePromise) => {
         const child = spawn(BIN, args, { stdio: ["ignore", "pipe", "pipe"] });
         let out = "";
@@ -46,9 +57,9 @@ function afterMarker(text) {
     if (!m) return "";
     return cleanText(text.slice(m.index + m[0].length)).replace(/^[\s:：👇⤵️⬇️🔽⏬🏻\-—]+/u, "");
 }
-const promptKey = (p) => String(p).toLowerCase().replace(/[\W_]+/gu, "").slice(0, 160);
 
-const stats = { queries: {}, authorsSearched: 0, raw: 0, unique: 0, noMedia: 0, reply: 0, noPrompt: 0, noModel: 0, rejected: {}, duplicate: 0, threadLookups: 0, candidates: 0, errors: [] };
+
+const stats = { provider, queries: {}, authorsSearched: 0, raw: 0, unique: 0, noMedia: 0, reply: 0, noPrompt: 0, noModel: 0, rejected: {}, duplicate: 0, threadLookups: 0, candidates: 0, errors: [] };
 const byId = new Map();
 function collect(rows, tag) {
     for (const row of rows) {
@@ -57,7 +68,7 @@ function collect(rows, tag) {
     }
 }
 
-log(`X fetch since ${since}: ${cfg.queries.length} keyword queries`);
+log(`X fetch (${provider}) since ${since}: ${cfg.queries.length} keyword queries`);
 // [dianran] Tiered watchlist: S = top prompt authorities (no fave gate), A = active sharers/educators,
 // B = Chinese image/video prompt creators. Falls back to the legacy flat `authors` list if authorTiers is absent.
 const tiers = Array.isArray(cfg.authorTiers) && cfg.authorTiers.length
@@ -66,15 +77,16 @@ const tiers = Array.isArray(cfg.authorTiers) && cfg.authorTiers.length
 const tierOfAuthor = new Map();
 for (const t of tiers) for (const a of t.authors || []) tierOfAuthor.set(String(a).toLowerCase(), t.tier);
 const totalAuthors = tiers.reduce((n, t) => n + (t.authors || []).length, 0);
-log(`watchlist: ${totalAuthors} authors in ${tiers.length} tiers (${tiers.map((t) => `${t.tier}:${(t.authors || []).length}`).join(", ")})`);
-for (const q of cfg.queries) {
-    const res = await twscrape(["search", `${q.query} since:${since}`, "--limit", String(q.limit || cfg.limitPerQuery)]);
+log(`watchlist (scoring only; author collection ${cfg.collectAuthors ? "enabled" : "disabled"}): ${totalAuthors} authors in ${tiers.length} tiers (${tiers.map((t) => `${t.tier}:${(t.authors || []).length}`).join(", ")})`);
+for (const q of (verifyOnly || replayOnly) ? cfg.queries.slice(0, 1) : cfg.queries) {
+    const res = await twscrape(["search", provider === "redfox" ? `${q.redfoxKeyword} -filter:replies -filter:retweets` : `${q.query} since:${since}`, "--limit", String(q.limit || cfg.limitPerQuery)]);
     stats.queries[q.tag] = res.rows.length;
     if (res.code !== 0 && !res.rows.length) stats.errors.push(`${q.tag}: exit ${res.code} ${res.err}`);
-    collect(res.rows, q.tag);
+    const minimum = Number(q.query.match(/min_faves:(\d+)/)?.[1] || 0);
+    collect(res.rows.filter(row => provider !== "redfox" || (Number.isFinite(Date.parse(row.date)) && Date.parse(row.date) >= Date.parse(since) && row.likeCount !== null && row.likeCount >= minimum)), q.tag);
     log(`  query ${q.tag}: ${res.rows.length}`);
 }
-for (const t of tiers) {
+if (!verifyOnly && !replayOnly && provider === "twscrape" && cfg.collectAuthors) for (const t of tiers) {
     const authors = t.authors || [];
     for (let i = 0; i < authors.length; i += cfg.authorBatchSize) {
         const batch = authors.slice(i, i + cfg.authorBatchSize);
@@ -89,6 +101,11 @@ for (const t of tiers) {
     }
 }
 stats.unique = byId.size;
+if (verifyOnly) {
+    writeJson(resolve(CANDIDATE_DIR, `${provider}-search-verification.json`), { fetchedAt: nowIso(), stats, rows: [...byId.values()] });
+    log("X search verification (no merge or publish)", JSON.stringify(stats));
+    process.exit(stats.errors.length ? 1 : 0);
+}
 
 // Existing prompts (all libraries) for dedupe.
 const existing = new Set();
@@ -113,9 +130,11 @@ for (const t of [...byId.values()].sort((a, b) => b.likeCount - a.likeCount)) {
 // Prompts posted as a self-reply: look up the thread for the most-liked posts that lack inline prompt text.
 let lookups = 0;
 for (const p of pending) {
-    if (p.prompt.length >= 60 || lookups >= cfg.maxThreadLookups) continue;
+    if (replayOnly || p.prompt.length >= 60 || lookups >= cfg.maxThreadLookups) continue;
     lookups++;
     const res = await twscrape(["tweet_replies", p.t.id_str, "--limit", "20"], 5 * 60_000);
+    log(`  replies ${lookups}/${cfg.maxThreadLookups}: ${p.t.id_str}, ${res.rows.length} rows, exit ${res.code}`);
+    if (res.code !== 0) stats.errors.push(`replies ${p.t.id_str}: exit ${res.code} ${res.err}`);
     const own = res.rows.filter((r) => r.user?.id_str === p.t.user?.id_str).sort((a, b) => String(a.date).localeCompare(String(b.date)));
     for (const r of own) {
         const text = cleanText(r.rawContent).replace(/^(@\w+\s*)+/, "").trim();
@@ -135,7 +154,7 @@ for (const { t, cover, photos, videos, prompt, where } of pending) {
     const blob = `${t.rawContent}\n${prompt}`;
     const model = detectModel(blob, videos.length > 0);
     if (!model) { stats.noModel++; continue; }
-    const reason = contentReject(blob.toLowerCase(), { sensitive: t.possibly_sensitive, author: handle, excludeAuthors: cfg.excludeAuthors }) || qualityReject(prompt, t.rawContent);
+    const reason = qualityReject(prompt, t.rawContent);
     if (reason) { stats.rejected[reason] = (stats.rejected[reason] || 0) + 1; continue; }
     const key = promptKey(prompt);
     if (existing.has(key) || seenKeys.has(key)) { stats.duplicate++; continue; }
@@ -147,7 +166,7 @@ for (const { t, cover, photos, videos, prompt, where } of pending) {
         title: autoTitle(t.rawContent, prompt, model),
         titleAuto: true,
         prompt,
-        description: `${t.likeCount.toLocaleString("en-US")} 赞 · ${(t.bookmarkedCount || 0).toLocaleString("en-US")} 收藏 · ${(t.retweetCount || 0).toLocaleString("en-US")} 转发（抓取于 ${fetchedAt.slice(0, 10)}）`,
+        description: `${t.likeCount === null ? "未知" : t.likeCount.toLocaleString("en-US")} 赞 · ${t.bookmarkedCount === null ? "未知" : t.bookmarkedCount.toLocaleString("en-US")} 收藏 · ${t.retweetCount === null ? "未知" : t.retweetCount.toLocaleString("en-US")} 转发（抓取于 ${fetchedAt.slice(0, 10)}）`,
         coverUrl: cover,
         referenceImageUrls: [cover, ...photos.slice(1, 4).map((ph) => ph.url)],
         tags: [model, videos.length ? "视频" : "图像", `@${handle}`],
@@ -160,7 +179,7 @@ for (const { t, cover, photos, videos, prompt, where } of pending) {
         source: "x",
         postedAt,
         fetchedAt,
-        engagement: { likes: t.likeCount || 0, bookmarks: t.bookmarkedCount || 0, reposts: t.retweetCount || 0 },
+        engagement: { likes: t.likeCount ?? null, bookmarks: t.bookmarkedCount ?? null, reposts: t.retweetCount ?? null },
         authorFollowers: t.user?.followersCount ?? null,
         model,
         status: "candidate",
@@ -170,5 +189,6 @@ for (const { t, cover, photos, videos, prompt, where } of pending) {
     });
 }
 stats.candidates = out.length;
-writeJson(resolve(CANDIDATE_DIR, "x.json"), { fetcher: "x", fetchedAt, since, stats, items: out });
+writeJson(resolve(CANDIDATE_DIR, replayOnly ? "redfox-replay-candidates.json" : "x.json"), { fetcher: "x", fetchedAt, since, stats, items: out });
 log("X done", JSON.stringify(stats));
+if (!stats.raw && stats.errors.length) process.exitCode = 1;

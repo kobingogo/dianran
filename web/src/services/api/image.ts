@@ -1,3 +1,7 @@
+import { generationError, prepareGenerationInput } from "@/lib/generation-outcome";
+import { observeGeneration, recordCapabilityEvidence } from "@/stores/use-capability-evidence-store";
+import { proxyFetch } from "@/services/api/proxy-transport";
+import { businessOperation } from "@/lib/write-ownership";
 import axios from "axios";
 
 import i18n from "@/i18n";
@@ -179,7 +183,7 @@ function resolveImageSource(item: Record<string, unknown>) {
 
 function parseImagePayload(payload: ImageApiResponse) {
     if (typeof payload.code === "number" && payload.code !== 0) {
-        throw new Error(payload.msg || apiText("requestFailed"));
+        throw generationError({ outcome: "rejected" }, payload.msg || apiText("requestFailed"));
     }
     // Support data, images, and results response fields used by different APIs.
     const imageList = payload.data
@@ -291,7 +295,7 @@ function isUnsupportedEndpoint(error: unknown) {
 }
 
 async function requestStreamingChat(config: AiConfig, messages: AiTextMessage[], onDelta?: (text: string) => void, options?: RequestOptions): Promise<string> {
-    const response = await fetch(aiApiUrl(config, "/chat/completions"), {
+    const response = await proxyFetch(aiApiUrl(config, "/chat/completions"), {
         method: "POST",
         headers: { ...aiHeaders(config, "application/json"), Accept: "text/event-stream" },
         body: JSON.stringify({ model: config.model, messages, stream: true, ...(config.reasoningEffort === "auto" ? {} : { reasoning_effort: config.reasoningEffort }) }),
@@ -300,7 +304,7 @@ async function requestStreamingChat(config: AiConfig, messages: AiTextMessage[],
     if (!response.ok) throw new ApiStatusError(await readFetchError(response, apiText("requestFailed")), response.status);
     if (!response.body || !(response.headers.get("content-type") || "").includes("event-stream")) {
         const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } };
-        if (payload.error?.message) throw new Error(payload.error.message);
+        if (payload.error?.message) throw generationError({ outcome: "rejected" }, payload.error.message);
         const text = payload.choices?.[0]?.message?.content || "";
         onDelta?.(text);
         return text;
@@ -337,11 +341,11 @@ type ChatImagePayload = { choices?: Array<{ message?: { content?: unknown; image
 
 /** Image generation through /chat/completions with modalities (OpenRouter style). */
 async function requestChatImages(config: AiConfig, prompt: string, references: ReferenceImage[], count: number, options?: RequestOptions) {
-    const refs = await Promise.all(references.map((image) => imageToDataUrl(image)));
+    const refs = await Promise.all(references.map((image) => prepareGenerationInput(() => imageToDataUrl(image))));
     const content = [{ type: "text", text: withSystemPrompt(config, prompt) }, ...refs.map((url) => ({ type: "image_url", image_url: { url } }))];
     const once = async () => {
         const response = await axios.post<ChatImagePayload>(aiApiUrl(config, "/chat/completions"), { model: config.model, messages: [{ role: "user", content }], modalities: ["image", "text"] }, { headers: aiHeaders(config, "application/json"), signal: options?.signal, timeout: IMAGE_REQUEST_TIMEOUT_MS });
-        if (response.data.error?.message) throw new Error(response.data.error.message);
+        if (response.data.error?.message) throw generationError({ outcome: "rejected" }, response.data.error.message);
         const message = response.data.choices?.[0]?.message;
         const urls = (message?.images || []).map((image) => image.image_url?.url || image.url || "").filter(Boolean);
         if (!urls.length && Array.isArray(message?.content)) {
@@ -377,8 +381,8 @@ async function requestOpenAiCompatibleImages(config: AiConfig, prompt: string, r
             const images = await requestChatImages(config, prompt, references, count, options);
             chatImageHosts.add(hostKey(config));
             return images;
-        } catch {
-            throw error; // fallback failed too: report the original error
+        } catch (fallbackError) {
+            throw fallbackError; // Preserve the actual last attempt, which may have been accepted before response loss.
         }
     }
 }
@@ -486,13 +490,13 @@ function stringValue(value: unknown) {
 }
 
 function validateResponsePayload(payload: ResponseApiPayload) {
-    if (typeof payload.code === "number" && payload.code !== 0) throw new Error(payload.msg || apiText("requestFailed"));
-    if (payload.error?.message) throw new Error(payload.error.message);
+    if (typeof payload.code === "number" && payload.code !== 0) throw generationError({ outcome: "rejected" }, payload.msg || apiText("requestFailed"));
+    if (payload.error?.message) throw generationError({ outcome: "rejected" }, payload.error.message);
 }
 
 function validateGeminiPayload(payload: GeminiPayload) {
-    if (payload.error?.message) throw new Error(payload.error.message);
-    if (payload.promptFeedback?.blockReason) throw new Error(apiText("geminiRejected", { reason: payload.promptFeedback.blockReason }));
+    if (payload.error?.message) throw generationError({ outcome: "rejected" }, payload.error.message);
+    if (payload.promptFeedback?.blockReason) throw generationError({ outcome: "rejected" }, apiText("geminiRejected", { reason: payload.promptFeedback.blockReason }));
 }
 
 async function readFetchError(response: Response, fallback: string) {
@@ -548,7 +552,7 @@ function consumeResponseStreamText(state: ResponseStreamState, text: string, onD
 }
 
 async function requestStreamingResponse(config: AiConfig, body: Record<string, unknown>, onDelta?: (text: string) => void, options?: RequestOptions): Promise<ToolResponseResult> {
-    const response = await fetch(aiApiUrl(config, "/responses"), {
+    const response = await proxyFetch(aiApiUrl(config, "/responses"), {
         method: "POST",
         headers: { ...aiHeaders(config, "application/json"), Accept: "text/event-stream" },
         body: JSON.stringify({ ...body, stream: true }),
@@ -655,13 +659,13 @@ function toGeminiToolOptions(tools: ResponseFunctionTool[], toolChoice: ToolChoi
 }
 
 async function requestGeminiStreamingResponse(config: AiConfig, body: Record<string, unknown>, onDelta?: (text: string) => void, options?: RequestOptions): Promise<ToolResponseResult> {
-    const response = await fetch(`${geminiApiUrl(config, "streamGenerateContent")}?alt=sse`, {
+    const response = await proxyFetch(`${geminiApiUrl(config, "streamGenerateContent")}?alt=sse`, {
         method: "POST",
         headers: geminiHeaders(config),
         body: JSON.stringify(body),
         signal: options?.signal,
     });
-    if (!response.ok) throw new Error(await readFetchError(response, apiText("requestFailed")));
+    if (!response.ok) throw new ApiStatusError(await readFetchError(response, apiText("requestFailed")), response.status);
     if (!response.body) {
         const payload = (await response.json()) as GeminiPayload;
         return parseGeminiToolResponse(payload);
@@ -740,7 +744,7 @@ async function requestGeminiImages(config: AiConfig, prompt: string, references:
 async function requestGeminiImagesOnce(config: AiConfig, prompt: string, references: ReferenceImage[], options?: RequestOptions) {
     const parts: GeminiPart[] = [{ text: prompt }];
     for (const image of references) {
-        parts.push(toGeminiImagePart(await imageToDataUrl(image)));
+        parts.push(toGeminiImagePart(await prepareGenerationInput(() => imageToDataUrl(image))));
     }
     const response = await axios.post<GeminiPayload>(
         geminiApiUrl(config, "generateContent"),
@@ -769,7 +773,7 @@ function parseGeminiImagePayload(payload: GeminiPayload) {
     return images;
 }
 
-export async function requestGeneration(config: AiConfig, prompt: string, options?: RequestOptions) {
+async function requestGenerationOwned(config: AiConfig, prompt: string, options?: RequestOptions) {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const script = resolveModelScript(config, config.model || config.imageModel);
@@ -788,14 +792,14 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             });
             return normalizePluginImages(result).map((dataUrl) => ({ id: nanoid(), dataUrl }));
         } catch (error) {
-            throw new Error(readAxiosError(error, apiText("requestFailed")));
+            throw generationError(error, readAxiosError(error, apiText("requestFailed")));
         }
     }
     if (requestConfig.apiFormat === "gemini") {
         try {
             return await requestGeminiImages(requestConfig, prompt, [], n, options);
         } catch (error) {
-            throw new Error(readAxiosError(error, apiText("requestFailed")));
+            throw generationError(error, readAxiosError(error, apiText("requestFailed")));
         }
     }
     const plan = imagePlan(requestConfig);
@@ -824,11 +828,11 @@ export async function requestGeneration(config: AiConfig, prompt: string, option
             return parseImagePayload(response.data);
         }, options);
     } catch (error) {
-        throw new Error(readAxiosError(error, apiText("requestFailed")));
+        throw generationError(error, readAxiosError(error, apiText("requestFailed")));
     }
 }
 
-export async function requestEdit(config: AiConfig, prompt: string, references: ReferenceImage[], options?: RequestOptions) {
+async function requestEditOwned(config: AiConfig, prompt: string, references: ReferenceImage[], options?: RequestOptions) {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.imageModel);
     const n = Math.max(1, Math.min(15, Math.floor(Math.abs(Number(config.count)) || 1)));
     const requestPrompt = buildImageReferencePromptText(prompt, references);
@@ -836,7 +840,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     if (script) {
         const plan = imagePlan(requestConfig);
         ensureImagePlan(plan);
-        const refs = await Promise.all(references.map((image) => imageToDataUrl(image)));
+        const refs = await Promise.all(references.map((image) => prepareGenerationInput(() => imageToDataUrl(image))));
         try {
             const result = await runModelPlugin({
                 capability: "image",
@@ -849,14 +853,14 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
             });
             return normalizePluginImages(result).map((dataUrl) => ({ id: nanoid(), dataUrl }));
         } catch (error) {
-            throw new Error(readAxiosError(error, apiText("requestFailed")));
+            throw generationError(error, readAxiosError(error, apiText("requestFailed")));
         }
     }
     if (requestConfig.apiFormat === "gemini") {
         try {
             return await requestGeminiImages(requestConfig, requestPrompt, references, n, options);
         } catch (error) {
-            throw new Error(readAxiosError(error, apiText("requestFailed")));
+            throw generationError(error, readAxiosError(error, apiText("requestFailed")));
         }
     }
 
@@ -874,7 +878,7 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
     }
     formData.set("output_format", IMAGE_OUTPUT_FORMAT);
     Object.entries(fields).forEach(([key, value]) => formData.set(key, value));
-    const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await imageToDataUrl(image) })));
+    const files = await Promise.all(references.map(async (image) => dataUrlToFile({ ...image, dataUrl: await prepareGenerationInput(() => imageToDataUrl(image)) })));
     const imageField = files.length > 1 ? "image[]" : "image";
     files.forEach((file) => formData.append(imageField, file));
 
@@ -884,11 +888,11 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
             return parseImagePayload(response.data);
         }, options);
     } catch (error) {
-        throw new Error(readAxiosError(error, apiText("requestFailed")));
+        throw generationError(error, readAxiosError(error, apiText("requestFailed")));
     }
 }
 
-export async function requestImageQuestion(config: AiConfig, messages: AiTextMessage[], onDelta: (text: string) => void, options?: RequestOptions) {
+async function requestImageQuestionOwned(config: AiConfig, messages: AiTextMessage[], onDelta: (text: string) => void, options?: RequestOptions) {
     const requestConfig = resolveModelRequestConfig(config, config.model || config.textModel);
     const script = resolveModelScript(config, config.model || config.textModel);
     if (script) {
@@ -901,17 +905,17 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
                 signal: options?.signal,
                 onDelta,
             });
-            const text = String(answer ?? "").trim() || apiText("noContent");
-            if (text === apiText("noContent")) onDelta(text);
+            const text = String(answer ?? "").trim();
+            if (!text) throw new Error(apiText("noContent"));
             return text;
         } catch (error) {
-            throw new Error(readAxiosError(error, apiText("requestFailed")));
+            throw generationError(error, readAxiosError(error, apiText("requestFailed")));
         }
     }
     try {
         if (requestConfig.apiFormat === "gemini") {
-            const answer = (await requestGeminiStreamingResponse(requestConfig, toGeminiBody(requestConfig, messages), onDelta, options)).content || apiText("noContent");
-            if (answer === apiText("noContent")) onDelta(answer);
+            const answer = (await requestGeminiStreamingResponse(requestConfig, toGeminiBody(requestConfig, messages), onDelta, options)).content;
+            if (!answer.trim()) throw new Error(apiText("noContent"));
             return answer;
         }
         const chatMessages = withSystemMessage(requestConfig, messages) as AiTextMessage[];
@@ -930,17 +934,16 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
                 if (!isUnsupportedEndpoint(error)) throw error;
                 try {
                     answer = await viaChat();
-                } catch {
-                    throw error;
+                } catch (fallbackError) {
+                    throw fallbackError;
                 }
                 chatTextHosts.add(hostKey(requestConfig));
             }
         }
-        answer = answer || apiText("noContent");
-        if (answer === apiText("noContent")) onDelta(answer);
+        if (!answer.trim()) throw new Error(apiText("noContent"));
         return answer;
     } catch (error) {
-        throw new Error(readAxiosError(error, apiText("requestFailed")));
+        throw generationError(error, readAxiosError(error, apiText("requestFailed")));
     }
 }
 
@@ -969,7 +972,14 @@ export async function fetchImageModels(config: Pick<AiConfig, "baseUrl" | "apiKe
 }
 
 export async function fetchChannelModels(channel: ModelChannel) {
-    return fetchImageModels({ baseUrl: channel.baseUrl, apiKey: channel.apiKey, apiFormat: channel.apiFormat });
+    try {
+        const models = await fetchImageModels({ baseUrl: channel.baseUrl, apiKey: channel.apiKey, apiFormat: channel.apiFormat });
+        await recordCapabilityEvidence(channel, "models", "").catch(() => {});
+        return models;
+    } catch (error) {
+        await recordCapabilityEvidence(channel, "models", "", error instanceof Error ? error.message : "模型读取失败").catch(() => {});
+        throw error;
+    }
 }
 
 const defaultGeminiConfig: Pick<AiConfig, "baseUrl" | "apiKey" | "apiFormat" | "model" | "systemPrompt"> = {
@@ -979,3 +989,9 @@ const defaultGeminiConfig: Pick<AiConfig, "baseUrl" | "apiKey" | "apiFormat" | "
     model: "",
     systemPrompt: "",
 };
+
+export const requestGeneration = businessOperation((...args: Parameters<typeof requestGenerationOwned>) => observeGeneration(args[0], "image", args[0].model || args[0].imageModel, () => requestGenerationOwned(...args)));
+
+export const requestEdit = businessOperation((...args: Parameters<typeof requestEditOwned>) => observeGeneration(args[0], "image", args[0].model || args[0].imageModel, () => requestEditOwned(...args)));
+
+export const requestImageQuestion = businessOperation((...args: Parameters<typeof requestImageQuestionOwned>) => observeGeneration(args[0], "text", args[0].model || args[0].textModel, () => requestImageQuestionOwned(...args)));

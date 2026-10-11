@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import matter from "gray-matter";
+import { skillTreeRevision, skillResources, skillResourcesFromFiles, readSkillFiles, filesDigest, dependencyReadiness, fileFromText, resourcePath, SkillPackageError } from "./packages.js";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 const NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -28,6 +29,7 @@ export type ManagedSkillDetail = {
     path: string;
     revision: string;
     managed: true;
+    resources?: Awaited<ReturnType<typeof skillResources>>;
 };
 
 export type CreateManagedSkillInput = {
@@ -130,7 +132,7 @@ export class SkillStore {
             const paths = await this.safeExistingPaths(name);
             const currentSkill = await readSkill(paths.skillFile, name);
             const currentOpenAi = await readOpenAi(paths.openAiFile, name);
-            assertRevision(expectedRevision, revision(currentSkill.raw, currentOpenAi.raw));
+            assertRevision(expectedRevision, await skillTreeRevision(paths.skillDir));
             const frontmatter = { ...currentSkill.frontmatter, name, description };
             await writeFileAtomic(paths.skillFile, serializeSkill(frontmatter, instructions));
             if (interfaceInput !== undefined) {
@@ -155,12 +157,56 @@ export class SkillStore {
             const paths = await this.safeExistingPaths(name);
             const currentSkill = await readSkill(paths.skillFile, name);
             const currentOpenAi = await readOpenAi(paths.openAiFile, name);
-            assertRevision(expectedRevision, revision(currentSkill.raw, currentOpenAi.raw));
+            assertRevision(expectedRevision, await skillTreeRevision(paths.skillDir));
             await assertTreeHasNoLinks(paths.skillDir);
             const realRoot = await fs.realpath(this.skillsPath);
             const realSkill = await fs.realpath(paths.skillDir);
             if (!inside(realRoot, realSkill)) throw new SkillStoreError("Skill 路径不安全", 400);
             await fs.rm(realSkill, { recursive: true });
+        });
+    }
+
+    async health(name: string) {
+        await this.writeQueue.catch(() => undefined);
+        const paths = await this.safeExistingPaths(name);
+        const skill = await readSkill(paths.skillFile, name);
+        const openAi = await readOpenAi(paths.openAiFile, name);
+        const originPath = path.join(paths.skillDir, ".dianran-origin.json"), entry = await lstatOptional(originPath);
+        if (entry && (!entry.isFile() || entry.isSymbolicLink())) throw new SkillStoreError("Skill 来源记录路径不安全", 400);
+        const origin = entry ? JSON.parse(await fs.readFile(originPath, "utf8")) : undefined;
+        return { origin, readiness: await dependencyReadiness(skill.frontmatter, [fileFromText("agents/openai.yaml", openAi.raw)]) };
+    }
+
+    async validatePackage(name: string, directory: string) {
+        await readSkill(path.join(directory, "SKILL.md"), name);
+        await readOpenAi(path.join(directory, "agents", "openai.yaml"), name);
+    }
+
+    packageMutation<T>(operation: (skillsPath: string) => Promise<T>) {
+        return this.mutate(async () => { await this.ensureRoot(); return operation(this.skillsPath); });
+    }
+
+    resource(name: string, input: { path: string; text?: string; content?: string; remove?: boolean; create?: boolean; expectedRevision: string }) {
+        return this.mutate(async () => {
+            const paths = await this.safeExistingPaths(name);
+            assertRevision(expectedRevisionValue(input.expectedRevision), await skillTreeRevision(paths.skillDir));
+            const relative = resourcePath(input.path);
+            if (["skill.md", "agents/openai.yaml", ".dianran-origin.json"].includes(relative.toLowerCase())) throw new SkillStoreError("请用技能正文编辑器修改入口；来源记录不可编辑", 400);
+            const parts = relative.split("/");
+            let parent = paths.skillDir;
+            for (const part of parts.slice(0, -1)) { parent = path.join(parent, part); await ensurePlainDirectory(parent); }
+            const file = path.join(paths.skillDir, relative);
+            const existing = await lstatOptional(file);
+            if (existing && (!existing.isFile() || existing.isSymbolicLink())) throw new SkillStoreError("资源必须是普通文件", 400);
+            if (input.create && existing) throw new SkillStoreError("同名资源已存在，请在文件列表中编辑或另选名称", 409);
+            if (input.remove) await fs.unlink(file);
+            else {
+                let data: string | Buffer;
+                if (typeof input.content === "string") { data = Buffer.from(input.content, "base64"); if (data.toString("base64") !== input.content) throw new SkillStoreError("资源编码无效", 400); }
+                else { if (typeof input.text !== "string") throw new SkillStoreError("请填写资源正文", 400); data = input.text; }
+                await writeFileAtomic(file, data, existing?.mode);
+            }
+            return this.readDetail(name, paths.skillFile, paths.openAiFile);
         });
     }
 
@@ -222,15 +268,18 @@ export class SkillStore {
     }
 
     private async readDetail(name: string, skillFile: string, openAiFile: string): Promise<ManagedSkillDetail> {
+        const files = await readSkillFiles(path.dirname(skillFile));
         const skill = await readSkill(skillFile, name);
         const openAi = await readOpenAi(openAiFile, name);
+        if (files.find(file => file.path === "SKILL.md")?.text !== skill.raw || (files.find(file => file.path === "agents/openai.yaml")?.text || "") !== openAi.raw) throw new SkillStoreError("读取期间 Skill 已改变，请重新加载", 409);
         return {
             name,
             description: skill.description,
             instructions: skill.instructions,
             ...(openAi.interface ? { interface: openAi.interface } : {}),
             path: skillFile,
-            revision: revision(skill.raw, openAi.raw),
+            revision: filesDigest(files),
+            resources: await skillResourcesFromFiles(files),
             managed: true,
         };
     }
@@ -375,20 +424,16 @@ async function restoreSkillFiles(skillFile: string, skillRaw: string, openAiFile
     }
 }
 
-async function writeFileAtomic(filePath: string, content: string) {
+async function writeFileAtomic(filePath: string, content: string | Buffer, mode?: number) {
     const temporary = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.${crypto.randomUUID()}.tmp`);
     try {
-        await fs.writeFile(temporary, content, { encoding: "utf8", flag: "wx" });
+        await fs.writeFile(temporary, content, { encoding: "utf8", flag: "wx", mode });
         await fs.rename(temporary, filePath);
     } finally {
         await fs.unlink(temporary).catch((error) => {
             if (nodeErrorCode(error) !== "ENOENT") throw error;
         });
     }
-}
-
-function revision(skillRaw: string, openAiRaw: string) {
-    return crypto.createHash("sha256").update(skillRaw).update("\0").update(openAiRaw).digest("hex");
 }
 
 async function ensurePlainDirectory(directory: string) {
@@ -432,7 +477,7 @@ function nodeErrorCode(error: unknown) {
 }
 
 function storeError(error: unknown, fallback: string) {
-    if (error instanceof SkillStoreError) return error;
+    if (error instanceof SkillStoreError || error instanceof SkillPackageError) return error;
     if (nodeErrorCode(error) === "ENOENT") return new SkillStoreError("找不到指定 Skill", 404);
     if (["EEXIST", "ENOTEMPTY", "EPERM", "EACCES"].includes(nodeErrorCode(error))) return new SkillStoreError("Skill 文件当前无法修改", 409);
     return new SkillStoreError(fallback, 500);

@@ -1,3 +1,4 @@
+import { authorizedProxyPairing } from "@/services/api/proxy-transport";
 import { useMemo } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -204,8 +205,8 @@ export function resolveModelScript(config: AiConfig, value: string) {
 }
 
 export function isAiConfigReady(config: AiConfig, model: string) {
-    const channel = resolveModelChannel(config, model);
-    return Boolean(model.trim() && channel.baseUrl.trim() && channel.apiKey.trim());
+    const selected = findChannelModel(config, model);
+    return Boolean(selected && model.trim() && selected.channel.baseUrl.trim() && selected.channel.apiKey.trim());
 }
 
 export const useConfigStore = create<ConfigStore>()(
@@ -507,6 +508,8 @@ export function withLocalProxy(url: string) {
     const { proxyEnabled, proxyUrl } = useConfigStore.getState().config;
     if (!proxyEnabled || !/^https?:\/\//i.test(url)) return url;
     const base = normalizeLocalProxyUrl(proxyUrl);
-    if (!base || url.startsWith(`${base}/`)) return url;
-    return `${base}/${url}`;
+    if (!base) throw new Error("请配置本地代理地址并导入配对文件");
+    if (url.startsWith(`${base}/`)) return url;
+    const pairing = authorizedProxyPairing(base, url);
+    return `${pairing.proxyUrl}/${url}`;
 }

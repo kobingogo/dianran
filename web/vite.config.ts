@@ -46,6 +46,15 @@ function localPluginsManifest(): Plugin {
 export default defineConfig({
     base: process.env.VITE_BASE || "/",
     plugins: [react(), localPluginsManifest()],
+    server: {
+        proxy: {
+            "/prompt-sources": {
+                target: "https://dianran-prompts.vercel.app",
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/prompt-sources/, ""),
+            },
+        },
+    },
     resolve: {
         alias: {
             "@": resolve(webDir, "src"),

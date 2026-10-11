@@ -4,6 +4,7 @@ import type { MenuProps } from "antd";
 import { Check, ChevronDown, CircleAlert, FilePenLine, LoaderCircle, LockKeyhole, MessageSquareText, Plus, RefreshCw, Search, Sparkles, Trash2, Workflow } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { AgentSkillPackageManager } from "./agent-skill-package-manager";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { createCodexSkill, createCodexSkillDraft, deleteCodexSkill, fetchCodexSkill, postState, setCodexSkillEnabled, updateCodexSkill, type AgentSkillDetail, type AgentSkillDraft, type AgentSkillInterface, type AgentSkillScope, type AgentSkillSummary } from "@/services/api/canvas-agent";
 import { useAgentSkillStore } from "@/stores/use-agent-skill-store";
@@ -51,6 +52,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
     const [createMenuOpen, setCreateMenuOpen] = useState(false);
     const [busySkill, setBusySkill] = useState("");
     const [errorsOpen, setErrorsOpen] = useState(false);
+    const [packageManager, setPackageManager] = useState<{ skill: AgentSkillSummary | null }>();
     const confirmRef = useRef<{ destroy: () => void } | null>(null);
     const [form] = Form.useForm<SkillFormValues>();
     const endpoint = url.trim().replace(/\/$/, "");
@@ -83,6 +85,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
         setCreateMenuOpen(false);
         setBusySkill("");
         setErrorsOpen(false);
+        setPackageManager(undefined);
         form.resetFields();
     }, [connected, form]);
     const useSkill = (skill: AgentSkillSummary) => {
@@ -278,6 +281,7 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
                         <div className="mt-0.5 text-xs" style={{ color: theme.node.muted }}>{t("agent.skillManager.localDescription")}</div>
                     </div>
                     <div className="flex items-center gap-1">
+                        <Button type="text" size="small" disabled={!connected} onClick={() => setPackageManager({ skill: null })}>安装</Button>
                         <Tooltip title={t("agent.skillManager.reload")}>
                             <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" aria-label={t("agent.skillManager.reloadSkill")} disabled={!connected || loading} icon={<RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />} onClick={() => void refresh()} />
                         </Tooltip>
@@ -324,19 +328,21 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
                                             </div>
                                             <div className="mt-1 line-clamp-2 text-xs leading-5" style={{ color: theme.node.muted }}>{skill.interface?.shortDescription || skill.shortDescription || skill.description || t("agent.skillManager.noDescription")}</div>
                                             <Tooltip title={skill.path}>
-                                                <div className="mt-1.5 truncate text-[11px]" style={{ color: theme.node.faint }}>{t(`agent.skillManager.scopes.${skill.scope}`)} · {skill.name}</div>
+                                                <div className="mt-1.5 truncate text-[11px]" style={{ color: theme.node.faint }}>{t(`agent.skillManager.scopes.${skill.scope}`)} · {skill.name}{skill.origin ? ` · GitHub ${skill.origin.commit.slice(0, 7)}` : ""}</div>
                                             </Tooltip>
                                         </div>
                                     </div>
-                                    <div className="mt-2 flex items-center justify-between gap-2 pl-7">
+                                    {skill.readiness && <p className="mt-1 pl-7 text-[11px]" style={{ color: theme.node.muted }}>{skill.readiness.status === "missing" ? `缺少依赖：${skill.readiness.missing.join("、")}` : "可调用 · 依赖与实际效果待验证"}</p>}
+                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 pl-7">
                                         <label className="inline-flex items-center gap-2 text-xs" style={{ color: theme.node.muted }}>
                                             <Switch size="small" checked={skill.enabled} loading={busy} disabled={!connected || Boolean(busySkill) || Boolean(generatingSource)} onChange={(enabled) => void toggleEnabled(skill, enabled)} />
                                             {t(skill.enabled ? "agent.skillManager.enabled" : "agent.skillManager.disabled")}
                                         </label>
                                         <div className="flex items-center gap-0.5">
-                                            <Button type="text" size="small" disabled={!connected || !skill.enabled || Boolean(busySkill)} icon={selected ? <Check className="size-3.5" /> : <Sparkles className="size-3.5" />} onClick={() => useSkill(skill)}>{t(selected ? "agent.skillManager.selected" : "agent.skillManager.use")}</Button>
+                                            <Button type="text" size="small" disabled={!connected || !skill.enabled || skill.readiness?.status === "missing" || Boolean(busySkill)} icon={selected ? <Check className="size-3.5" /> : <Sparkles className="size-3.5" />} onClick={() => useSkill(skill)}>{t(selected ? "agent.skillManager.selected" : "agent.skillManager.use")}</Button>
                                             {skill.managed ? (
                                                 <>
+                                                    <Button type="text" size="small" disabled={!connected || Boolean(busySkill)} onClick={() => setPackageManager({ skill })}>资源与版本</Button>
                                                     <Tooltip title={t("common.edit")}><Button type="text" shape="circle" size="small" aria-label={t("agent.skillManager.editNamed", { name: skill.interface?.displayName || skill.name })} disabled={!connected || Boolean(busySkill) || Boolean(generatingSource)} icon={<FilePenLine className="size-3.5" />} onClick={() => void openEdit(skill)} /></Tooltip>
                                                     <Tooltip title={t("common.delete")}><Button danger type="text" shape="circle" size="small" aria-label={t("agent.skillManager.deleteNamed", { name: skill.interface?.displayName || skill.name })} disabled={!connected || Boolean(busySkill) || Boolean(generatingSource)} icon={<Trash2 className="size-3.5" />} onClick={() => confirmDelete(skill)} /></Tooltip>
                                                 </>
@@ -355,6 +361,8 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
                     </div>
                 )}
             </div>
+
+            {packageManager && <AgentSkillPackageManager skill={packageManager.skill} onClose={() => setPackageManager(undefined)} />}
 
             <Modal title={t("agent.skillManager.loadErrors", { count: errors.length })} open={errorsOpen} footer={null} width={720} onCancel={() => setErrorsOpen(false)}>
                 <div className="thin-scrollbar mt-4 max-h-[60vh] overflow-y-auto rounded-md border px-3 py-2 text-xs leading-5" style={{ borderColor: theme.node.stroke }}>

@@ -18,7 +18,9 @@ web/public/plugins
 brand/node_modules
 brand/.cover-failures.txt
 
-# prompt pipeline: keep its state files, ignore fetched candidates
-!brand/pipeline/data/
+# Generated prompt resources live in the independent resource repository.
+web/public/prompt-sources/
+brand/pipeline/reports/
 brand/pipeline/candidates/
 api/node_modules
+.vercel

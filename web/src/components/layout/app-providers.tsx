@@ -12,6 +12,7 @@ import { ClientRootInit } from "@/components/layout/client-root-init";
 import type { AppLocale } from "@/i18n";
 import { getAntThemeConfig } from "@/lib/app-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { StorageConflictNotice } from "./storage-conflict-notice";
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -43,9 +44,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
     return (
         <ConfigProvider locale={locale === "zh-CN" ? zhCN : enUS} theme={getAntThemeConfig(dark)}>
-            <App>
+            <App className="h-full">
                 <QueryClientProvider client={queryClient}>
                     <ClientRootInit>{children}</ClientRootInit>
+                    <StorageConflictNotice />
                 </QueryClientProvider>
             </App>
         </ConfigProvider>

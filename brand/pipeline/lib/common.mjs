@@ -1,15 +1,19 @@
 // [dianran] Shared helpers for the prompt-library pipeline (paths, JSON IO, model labels, content filters, scoring).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PIPELINE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-export const ROOT = resolve(PIPELINE_DIR, "../..");
-export const LIB_DIR = resolve(ROOT, "web/public/prompt-sources");
+export const CODE_ROOT = resolve(PIPELINE_DIR, "../..");
+if (!process.env.DIANRAN_PROMPT_PIPELINE_ROOT) throw new Error("请设置 DIANRAN_PROMPT_PIPELINE_ROOT 指向独立提示词资源仓库");
+export const ROOT = realpathSync(resolve(process.env.DIANRAN_PROMPT_PIPELINE_ROOT));
+if (ROOT === realpathSync(CODE_ROOT) || execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: ROOT, encoding: "utf8" }).trim() !== ROOT) throw new Error("提示词资源路径必须是独立 Git 仓库根目录，不能使用点染主仓库");
+export const LIB_DIR = resolve(ROOT, "prompt-sources");
 export const COVER_DIR = resolve(LIB_DIR, "covers");
-export const CANDIDATE_DIR = resolve(PIPELINE_DIR, "candidates");
-export const DATA_DIR = resolve(PIPELINE_DIR, "data");
-export const REPORT_DIR = resolve(PIPELINE_DIR, "reports");
+export const CANDIDATE_DIR = resolve(ROOT, "candidates");
+export const DATA_DIR = resolve(ROOT, "data");
+export const REPORT_DIR = resolve(ROOT, "reports");
 
 export const readJson = (path, fallback) => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : fallback);
 export function writeJson(path, value, pretty = true) {
@@ -73,12 +77,6 @@ export function detectModel(text, hasVideo) {
     return found.sort((a, b) => a.at - b.at)[0].label;
 }
 
-// ---------- content filters (same rules as the hand-curated X library, plus face-swap / likeness) ----------
-const REAL = /jenna ortega|sabrina carpenter|millie bobby|madison beer|scarlett|anne hathaway|olivia rodrigo|emma myers|charli|anya taylor|alexandra daddario|sadie sink|\btwice\b|blackpink|aespa|\bitzy\b|le ?sserafim|newjeans|\bbts\b|red velvet|karina|jisoo|jennie|rosé|taylor swift|\belon\b|musk|trump|altman|celebrity|celebrities|kpop idol|k-pop idol|ariana grande|zendaya|billie eilish|西施|楊玉環|杨玉环|明星|名人/i;
-const NSFW = /nsfw|性感|内衣|內衣|蕾丝|蕾絲|巨乳|诱惑|誘惑|f杯|\blingerie|\bbikini|比基尼|\bsexy|\bseductive|\bcleavage|露骨|挑逗|臀|胸部|\bbedtime|\bon the bed\b|床上|post shower|\bswimsuit|泳装|泳衣|bare ribs|裸|\bnude|擦边|\bbusty?\b|美腿|白袜|丝袜|黑丝|\bstockings\b|\bthighs?\b|大腿|腰窝|\bundress|onlyfans|patreon|link in bio|\bsensual|\bhot girl|\bbra\b|\bpanties|pantyhose|\bcurvy|\bseduct|\bbreast|\bbutt\b|\bshower\b|\bbathtub|\bbathrobe|\btowel\b|\bwet (hair|skin|clothes)|\bunderwear|\bcrop top|\bmini ?skirt|\bhot pants|\bsheer\b|\bsee-through|\bnaked|\berotic|\bflirt|gravure|グラビア|\bcurvaceous|hourglass figure|\bvoluptuous/i;
-const FACESWAP = /face ?swap|swap (the |her |his |my )?faces?|换脸|換臉|deep ?fake|replace (the |her |his )?face/i;
-const LIKENESS = /(uploaded|attached|reference|my|user'?s?|this) (photo|image|picture|selfie|portrait)[^\n]{0,160}(exact|same|identical|original|unchanged|100%)[^\n]{0,40}(face|facial features|facial identity|likeness)|(face|facial features|facial identity|likeness)[^\n]{0,40}(exactly|100%|unchanged|identical)[^\n]{0,160}(uploaded|attached|reference) (photo|image|picture)|\bmy (face|selfie)\b|换成我的脸|用我的(脸|照片)/i;
-
 const OFFTOPIC = /\bai tools\b|\d\s?\$\s?\/\s?(sec|s\b|min)|\bpricing\b|\bprix\b|coûtent|claude code|\bcursor\b|agents\.md|api key|productivity|flowgpt|promptbase|\$\s?\d[\d.,]*\s?\/\s?sec|free generations|promo code|coupon|discount|% off|sign up|link in (my )?bio|newsletter|giveaway/i;
 const VISUAL = /image|photo|portrait|cinematic|scene|poster|illustration|\bshot\b|lighting|style|render|video|camera|frame|composition|aspect|\d+:\d+|画|图|镜头|风格|海报|写真|照片|视频|构图|光影/i;
 
@@ -90,17 +88,6 @@ export function qualityReject(prompt, post = "") {
     if (OFFTOPIC.test(`${post}\n${text}`)) return "off-topic";
     if (!VISUAL.test(text)) return "not-visual";
     if (/(prompts?|提示词)\s*[:：]?\s*$/i.test(text.replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}\s⤵️]/gu, ""))) return "too-short";
-    return "";
-}
-
-// Returns a reason string when an entry must not be published, else "".
-export function contentReject(text, { sensitive = false, author = "", excludeAuthors = [], likeness = true } = {}) {
-    if (excludeAuthors.map((a) => a.toLowerCase()).includes(String(author).replace(/^@/, "").toLowerCase())) return "excluded-author";
-    if (sensitive) return "nsfw";
-    if (NSFW.test(text)) return "nsfw";
-    if (FACESWAP.test(text)) return "face-swap";
-    if (REAL.test(text)) return "real-person";
-    if (likeness && LIKENESS.test(text)) return "real-person";
     return "";
 }
 

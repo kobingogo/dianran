@@ -2,7 +2,7 @@
 // [dianran] Read anonymous prompt usage counts back from the Vercel Blob store used by /api/usage.
 // Raw batches written by /api/usage (usage/YYYY-MM-DD/batch-<rand>.json) are folded into one aggregate blob
 // (usage-agg/totals.json), the processed raw batches are deleted, and a copy of the aggregate is written to
-// brand/pipeline/data/usage.json for scoring. Needs BLOB_READ_WRITE_TOKEN (env, or the file named by
+// 资源仓库 data/usage.json for scoring. Needs BLOB_READ_WRITE_TOKEN (env, or the file named by
 // DIANRAN_USAGE_ENV, default ~/.config/dianran/dianran-next.env, created with `vercel env pull`).
 // Without a token the step reports "unavailable" and scoring falls back to engagement + freshness.
 // Usage: node brand/pipeline/usage-read.mjs
@@ -58,11 +58,14 @@ try {
         cursor = page.hasMore ? page.cursor : undefined;
     } while (cursor);
 
+    agg.acceptedBatches ||= {};
     let events = 0;
     const processed = [];
     for (const blob of blobs) {
         try {
             const batch = await readJsonBlob(blob.pathname, token);
+            const identity = batch?.batchId || blob.pathname;
+            if (agg.acceptedBatches[identity]) { processed.push(blob.url); continue; }
             const day = /^\d{4}-\d{2}-\d{2}$/.test(batch?.day || "") ? batch.day : String(blob.uploadedAt).slice(0, 10);
             for (const [rawId, value] of Object.entries(batch?.events || {})) {
                 const id = rawId.startsWith("dianran-picks:") && rawId.split(":").length > 2 ? rawId.slice("dianran-picks:".length) : rawId;
@@ -78,6 +81,7 @@ try {
                 if (day > t.last) t.last = day;
                 events += copy + use;
             }
+            agg.acceptedBatches[identity] = day;
             processed.push(blob.url);
         } catch (error) {
             log(`usage: skip ${blob.pathname}: ${error.message}`);

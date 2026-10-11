@@ -1,3 +1,4 @@
+import { assertBusinessWriter } from "@/lib/write-ownership";
 import axios, { type AxiosRequestConfig } from "axios";
 
 import i18n from "@/i18n";
@@ -44,15 +45,26 @@ function pluginUrl(config: AiConfig, path: string) {
     return buildApiUrl(config.baseUrl, path.startsWith("/") ? path : `/${path}`);
 }
 
+export function isBoundPluginTarget(baseUrl: string, target: string) {
+    try {
+        const base = new URL(baseUrl), url = new URL(target);
+        const path = base.pathname.replace(/\/+$/, "");
+        return !url.username && !url.password && !/%(?:2f|5c|25)/i.test(url.pathname) && url.origin === base.origin && (url.pathname === path || url.pathname.startsWith(`${path}/`));
+    } catch { return false; }
+}
+
 function createPluginHttp(config: AiConfig, options?: RequestOptions): PluginHttp {
     const run = async (method: "get" | "post", path: string, body: unknown, opts?: PluginHttpOptions) => {
         const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+        const target = /^https?:/i.test(path) ? path : `${config.baseUrl.replace(/\/+$/, "")}${config.baseUrl.replace(/\/+$/, "").endsWith("/v1") ? "" : "/v1"}/${path.replace(/^\/+/, "")}`;
+        const bound = isBoundPluginTarget(config.baseUrl, target);
         const response = await axios.request({
             method,
+            ...(bound ? { adapter: "fetch", fetchOptions: { redirect: "error" as const } } : {}),
             url: pluginUrl(config, path),
             data: method === "post" ? body : undefined,
             params: opts?.params,
-            headers: pluginHeaders({ Authorization: `Bearer ${config.apiKey}`, ...opts?.headers }, method === "post" && !isForm && body !== undefined),
+            headers: pluginHeaders({ ...(bound ? { Authorization: `Bearer ${config.apiKey}` } : {}), ...opts?.headers }, method === "post" && !isForm && body !== undefined),
             responseType: opts?.responseType || "json",
             signal: options?.signal,
         });
@@ -111,6 +123,7 @@ function createPoll(signal?: AbortSignal) {
  * The script still runs as an async function body and must `return` the result.
  */
 export async function runModelPlugin<T = unknown>(args: RunPluginArgs): Promise<T> {
+    assertBusinessWriter();
     const { config } = args;
     const http = createPluginHttp(config, { signal: args.signal });
     const request = createPluginRequest(config, { signal: args.signal });
@@ -179,7 +192,7 @@ export function getPluginVariables(): PluginVariable[] {
         { name: "apiKey", type: "string", desc: i18n.t("modelPlugin.variables.apiKey") },
         { name: "systemPrompt", type: "string", desc: i18n.t("modelPlugin.variables.systemPrompt") },
         { name: "reasoningEffort", type: '"auto" | "low" | "medium" | "high" | "xhigh"', desc: i18n.t("modelPlugin.variables.reasoningEffort"), capabilities: ["text"] },
-        { name: "http", type: "object", desc: i18n.t("modelPlugin.variables.http") },
+        { name: "http", type: "object", desc: "GET/POST 辅助接口，仅绑定渠道及路径范围自动携带 Key；跨站请求必须显式指定凭据" },
         { name: "request", type: "function", desc: i18n.t("modelPlugin.variables.request") },
         { name: "poll", type: "function", desc: i18n.t("modelPlugin.variables.poll") },
         { name: "sleep", type: "function", desc: i18n.t("modelPlugin.variables.sleep") },
@@ -197,6 +210,7 @@ export function getPluginAuthoringPrompt(capability: ModelCapability, modelName:
     const lines = [
         i18n.t("modelPlugin.authoring.intro", { capability: i18n.t(`config.channelEditor.capabilities.${capability}`), model: modelName || i18n.t("modelPlugin.authoring.anyModel") }),
         "",
+        "脚本拥有当前网页全部权限，可读取本地数据、apiKey 并联网，不是沙箱。http 仅绑定渠道范围自动附带凭据，跨站须显式处理。",
         i18n.t("modelPlugin.authoring.shape"),
         "",
         i18n.t("modelPlugin.authoring.returnTitle"),

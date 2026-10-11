@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // [dianran] Merge fetched candidates into the bundled libraries, backfill the unified metadata, score every entry,
-// retire stale/broken ones and apply the per-library caps. Writes the libraries in web/public/prompt-sources,
-// brand/pipeline/data/{scores,retired,cover-failures}.json and the run report candidates/merge-report.json.
+// retire stale/broken ones and apply the per-library caps. Writes the libraries in 资源仓库 prompt-sources,
+// 资源仓库 data/{scores,retired,cover-failures}.json and the run report candidates/merge-report.json.
 // Unified metadata (added to every record, old fields untouched so the app stays backward compatible):
 //   source, sourceUrl, author, postedAt, fetchedAt, engagement {likes, bookmarks, reposts}, authorFollowers, model, status
 // Usage: node brand/pipeline/merge.mjs [--no-network-checks] [--additive-only]
@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-    CANDIDATE_DIR, DATA_DIR, ageDays, config, contentReject, libPath, libraries, log, modelLabel, nowIso, readJson, scoreEntry, snowflakeDate, toIso,
+    CANDIDATE_DIR, DATA_DIR, ageDays, config, libPath, libraries, log, modelLabel, nowIso, readJson, scoreEntry, snowflakeDate, toIso,
     tweetIdFromUrl, writeJson, promptKey,
 } from "./lib/common.mjs";
 import { coverFileOf, createLocalizer, pool } from "./lib/covers.mjs";
@@ -123,10 +123,14 @@ for (const lib of libs.filter((l) => l.source === "github")) {
     const byUrl = new Map(current.filter((i) => tweetIdFromUrl(i.sourceUrl) && urlCount.get(i.sourceUrl) === 1).map((i) => [i.sourceUrl, i]));
     const byPrompt = new Map(current.map((i) => [promptKey(i.prompt), i]));
     const matched = new Set();
+    const seenUpstream = new Set();
     const next = [];
     const toAdd = [];
     for (const up of upstream) {
+        if (seenUpstream.has(up.id)) continue;
+        seenUpstream.add(up.id);
         const hit = byId.get(up.id) || (tweetIdFromUrl(up.sourceUrl) && byUrl.get(up.sourceUrl)) || byPrompt.get(promptKey(up.prompt));
+        if (hit && matched.has(hit.id)) continue;
         if (hit && !matched.has(hit.id)) {
             matched.add(hit.id);
             for (const k of ["title", "prompt", "description", "tags", "author", "sourceUrl", "imageModel"]) if (up[k] !== undefined && JSON.stringify(up[k]) !== JSON.stringify(hit[k])) { hit[k] = up[k]; report.updated++; }
@@ -137,7 +141,6 @@ for (const lib of libs.filter((l) => l.source === "github")) {
             continue;
         }
         if (retiredArchive[up.id]) continue;
-        if ((up.tags || []).some((t) => /nsfw/i.test(t))) continue;
         toAdd.push(normalize({ ...up, sourceId: lib.id, fetchedAt }, lib, { fetchedAt }));
     }
     await pool(toAdd, 8, async (item) => {
@@ -157,7 +160,7 @@ for (const lib of libs.filter((l) => l.source === "github")) {
 }
 
 // ---------- merge X + Civitai candidates ----------
-for (const [libId, file, maxNew] of [["x-trending", "x.json", Infinity], ["civitai-trending", "civitai.json", cfg.civitai.maxNewPerRun]]) {
+for (const [libId, file] of [["x-trending", "x.json"], ["civitai-trending", "civitai.json"]]) {
     const lib = libs.find((l) => l.id === libId);
     const path = resolve(CANDIDATE_DIR, file);
     if (!existsSync(path)) { log(`${libId}: no candidates file`); continue; }
@@ -173,7 +176,7 @@ for (const [libId, file, maxNew] of [["x-trending", "x.json", Infinity], ["civit
         fresh.push({ ...cand, status: "active" });
     }
     const accepted = [];
-    await pool(fresh.slice(0, maxNew === Infinity ? fresh.length : maxNew), 6, async (item) => {
+    await pool(fresh, 6, async (item) => {
         if (await addWithCover(item)) accepted.push(item);
     });
     for (const item of accepted) {
@@ -228,11 +231,6 @@ if (!additiveOnly) for (const lib of libs) {
         if (goneIds.has(item.id)) { retire(lib, item, "source-deleted", "原帖已删除或不可访问"); continue; }
         const dep = isDeprecated(item);
         if (dep) { retire(lib, item, "deprecated-model", dep.reason); continue; }
-        if (lib.source === "x" || lib.source === "civitai") {
-            const reason = contentReject(String(item.prompt).toLowerCase(), { author: item.author, excludeAuthors: config("x-watchlist.json").excludeAuthors, likeness: false });
-            // (the stricter "keep the uploaded face" likeness rule only gates new candidates; published entries were reviewed by hand)
-            if (reason) { retire(lib, item, "content-filter", reason); continue; }
-        }
         const age = ageDays(item.postedAt, now);
         const used = usage.totals?.[item.id] && ageDays(usage.totals[item.id].last, now) <= cfg.cleanup.maxAgeDays;
         if (age !== null && age > cfg.cleanup.maxAgeDays && !used) {

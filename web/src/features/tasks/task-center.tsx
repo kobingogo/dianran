@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { AudioLines, CheckCircle2, CircleSlash, Clock3, FileText, ImageIcon, ListChecks, LoaderCircle, Video, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 import { isActiveTask, useTaskStore, type GenerationTask } from "./task-store";
@@ -16,6 +16,7 @@ const RECENT_MS = 3 * 60_000;
 
 function PhaseIcon({ task }: { task: GenerationTask }) {
     if (isActiveTask(task)) return task.phase === "queued" ? <Clock3 className="size-3.5 text-amber-500" /> : <LoaderCircle className="size-3.5 animate-spin text-[var(--brand,#E8572A)]" />;
+    if (task.saveState === "error") return <XCircle className="size-3.5 text-amber-600" />;
     if (task.phase === "done") return <CheckCircle2 className="size-3.5 text-emerald-500" />;
     if (task.phase === "failed") return <XCircle className="size-3.5 text-red-500" />;
     return <CircleSlash className="size-3.5 text-stone-400" />;
@@ -23,6 +24,8 @@ function PhaseIcon({ task }: { task: GenerationTask }) {
 
 function TaskRow({ task, now }: { task: GenerationTask; now: number }) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+    
     const Icon = KIND_ICON[task.kind];
     const elapsed = (task.endedAt || now) - task.startedAt;
     const hint = phaseHint(task, t);
@@ -30,20 +33,27 @@ function TaskRow({ task, now }: { task: GenerationTask; now: number }) {
         <li className="border-b border-stone-100 py-2.5 last:border-b-0 dark:border-stone-800" data-task-phase={task.phase}>
             <div className="flex items-center gap-2 text-xs">
                 <Icon className="size-3.5 shrink-0 text-stone-500" />
-                <span className="min-w-0 flex-1 truncate font-medium text-stone-800 dark:text-stone-100">{task.model || t(`tasks.kind.${task.kind}`)}</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-stone-800 dark:text-stone-100">{task.summary || task.model || t(`tasks.kind.${task.kind}`)}</span>
                 <PhaseIcon task={task} />
-                <span className="shrink-0 text-stone-600 dark:text-stone-300">{phaseLabel(task, t)}</span>
+                <span className="shrink-0 text-stone-600 dark:text-stone-300">{task.phase === "done" ? "已生成" : phaseLabel(task, t)}</span>
                 <span className="w-11 shrink-0 text-right tabular-nums text-stone-400">{formatElapsed(elapsed)}</span>
             </div>
             <div className="mt-0.5 truncate pl-5 text-[11px] text-stone-400">
-                {t(`tasks.kind.${task.kind}`)} · {task.host}
+                {t(`tasks.kind.${task.kind}`)} · {task.model} · {task.host}
                 {hint ? ` · ${hint}` : ""}
             </div>
+            {task.sourcePath ? (
+                <button type="button" className="mt-1 pl-5 text-[11px] text-[var(--brand,#E8572A)] hover:underline" onClick={() => navigate(`${task.sourcePath}?task=${encodeURIComponent(task.id)}${task.nodeId ? `&node=${encodeURIComponent(task.nodeId)}` : ""}`)}>
+                    查看结果
+                </button>
+            ) : null}
+            {task.saveState && <p className="mt-1 pl-5 text-[11px] text-[color:var(--ink-500)]">{task.saveState === "saved" ? "已保存到本机浏览器" : task.saveState === "error" ? `作品已生成，保存未完成：${task.saveError || "请到结果区重试保存"}` : "作品已生成，正在保存"}</p>}
             {task.progress !== undefined && isActiveTask(task) && task.progress > 0 && task.progress < 100 ? (
                 <div className="ml-5 mt-1.5 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
                     <div className="h-full rounded-full bg-[var(--brand,#E8572A)] transition-[width] duration-500" style={{ width: `${task.progress}%` }} />
                 </div>
             ) : null}
+            {task.phase === "unknown" ? <p className="mt-2 text-xs text-amber-600">结果未知；请勿直接重复提交。{task.remoteId ? `原任务 ID：${task.remoteId}` : "渠道未返回任务 ID，无法通用查询恢复。"}</p> : null}
             {task.phase === "failed" ? (
                 <div className="mt-2 flex justify-center rounded-md bg-red-50 px-2 py-2 dark:bg-red-950/30">
                     <FriendlyErrorView error={task.error || ""} status={task.status} />
@@ -60,14 +70,16 @@ export function TaskCenter({ className }: { className?: string }) {
     const onCanvas = /^\/canvas\/[^/]+/.test(useLocation().pathname);
     const agentOpen = useAgentStore((state) => state.panelOpen);
     const agentWidth = useAgentStore((state) => state.width);
-    const tasks = useTaskStore((state) => state.tasks);
+    const allTasks = useTaskStore((state) => state.tasks);
+    const tasks = allTasks.filter((task) => !task.hidden);
+    const storageError = useTaskStore((state) => state.storageError);
     const clearFinished = useTaskStore((state) => state.clearFinished);
     const open = useTaskStore((state) => state.centerOpen);
     const setOpen = useTaskStore((state) => state.setCenterOpen);
     const active = tasks.filter(isActiveTask);
     const now = useNow(tasks.length > 0, active.length > 0 || open ? 1000 : 5000);
     const recentFailed = tasks.filter((task) => task.phase === "failed" && now - (task.endedAt || 0) < RECENT_MS);
-    const hasRecent = tasks.length > 0 && (active.length > 0 || tasks.some((task) => now - (task.endedAt || now) < RECENT_MS));
+    const hasRecent = tasks.length > 0 && (active.length > 0 || tasks.some((task) => task.phase === "unknown" || task.saveState === "error" || task.saveState === "saving" || now - (task.endedAt || now) < RECENT_MS));
     // Off the canvas editor the rail / phone chip is the entry, so the floating pill only stays on the canvas.
     const showPill = className ? hasRecent : onCanvas && hasRecent;
 
@@ -103,7 +115,8 @@ export function TaskCenter({ className }: { className?: string }) {
                                 {t("tasks.clear")}
                             </button>
                         </div>
-                        <div className="mb-1 text-[11px] leading-4 text-stone-400">{t("tasks.description")}</div>
+                        <div className="mb-1 text-[11px] leading-4 text-stone-400">活动与异常任务刷新后可恢复；查询原任务不会重新生成。</div>
+                        {storageError && <p role="alert" className="text-xs text-[color:var(--zhu-500)]">{storageError}</p>}
                         {tasks.length ? (
                             <ul className="max-h-[50vh] overflow-y-auto">
                                 {tasks.map((task) => (

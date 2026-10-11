@@ -65,6 +65,14 @@ const manifestUrl = `${import.meta.env.BASE_URL || "/"}prompt-sources/manifest.j
 let publishedSnapshot = BUILT_IN_SNAPSHOT_VERSION;
 let publishedSnapshotCheckedAt = 0;
 
+export async function verifyPublishedPromptSnapshot(snapshot: string) {
+    const response = await fetch(manifestUrl, { cache: "no-store" });
+    if (!response.ok || (await response.json()).generatedAt !== snapshot) return false;
+    publishedSnapshot = snapshot;
+    publishedSnapshotCheckedAt = Date.now();
+    return true;
+}
+
 async function publishedSnapshotVersion() {
     if (Date.now() - publishedSnapshotCheckedAt < 60_000) return publishedSnapshot;
     publishedSnapshotCheckedAt = Date.now();

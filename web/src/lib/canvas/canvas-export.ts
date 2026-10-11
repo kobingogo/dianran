@@ -4,32 +4,15 @@ import i18n from "@/i18n";
 import { createZip } from "@/lib/zip";
 import { getMediaBlob } from "@/services/file-storage";
 import { getImageBlob } from "@/services/image-storage";
-import type { CanvasExportAsset, CanvasExportFile } from "@/types/canvas-export";
+import { prepareCanvasArchive } from "./canvas-archive";
 import type { CanvasProject } from "@/stores/canvas/use-canvas-store";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
-import { EXPORT_APP_ID } from "@/constant/brand";
 
-export async function exportCanvasProjects(projects: CanvasProject[], fileName = i18n.t("canvas.export.defaultProjectName")) {
-    const zipFiles: { name: string; data: BlobPart }[] = [];
-    const exportedProjects = await Promise.all(
-        projects.map(async (project) => {
-            const files: CanvasExportAsset[] = [];
-            await Promise.all(
-                collectStorageKeys(project).map(async (storageKey) => {
-                    const blob = storageKey.startsWith("image:") ? await getImageBlob(storageKey) : await getMediaBlob(storageKey);
-                    if (!blob) return;
-                    const path = `projects/${project.id}/files/${safeFileName(storageKey)}.${fileExtension(blob.type, storageKey)}`;
-                    files.push({ storageKey, path, mimeType: blob.type || "application/octet-stream", bytes: blob.size });
-                    zipFiles.push({ name: path, data: blob });
-                }),
-            );
-            return { project, files };
-        }),
-    );
-
-    const data: CanvasExportFile = { app: EXPORT_APP_ID, version: 3, exportedAt: new Date().toISOString(), projects: exportedProjects };
-    const zip = await createZip([{ name: "projects.json", data: JSON.stringify(data, null, 2) }, ...zipFiles]);
-    saveAs(zip, `${safeFileName(fileName)}.zip`);
+export async function exportCanvasProjects(projects: CanvasProject[], fileName = i18n.t("canvas.export.defaultProjectName"), rescue = false) {
+    const { manifest, files } = await prepareCanvasArchive(projects, rescue);
+    const scope = "仅包含所选画布及其可读取原文件，不包含我的素材列表、Composer 草稿、模板库、其他生成历史与 API Key。远程链接没有打包；抢救包缺失项见 projects.json 的 backup 清单。";
+    const zip = await createZip([{ name: "projects.json", data: JSON.stringify(manifest, null, 2) }, { name: "备份说明.txt", data: `${rescue ? "这是抢救包，只能恢复可用内容，不代表完整备份。" : "这是所选项目的完整本地媒体备份。"}\n${scope}` }, ...files]);
+    saveAs(zip, `${safeFileName(fileName)}${rescue ? "-抢救包" : ""}.zip`);
 }
 
 export async function exportCanvasNodes(nodes: CanvasNodeData[], fileName = i18n.t("canvas.export.defaultNodesName")) {
@@ -63,13 +46,6 @@ export async function exportCanvasNodes(nodes: CanvasNodeData[], fileName = i18n
 
     const zip = await createZip(zipFiles);
     saveAs(zip, `${safeFileName(fileName)}.zip`);
-}
-
-function collectStorageKeys(value: unknown, keys = new Set<string>()) {
-    if (!value || typeof value !== "object") return [...keys];
-    if ("storageKey" in value && typeof value.storageKey === "string" && value.storageKey.includes(":")) keys.add(value.storageKey);
-    Object.values(value).forEach((item) => (Array.isArray(item) ? item.forEach((child) => collectStorageKeys(child, keys)) : collectStorageKeys(item, keys)));
-    return [...keys];
 }
 
 function safeFileName(value: string) {

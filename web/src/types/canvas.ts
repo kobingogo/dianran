@@ -45,7 +45,13 @@ export type CanvasNodeText = {
 };
 
 export type CanvasNodeMetadata = {
+    pluginActionParameters?: import("./canvas-plugin").PluginActionParameters;
+    pluginActionRequestId?: string;
+    generationTaskId?: string;
+    agentMediaRequestId?: string;
+    saveError?: string;
     creation?: import("@/lib/composer").CreationSnapshot;
+    workflowStep?: import("@/lib/canvas/workflow").WorkflowStep;
     sourceResultId?: string;
     inputSnapshot?: import("@/components/canvas/canvas-node-generation").NodeGenerationContext;
     inputNodeIds?: string[];
@@ -57,6 +63,8 @@ export type CanvasNodeMetadata = {
     resultTargetId?: string;
     inputChanged?: boolean;
     agentSource?: { threadId: string; turnId: string; itemId: string };
+    generationSource?: "api" | "codex";
+    codexModel?: string;
     content?: string;
     composerContent?: string;
     prompt?: string;
@@ -67,6 +75,7 @@ export type CanvasNodeMetadata = {
     generationType?: CanvasImageGenerationType;
     model?: string;
     reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh";
+    systemPrompt?: string;
     size?: string;
     quality?: string;
     background?: string;

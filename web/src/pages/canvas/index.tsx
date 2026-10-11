@@ -5,19 +5,19 @@ import { App, Button } from "antd";
 import { Download, FileUp, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { readZip } from "@/lib/zip";
-import { setMediaBlob } from "@/services/file-storage";
-import { setImageBlob } from "@/services/image-storage";
+import { readCanvasArchive, restoreCanvasArchive } from "@/lib/canvas/canvas-archive";
+import { recordLocalDiagnostic } from "@/stores/use-local-diagnostics-store";
+import { useCanvasExport } from "@/hooks/use-canvas-export";
+import { showErrorToast } from "@/features/errors/error-toast";
 import { CanvasDeleteProjectsDialog } from "@/components/canvas/canvas-delete-projects-dialog";
 import { CanvasProjectCard } from "@/components/canvas/canvas-project-card";
-import type { CanvasExportFile } from "@/types/canvas-export";
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useCanvasUiStore } from "@/stores/canvas/use-canvas-ui-store";
-import { exportCanvasProjects } from "@/lib/canvas/canvas-export";
 import { hasAgentUrlBootstrap } from "@/lib/agent/agent-url-bootstrap";
 
 export default function CanvasPage() {
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
+    const exportProjects = useCanvasExport();
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -26,7 +26,6 @@ export default function CanvasPage() {
     const hydrated = useCanvasStore((state) => state.hydrated);
     const projects = useCanvasStore((state) => state.projects);
     const createProject = useCanvasStore((state) => state.createProject);
-    const importProject = useCanvasStore((state) => state.importProject);
     const selectedIds = useCanvasUiStore((state) => state.selectedProjectIds);
     const setDeleteIds = useCanvasUiStore((state) => state.setDeleteProjectIds);
 
@@ -42,24 +41,18 @@ export default function CanvasPage() {
     const importCanvas = async (file?: File) => {
         if (!file) return;
         try {
-            const zip = await readZip(file);
-            const projectFile = zip.get("projects.json");
-            if (!projectFile) throw new Error("missing projects.json");
-            const data = JSON.parse(await projectFile.text()) as CanvasExportFile;
-            await Promise.all(
-                data.projects.flatMap((project) =>
-                    project.files.map(async (item) => {
-                        const blob = zip.get(item.path);
-                        if (!blob) return;
-                        const typedBlob = blob.type ? blob : blob.slice(0, blob.size, item.mimeType);
-                        await (item.storageKey.startsWith("image:") ? setImageBlob(item.storageKey, typedBlob) : setMediaBlob(item.storageKey, typedBlob));
-                    }),
-                ),
-            );
-            data.projects.forEach((item) => importProject(item.project));
-            message.success(t("canvas.imported", { count: data.projects.length }));
-        } catch {
-            message.error(t("canvas.importFailed"));
+            const archive = await readCanvasArchive(file);
+            const rescue = archive.manifest.backup.mode === "rescue";
+            if (rescue && !await modal.confirm({
+                title: "仅恢复抢救包中的可用内容",
+                content: <div className="max-h-64 overflow-auto text-sm"><p>缺失文件无法恢复，远程链接仍依赖原来源。恢复后的画布需要继续补齐媒体。</p>{[...archive.manifest.backup.unavailableFiles, ...archive.manifest.backup.externalLinks].map((issue, index) => <p key={index} className="mt-2 break-all">{issue.reference}：{issue.reason}</p>)}</div>,
+                okText: "恢复可用内容", cancelText: "取消",
+            })) return;
+            const ids = await restoreCanvasArchive(archive, rescue);
+            void recordLocalDiagnostic("backup-restored");
+            rescue ? message.warning(`已恢复 ${ids.length} 个画布的可用内容，请核对缺失清单`) : message.success(t("canvas.imported", { count: ids.length }));
+        } catch (error) {
+            showErrorToast(message, error, "画布导入未完成，请查看错误详情及保存状态");
         } finally {
             if (inputRef.current) inputRef.current.value = "";
         }
@@ -85,7 +78,7 @@ export default function CanvasPage() {
                     <div className="flex items-center gap-2">
                         {selectedIds.length ? (
                             <>
-                                <Button disabled={!hydrated} icon={<Download className="size-4" />} onClick={() => void exportCanvasProjects(projects.filter((project) => selectedIds.includes(project.id)), `${t("canvas.title")}-${selectedIds.length}`)}>
+                                <Button disabled={!hydrated} icon={<Download className="size-4" />} onClick={() => void exportProjects(projects.filter((project) => selectedIds.includes(project.id)), `${t("canvas.title")}-${selectedIds.length}`)}>
                                     {t("canvas.exportSelected")}
                                 </Button>
                                 <Button disabled={!hydrated} onClick={() => setDeleteIds(selectedIds)}>

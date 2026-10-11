@@ -1,7 +1,7 @@
 {
   "name": "dianran",
   "version": "0.2.0",
-  "description": "Use Codex to read and operate the Dianran (点染) canvas through the local Canvas Agent MCP server.",
+  "description": "连接点染画布，读取与编辑节点，审阅本机 Codex 生图和素材处理工作流。",
   "author": {
     "name": "KobinFlow",
     "url": "https://github.com/kobingogo/dianran"
@@ -20,8 +20,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "点染 Dianran",
-    "shortDescription": "Use Codex to operate the current Dianran canvas.",
-    "longDescription": "Connects Codex to the local Dianran Canvas Agent (npm @kobinflow/canvas-agent) so Codex can inspect the current Dianran board, create nodes, connect flows, and trigger generation through the web canvas confirmation flow.",
+    "shortDescription": "连接画布，审阅本机生图与素材处理流程。",
+    "longDescription": "通过本地 Canvas Agent 读取当前画布、创建与连接节点，查询模型及图片处理动作并在网页审阅工作流。任务恢复沿用原请求，图片保存完成后交给下游。",
     "developerName": "KobinFlow",
     "category": "Productivity",
     "capabilities": [
@@ -33,7 +33,8 @@
     "defaultPrompt": [
       "打开点染画布",
       "读取当前画布并总结节点结构",
-      "根据选中节点创建一组生图提示词"
+      "根据选中节点创建一组生图提示词",
+      "审阅本机 Codex 生图后去背景和尺寸适配的工作流"
     ],
     "brandColor": "#E8572A",
     "composerIcon": "./assets/icon.png",

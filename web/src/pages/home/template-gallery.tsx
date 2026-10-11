@@ -1,7 +1,7 @@
 // [dianran] Starter template canvases on the home page. Data = web/public/templates/*.json (fetched on demand);
 // the builder + canvas store are imported lazily on click so the home chunk stays small.
 import { useEffect, useState } from "react";
-import { App, Tag } from "antd";
+import { App, Tag, Modal, Input, Upload, Button } from "antd";
 import { LayoutTemplate, LoaderCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -50,6 +50,8 @@ export function TemplateGallery() {
     const navigate = useNavigate();
     const [templates, setTemplates] = useState<CanvasTemplate[]>([]);
     const [opening, setOpening] = useState("");
+    const [review, setReview] = useState<CanvasTemplate>();
+    const [reference, setReference] = useState<File>();
     const en = i18n.resolvedLanguage === "en-US";
 
     useEffect(() => {
@@ -62,16 +64,22 @@ export function TemplateGallery() {
         };
     }, [message, t]);
 
-    const openTemplate = async (template: CanvasTemplate) => {
+    const openTemplate = async (template: CanvasTemplate, preview = false) => {
         if (opening) return;
         setOpening(template.id);
         try {
-            const [{ buildTemplateProject }, { useCanvasStore }, { useCanvasSidePanelStore }] = await Promise.all([import("@/lib/canvas/canvas-templates"), import("@/stores/canvas/use-canvas-store"), import("@/stores/use-canvas-side-panel-store")]);
+            const [{ buildTemplateProject }, { useCanvasStore, flushCanvasSave }, { useCanvasSidePanelStore }] = await Promise.all([import("@/lib/canvas/canvas-templates"), import("@/stores/canvas/use-canvas-store"), import("@/stores/use-canvas-side-panel-store")]);
             if (!useCanvasStore.getState().hydrated) await new Promise<void>((resolve) => { const stop = useCanvasStore.persist.onFinishHydration(() => (stop(), resolve())); });
             const side = useCanvasSidePanelStore.getState();
             const desktop = window.innerWidth >= 768;
             const screen = { width: window.innerWidth - (desktop && side.panelOpen ? side.width : 0), height: window.innerHeight };
-            const id = useCanvasStore.getState().importProject(buildTemplateProject(template, screen, en ? template.titleEn || template.title : template.title));
+            if (template.referenceTargets?.length && !reference) throw new Error("请先上传自己的产品参考图");
+            const uploaded = reference ? await (await import("@/services/image-storage")).uploadImage(reference) : undefined;
+            const id = useCanvasStore.getState().importProject(buildTemplateProject(template, screen, en ? template.titleEn || template.title : template.title, uploaded));
+            await flushCanvasSave();
+            void (await import("@/stores/use-local-diagnostics-store")).recordLocalDiagnostic("template-created");
+            (await import("@/stores/canvas/use-workflow-store")).useWorkflowStore.setState({ panelOpen: preview });
+            setReview(undefined);
             navigate(`/canvas/${id}`);
         } catch (error) {
             showErrorToast(message, error, t("home.templates.loadFailed"));
@@ -82,20 +90,20 @@ export function TemplateGallery() {
     if (!templates.length) return null;
 
     return (
-        <section className="relative mx-auto mb-16 max-w-6xl border-t border-stone-200 pt-12 dark:border-stone-800" data-template-gallery>
+        <section className="relative mx-auto mb-16 max-w-6xl border-t border-[var(--line)] pt-12" data-template-gallery>
             <div className="mb-8 text-center">
                 <h2 className="inline-flex items-center gap-2 text-2xl font-semibold text-stone-950 sm:text-3xl dark:text-stone-100">
                     <LayoutTemplate className="size-6 text-[#E8572A]" />
                     {t("home.templates.title")}
                 </h2>
-                <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-stone-500 sm:text-base sm:leading-7 dark:text-stone-400">{t("home.templates.description")}</p>
+                <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[color:var(--ink-500)]">先填写内容，再创建模板画布。所有模板均可进入工作流预览；点击模板不会调用模型。</p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
                 {templates.map((template) => (
                     <button
                         key={template.id}
                         type="button"
-                        onClick={() => void openTemplate(template)}
+                        onClick={() => { setReview(structuredClone(template)); setReference(undefined); }}
                         disabled={Boolean(opening)}
                         className="group flex min-h-[44px] flex-col overflow-hidden rounded-xl border border-stone-200 bg-white/80 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-wait dark:border-stone-800 dark:bg-stone-900/70"
                         data-template-id={template.id}
@@ -118,12 +126,24 @@ export function TemplateGallery() {
                                 <div className="hidden flex-wrap gap-1 sm:flex">
                                     {template.tags.map((tag) => <Tag key={tag} className="m-0 text-[11px]">{tag}</Tag>)}
                                 </div>
-                                <span className="shrink-0 text-xs font-medium transition group-hover:translate-x-0.5" style={{ color: template.accent }}>{t("home.templates.open")} →</span>
+                                <span className="shrink-0 text-xs font-medium transition group-hover:translate-x-0.5" style={{ color: template.accent }}>填写并创建 →</span>
                             </div>
                         </div>
                     </button>
                 ))}
             </div>
+            <Modal title={review?.title} open={Boolean(review)} onCancel={() => { if (!opening) setReview(undefined); }} footer={null}>
+                <p>需要生图能力；{review?.nodes.filter((node) => node.type === "config").length} 个配置，计划 {review?.nodes.filter((node) => node.type === "config").reduce((sum, node) => sum + (node.count || 1), 0)} 次逻辑生成请求。实际参数与调用数以工作流预览为准，费用以渠道为准。</p>
+                {review?.nodes.filter((node) => node.type === "text").map((node) => <label className="my-3 block" key={node.key}>{node.title}
+                    <Input.TextArea rows={5} value={node.content} onChange={(event) => setReview({ ...review, nodes: review.nodes.map((item) => item.key === node.key ? { ...item, content: event.target.value } : item) })} />
+                </label>)}
+                {review?.referenceTargets?.length ? <div className="my-3"><Upload accept="image/*" maxCount={1} beforeUpload={(file) => { setReference(file); return false; }} onRemove={() => { setReference(undefined); }}><Button>选择自己的产品参考图</Button></Upload><p className="mt-2 text-xs">先比较主图候选，用主图选择表达采用；再用「继续编辑」创建其他尺寸分支，保留原候选。不要只改文案就假定主体一致。导出完整 ZIP 后在独立存储中验证恢复。</p></div> : null}
+                <div className="flex flex-wrap gap-2">
+                    <Button loading={Boolean(opening)} onClick={() => review && void openTemplate(review)}>创建模板画布</Button>
+                    {review && <Button type="primary" loading={Boolean(opening)} onClick={() => void openTemplate(review, true)}>创建画布并审阅工作流</Button>}
+                </div>
+                <p className="mt-3 text-xs">创建只写入本机，不自动执行。进入画布后点击「预览全部配置」，核对模型、尺寸、数量，再主动确认；原模板和此前作品保留。</p>
+            </Modal>
         </section>
     );
 }

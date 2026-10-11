@@ -1,3 +1,4 @@
+import { businessOperation } from "@/lib/write-ownership";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { canvasIndexedStorage } from "@/lib/localforage-storage";
@@ -9,6 +10,7 @@ export type WorkflowTemplate = { id: string; title: string; plan: WorkflowPlan }
 const key = storageKey("workflow_templates");
 export function workflowTemplate(plan: WorkflowPlan, title: string): WorkflowTemplate {
     const clean = structuredClone(plan);
+    clean.steps.forEach((step) => { delete step.agentSource; delete step.allowUnverified; });
     clean.resources = clean.resources.map((node) => {
         const m = node.metadata || {};
         if (!m.storageKey && m.content?.startsWith("blob:")) throw new Error("临时素材尚未保存，无法创建模板");
@@ -34,16 +36,16 @@ export const useWorkflowStore = create<{
         if (!Array.isArray(templates)) throw new Error("工作流模板数据损坏，原数据未覆盖");
         set({ templates, hydrated: true });
     },
-    save: async (plan, title) => {
+    save: businessOperation(async (plan: WorkflowPlan, title: string) => {
         if (!get().hydrated) await get().load();
         const templates = [...get().templates, workflowTemplate(plan, title)];
         await canvasIndexedStorage.setItem(key, templates);
         set({ templates });
-    },
-    remove: async (id) => {
+    }),
+    remove: businessOperation(async (id: string) => {
         if (!get().hydrated) await get().load();
         const templates = get().templates.filter((item) => item.id !== id);
         await canvasIndexedStorage.setItem(key, templates);
         set({ templates });
-    },
+    }),
 }));

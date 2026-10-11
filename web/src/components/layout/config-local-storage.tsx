@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { readLocalStorageUsage, type LocalStorageUsage } from "@/services/local-storage-usage";
+import { readStoragePersistence, requestStoragePersistence, type StoragePersistence } from "@/services/storage-persistence";
+import { useLocalDiagnosticsStore, startLocalDiagnostics, stopLocalDiagnostics, recordLocalDiagnostic, exportLocalDiagnostics, clearLocalDiagnostics } from "@/stores/use-local-diagnostics-store";
+import { saveAs } from "file-saver";
 
 const storeLabelKeys: Record<string, string> = {
     app_state: "appState",
@@ -22,12 +25,17 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
     const [usage, setUsage] = useState<LocalStorageUsage | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [persistence, setPersistence] = useState<StoragePersistence>();
+    const [requesting, setRequesting] = useState(false);
+    const diagnostics = useLocalDiagnosticsStore();
 
     const refresh = useCallback(async () => {
         setLoading(true);
         setError("");
         try {
-            setUsage(await readLocalStorageUsage());
+            const [nextUsage, nextPersistence] = await Promise.all([readLocalStorageUsage(), readStoragePersistence()]);
+            setUsage(nextUsage);
+            setPersistence(nextPersistence);
         } catch (reason) {
             setError(reason instanceof Error ? reason.message : t("config.localStorage.readFailed"));
         } finally {
@@ -40,10 +48,31 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
     }, [active, refresh, usage]);
 
     const indexedDbBytes = usage?.contentBytes ?? 0;
-    const percent = usage ? Math.min(100, (usage.usage / usage.quota) * 100) : 0;
+    const percent = usage?.quota ? Math.min(100, (usage.usage / usage.quota) * 100) : 0;
 
     return (
         <div className="space-y-3">
+            <Alert type="info" showIcon title="本机保存与备份是两件事" description={<>
+                <p>画布、素材和生成记录主要保存在当前浏览器的当前站点。更换设备、浏览器、域名或端口不会自动带走作品；请先导出项目 ZIP 和素材备份，或使用 WebDAV。项目 ZIP 不包含全部站点配置与记录，完整性以导出清单为准。</p>
+                <p>API Key 保存在浏览器，生成时发往所选渠道；启用代理后经本机代理转发。Agent 按批准的工具读取内容，WebDAV 按同步范围上传作品，均不等于内置云账户。</p>
+                <p>浏览器存储：{persistence === "persistent" ? "已获持久化许可" : persistence === "temporary" ? "未获持久化许可" : persistence === "unsupported" ? "不支持持久化许可查询" : "尚未读取"}。持久化可降低浏览器自动回收风险，不能代替备份，也无法防止手动清除。</p>
+                <Button type="text" disabled={persistence === "persistent" || persistence === "unsupported"} loading={requesting} onClick={async () => {
+                    setRequesting(true);
+                    try { setPersistence(await requestStoragePersistence()); }
+                    catch (reason) { setError(reason instanceof Error ? reason.message : "申请持久化失败，请继续使用导出备份"); }
+                    finally { setRequesting(false); }
+                }}>申请浏览器持久化</Button>
+            </>} />
+            <Alert type="info" title="自愿本地诊断" description={<>
+                <p>默认关闭。开始后只在本页面会话记录操作类别、时间和耗时，不记录提示词、素材、Key、渠道或项目身份，也不上传。停止或刷新后不再记录；历史记录由你主动导出或删除。人工观察与真实用户反馈仍需另行取得同意。</p>
+                <div className="my-2 flex flex-wrap gap-2">
+                    <Button type="text" onClick={() => { try { diagnostics.session ? stopLocalDiagnostics() : startLocalDiagnostics(); } catch (reason) { setError(String(reason)); } }}>{diagnostics.session ? "停止记录" : "开始本地记录"}</Button>
+                    <Button type="text" disabled={!diagnostics.session} onClick={() => void recordLocalDiagnostic("help-needed")}>记录一次需要帮助</Button>
+                    <Button type="text" onClick={async () => { try { saveAs(await exportLocalDiagnostics(), "dianran-local-diagnostics.json"); } catch (reason) { setError(String(reason)); } }}>导出诊断</Button>
+                    <Button type="text" onClick={async () => { try { await clearLocalDiagnostics(); } catch (reason) { setError(String(reason)); } }}>删除诊断记录</Button>
+                </div>
+                {diagnostics.error && <p>{diagnostics.error}</p>}
+            </>} />
             <section className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>

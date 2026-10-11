@@ -1,5 +1,5 @@
 // [dianran] Download remote cover images once and store them as small WebP thumbnails under
-// web/public/prompt-sources/covers/ (the app never loads prompt images from external hosts).
+// 资源仓库 prompt-sources/covers/ (the app never loads prompt images from external hosts).
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";

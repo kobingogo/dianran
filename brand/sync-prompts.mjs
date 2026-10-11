@@ -1,13 +1,11 @@
 #!/usr/bin/env node
-// [dianran] Snapshot redistributable prompt sources into web/public/prompt-sources so the app
+// [dianran] Snapshot redistributable prompt sources into 资源仓库 prompt-sources/ so the app
 // serves them from its own domain (no runtime requests to raw.githubusercontent.com).
 // Usage: node brand/sync-prompts.mjs   (run occasionally, commit the result)
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { CODE_ROOT as root, LIB_DIR as outDir } from "./pipeline/lib/common.mjs";
 
-const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const outDir = resolve(root, "web/public/prompt-sources");
 // Source list lives in brand/pipeline/config/github-sources.json (shared with the weekly pipeline).
 // Only sources whose license allows redistribution. davidwu-gpt-image2-prompts has no license file -> not bundled.
 const ghConfig = JSON.parse(readFileSync(resolve(root, "brand/pipeline/config/github-sources.json"), "utf8"));
