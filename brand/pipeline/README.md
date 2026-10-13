@@ -178,3 +178,10 @@ Civitai 继续使用公共 REST API 的 Most Reactions / Week、4 页 × 100 条
 ## 首版入库与发布
 
 满足现有时间、互动数、有效提示词、媒体及去重条件的候选直接进入入库流程，不按敏感词、短裙、泳装、真人/换脸或作者黑名单剔除；不生成待审清单。封面下载失败、重复、提示词无效等仍不会入库。Civitai 不设置每轮新增 60 条门槛；早晚发布也不设置跨轮累计新增上限。每周维护仍保留原有库容量与下架规则，只开 PR 供审阅。历史待审清单仅为旧验证记录，不会自动转换成新候选；需按新规则重新采集完整条目后入库。
+
+
+## 项目级 Token 部署与验证
+
+PROMPT_VERCEL_TOKEN 配置在点染代码仓库，可只授权 dianran-prompts 项目。项目级 Token 可能拒绝用户信息查询；资源发布直接通过项目 REST API 核对并绑定项目，不再执行 vercel link --scope 或 whoami。无 Token 的本机发布仍沿用 CLI 登录。
+
+手动运行 Prompt library update 时可选择 verify_deployment，仅重新部署资源仓库 codex/prompt-published 当前已发布快照，保留原有 manifest 与封面核对，不采集、不新增条目、不更新资源基线；定时任务默认走完整采集。用于核对实际 Secret 与部署权限，不应把用户查询 404 直接判断为 Token 过期。
