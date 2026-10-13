@@ -37,7 +37,13 @@ vercel_cmd() {
 
 link_exact() {
     local project="$1"
-    vercel_cmd link --yes --project "$project" --scope "$SCOPE" >/dev/null
+    if [ "$project" = "dianran-prompts" ] && [ -n "${VERCEL_TOKEN:-}" ]; then
+        node "$CODE_ROOT/brand/pipeline/vercel-project.mjs" "$PWD/.vercel/project.json"
+        export VERCEL_ORG_ID="$(node -p "require('./.vercel/project.json').orgId")"
+        export VERCEL_PROJECT_ID="$(node -p "require('./.vercel/project.json').projectId")"
+    else
+        vercel_cmd link --yes --project "$project" --scope "$SCOPE" >/dev/null
+    fi
     local name
     name="$(node -p "JSON.parse(require('fs').readFileSync('.vercel/project.json','utf8')).projectName")"
     [ "$name" = "$project" ] || die "refusing to deploy: linked project is $name, expected $project"
@@ -74,7 +80,10 @@ for (const file of fs.readdirSync(dir)) {
     cd "$OUT"
     link_exact dianran-prompts
     DEPLOY_LOG="$STAGE/deploy.log"
-    vercel_cmd deploy --prod --yes --scope "$SCOPE" | tee "$DEPLOY_LOG"
+    # Explicit --scope triggers a user lookup that project-scoped tokens cannot perform.
+    DEPLOY_ARGS=(--prod --yes)
+    if [ -z "${VERCEL_TOKEN:-}" ]; then DEPLOY_ARGS+=(--scope "$SCOPE"); fi
+    vercel_cmd deploy "${DEPLOY_ARGS[@]}" | tee "$DEPLOY_LOG"
     DEPLOY_URL="$(grep -oE 'https://[^[:space:]]+\.vercel\.app' "$DEPLOY_LOG" | grep -v 'dianran-prompts\.vercel\.app$' | head -1 || true)"
     echo "deployed $SHA ($EXPECT)${DEPLOY_URL:+ from $DEPLOY_URL}"
 
