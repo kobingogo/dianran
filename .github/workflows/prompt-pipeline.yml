@@ -25,7 +25,6 @@ jobs:
       GH_TOKEN: ${{ secrets.PROMPT_RESOURCE_TOKEN }}
       VERCEL_TOKEN: ${{ secrets.PROMPT_VERCEL_TOKEN }}
       TWITTER_COOKIES: ${{ secrets.TWITTER_COOKIES }}
-      TWSCRAPE_DB: ${{ runner.temp }}/twscrape/accounts.db
       TWSCRAPE_PYTHON: python
       CIVITAI_API_TOKEN: ${{ secrets.CIVITAI_API_TOKEN }}
       BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
@@ -41,6 +40,7 @@ jobs:
       - name: Check maintainer credentials
         run: |
           test -n "$GH_TOKEN" && test -n "$VERCEL_TOKEN" && test -n "$TWITTER_COOKIES"
+          echo "TWSCRAPE_DB=$RUNNER_TEMP/twscrape/accounts.db" >> "$GITHUB_ENV"
           mkdir -p pipeline-result
       - uses: actions/checkout@v4
         with:
