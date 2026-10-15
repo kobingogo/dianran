@@ -50,7 +50,7 @@ link_exact() {
 }
 
 manifest_at() {
-    curl -fsS --max-time 20 -H "Cache-Control: no-cache" "$1" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{process.stdout.write(String(JSON.parse(s).generatedAt||""))}catch{}})' || true
+    curl --compressed -fsS --max-time 20 -H "Cache-Control: no-cache" "$1" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{process.stdout.write(String(JSON.parse(s).generatedAt||""))}catch{}})' || true
 }
 
 if [ "$WHAT" = "prompts" ]; then
