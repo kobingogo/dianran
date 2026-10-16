@@ -4,9 +4,6 @@ import { createRequire } from "node:module";
 import { fixture } from "./t11-loader.mjs";
 const require = createRequire(import.meta.url);
 const fakeIndexedDB = require("fake-indexeddb");
-globalThis.indexedDB = fakeIndexedDB.indexedDB;
-globalThis.IDBKeyRange = fakeIndexedDB.IDBKeyRange;
-globalThis.window = globalThis;
 
 function locks() {
     const held = new Map();
@@ -16,14 +13,17 @@ function locks() {
         const readers = held.get(name) || 0;
         if (options.ifAvailable && readers) return callback(null);
         held.set(name, readers + 1);
-        try { return await callback({ name }); } finally { held.set(name, held.get(name) - 1); }
+        try { return await callback({ name }); } finally {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            held.set(name, held.get(name) - 1);
+        }
     } };
 }
 
 async function setup() {
-    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: locks() } });
+    const indexedDB = new fakeIndexedDB.IDBFactory(), navigator = { locks: locks() };
     const db = await new Promise((resolve, reject) => {
-        const request = globalThis.indexedDB.open("infinite-canvas");
+        const request = indexedDB.open("infinite-canvas");
         request.onupgradeneeded = () => ["app_state", "image_files", "image_previews", "media_files", "video_generation_logs", "write_conflicts"].forEach((name) => request.result.createObjectStore(name));
         request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
@@ -35,12 +35,12 @@ async function setup() {
         const request = db.transaction(store).objectStore(store).get(key);
         request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
-    const cleanup = fixture().load("@/services/media-references").cleanupStoredMedia;
+    const cleanup = fixture({ window: undefined, document: undefined, indexedDB, navigator, IDBKeyRange: fakeIndexedDB.IDBKeyRange }).load("@/services/media-references").cleanupStoredMedia;
     const close = async () => {
         db.close();
-        await new Promise((resolve, reject) => { const request = globalThis.indexedDB.deleteDatabase("infinite-canvas"); request.onsuccess = resolve; request.onerror = () => reject(request.error); });
+        await new Promise((resolve, reject) => { const request = indexedDB.deleteDatabase("infinite-canvas"); request.onsuccess = resolve; request.onerror = () => reject(request.error); });
     };
-    return { put, get, cleanup, close };
+    return { put, get, cleanup, close, locks: navigator.locks };
 }
 
 test("atomic cleanup retains video history, images, durable pending files and conflict backups", async () => {
@@ -67,6 +67,9 @@ test("corrupt authoritative data aborts the transaction before any file is delet
         await f.put("image_files", "image:orphan", new Blob(["original"]));
         await assert.rejects(f.cleanup("image_files", {}), /停止清理/);
         assert.ok(await f.get("image_files", "image:orphan"));
+        await f.put("app_state", "infinite-canvas:canvas_store", '{"state":{"projects":[]}}');
+        await f.cleanup("image_files", {});
+        assert.equal(await f.get("image_files", "image:orphan"), undefined);
     } finally { await f.close(); }
 });
 
@@ -75,7 +78,7 @@ test("another open page prevents collection of its potentially unsaved reference
     try {
         await f.put("image_files", "image:unsaved-other-page", new Blob(["original"]));
         const registered = new Promise((resolve) => { ready = resolve; });
-        const otherPage = navigator.locks.request("dianran:media-page", { mode: "shared" }, async () => new Promise((resolve) => { release = resolve; ready(); }));
+        const otherPage = f.locks.request("dianran:media-page", { mode: "shared" }, async () => new Promise((resolve) => { release = resolve; ready(); }));
         await registered;
         await f.cleanup("image_files", {});
         assert.ok(await f.get("image_files", "image:unsaved-other-page"));
@@ -83,4 +86,16 @@ test("another open page prevents collection of its potentially unsaved reference
         await f.cleanup("image_files", {});
         assert.equal(await f.get("image_files", "image:unsaved-other-page"), undefined);
     } finally { release?.(); await f.close(); }
+});
+
+test("concurrent cleanup requests in one page apply the latest references", async () => {
+    const f = await setup();
+    try {
+        await f.put("image_files", "image:removed", new Blob(["original"]));
+        await Promise.all([
+            f.cleanup("image_files", { storageKey: "image:removed" }),
+            f.cleanup("image_files", {}),
+        ]);
+        assert.equal(await f.get("image_files", "image:removed"), undefined);
+    } finally { await f.close(); }
 });

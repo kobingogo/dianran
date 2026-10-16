@@ -6,7 +6,8 @@ import {createRequire} from 'node:module';
 import {webcrypto} from 'node:crypto';
 const require=createRequire(import.meta.url),ts=require('typescript'),fflate=require('fflate');
 const sourceRoot=fileURLToPath(new URL('../src/',import.meta.url));
-export function fixture(){
+export function fixture(options={}){
+ const browserNames=['window','document','navigator','indexedDB','IDBKeyRange'];
  const disk=new Map(),images=new Map(),media=new Map(),downloads=[],cache=new Map();let writer=true;
  if(!globalThis.crypto)globalThis.crypto=webcrypto;
  const tiny=new Map();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:key=>tiny.get(key)||null,setItem:(key,value)=>tiny.set(key,value),removeItem:key=>tiny.delete(key)}});
@@ -28,12 +29,12 @@ export function fixture(){
   if(cache.has(file))return cache.get(file).exports;
   const module={exports:{}};cache.set(file,module);
   const code=ts.transpileModule(readFileSync(file,'utf8').replaceAll('import.meta.env','({})'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true,jsx:ts.JsxEmit.ReactJSX}}).outputText;
-  new Function('require','module','exports',code)(id=>{
+  new Function('require','module','exports',...browserNames,code)(id=>{
    if(id in mocks)return mocks[id];
    if(id.startsWith('@/'))return load(id);
    if(id.startsWith('.'))return load(path.resolve(path.dirname(file),id));
    return require(id);
-  },module,module.exports);
+  },module,module.exports,...browserNames.map(name=>Object.hasOwn(options,name)?options[name]:globalThis[name]));
   return module.exports;
  }
  return {load,disk,images,media,downloads,storage,mocks,setWriter:value=>writer=value,fflate};

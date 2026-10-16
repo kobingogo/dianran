@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url), ts = require('typescript');
 function load(path, mocks) {
     const module = { exports: {} };
     const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
-    new Function('require', 'module', 'exports', code)((id) => { assert.ok(id in mocks, `dependency ${id}`); return mocks[id]; }, module, module.exports);
+    new Function('require', 'module', 'exports', 'window', code)((id) => { assert.ok(id in mocks, `dependency ${id}`); return mocks[id]; }, module, module.exports);
     return module.exports;
 }
 function fixture(disk = new Map()) {
@@ -17,6 +17,24 @@ function fixture(disk = new Map()) {
     return { api, disk, fail: (value) => { fail = value; } };
 }
 const input = (id) => ({ id, kind: 'image', model: 'model', sourcePath: '/image', summary: id });
+test('replaying a completed receipt preserves its identity and completion time without another save', async () => {
+    const { api, disk } = fixture(); await api.reloadCreationTasks();
+    api.beginCreationTask(input('completed'));
+    api.updateCreationTask('completed', { phase: 'done', saveState: 'saving' });
+    const completed = api.useTaskStore.getState().tasks[0];
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    api.updateCreationTask('completed', { phase: 'done', saveState: 'saved' });
+    assert.equal(api.useTaskStore.getState().tasks[0].endedAt, completed.endedAt);
+    await api.flushTaskSave();
+    const tasks = api.useTaskStore.getState().tasks, saved = disk.get('tasks');
+    api.updateCreationTask('completed', { phase: 'done', saveState: 'saved' });
+    api.updateCreationTask('missing', { phase: 'done' });
+    await api.flushTaskSave();
+    assert.equal(api.useTaskStore.getState().tasks, tasks);
+    assert.equal(disk.get('tasks'), saved);
+    api.updateCreationTask('completed', { phase: 'generating' });
+    assert.equal(api.useTaskStore.getState().tasks[0].endedAt, undefined);
+});
 test('concurrent business tasks retain independent phases, remote identities and saves', async () => {
     const { api } = fixture(); await api.reloadCreationTasks();
     api.beginCreationTask({ ...input('A'), startedAt: 123 }); api.beginCreationTask(input('B'));

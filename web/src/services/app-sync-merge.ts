@@ -6,7 +6,7 @@ export function comparable(value: unknown): string {
         const object = value as Record<string, unknown>;
         const mediaKey = object.storageKey || (object.data as Record<string, unknown> | undefined)?.storageKey;
         const storedMedia = typeof mediaKey === "string" && /^(image|video|audio|file|video-reference|audio-reference):.+$/.test(mediaKey);
-        const entries = Object.entries(object).filter(([key, item]) => !(storedMedia && ["url", "dataUrl", "coverUrl", "content"].includes(key) && typeof item === "string" && /^(blob:|data:)/.test(item)));
+        const entries = Object.entries(object).filter(([key, item]) => item !== undefined && !(storedMedia && ["url", "dataUrl", "coverUrl", "content"].includes(key) && typeof item === "string" && /^(blob:|data:)/.test(item)));
         return `{${entries.sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${comparable(item)}`).join(",")}}`;
     }
     return JSON.stringify(value);
