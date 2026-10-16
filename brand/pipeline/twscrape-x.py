@@ -8,7 +8,35 @@ from pathlib import Path
 import sys
 
 from twscrape import API
-from twscrape.logger import set_log_level
+from twscrape.logger import logger, set_log_level
+
+
+reported_statuses = set()
+
+
+def report_status(message):
+    # Library messages can include account names or response details. Emit only labels.
+    text = message.record["message"]
+    labels = {
+        "Rate limited:": "rate-limited",
+        'No account available for queue "': "waiting-account",
+        "Session expired or banned:": "authentication-rejected",
+        "Ban detected:": "account-rejected",
+        "Blocked by Cloudflare:": "blocked-cloudflare",
+        "Blocked by HTML:": "blocked-html",
+        "API busy:": "api-busy",
+        "Unhandled API response code:": "http-error",
+        "[DEV] Update required:": "request-features-outdated",
+        "Unknown error. Account timeouted for 15 minutes.": "unexpected-response",
+    }
+    status = next((label for prefix, label in labels.items() if text.startswith(prefix)), None)
+    if "Missing authentication cookies" in text:
+        status = "missing-authentication-cookies"
+    elif "cooling account for 60s" in text:
+        status = "transport-failure"
+    if status and status not in reported_statuses:
+        reported_statuses.add(status)
+        print(f"twscrape-x status: {status}", file=sys.stderr, flush=True)
 
 
 async def main():
@@ -19,6 +47,7 @@ async def main():
     args = parser.parse_args()
     os.umask(0o077)
     set_log_level("CRITICAL")
+    logger.add(report_status, level="DEBUG", filter=lambda record: (record["name"] or "").startswith("twscrape."))
     db = Path(os.environ.get("TWSCRAPE_DB", "~/.config/dianran/twscrape/accounts.db")).expanduser()
     db.parent.mkdir(parents=True, exist_ok=True)
     # Match the existing parent-process search/reply deadlines when the pool is rate-limited.
