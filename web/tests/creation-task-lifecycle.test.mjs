@@ -59,8 +59,12 @@ test('storage failure is exposed and damaged storage is not overwritten', async 
     await assert.rejects(broken.api.reloadCreationTasks(), /损坏/);
     assert.deepEqual(broken.disk.get('tasks'), { broken: true });
 });
+function composer() {
+    let nextId = 0;
+    return load('../src/stores/use-composer-store.ts', { zustand: require('zustand'), 'zustand/middleware': { persist: (creator) => creator, createJSONStorage: () => ({}) }, localforage: { createInstance: () => ({}) }, '@/constant/brand': { STORAGE_NS: 'test', storageKey: (key) => key }, '@/lib/canvas/save-queue': { createSaveQueue: () => ({ flush: async () => {} }) }, '@/lib/write-ownership': { assertBusinessWriter: () => {}, writeOwnership: { canWrite: () => true } }, '@/services/image-storage': {}, '@/lib/composer': { uniqueReferences: (refs) => refs }, nanoid: { nanoid: () => 'entry-' + (++nextId) }, './use-config-store': { useConfigStore: { getState: () => ({ config: {} }) } } });
+}
 test('accepted receipt clears only the unchanged draft; late receipt protects new text, references and canvas inputs', () => {
-    const api = load('../src/stores/use-composer-store.ts', { zustand: require('zustand'), 'zustand/middleware': { persist: (creator) => creator, createJSONStorage: () => ({}) }, localforage: { createInstance: () => ({}) }, '@/constant/brand': { STORAGE_NS: 'test', storageKey: (key) => key }, '@/lib/canvas/save-queue': { createSaveQueue: () => ({ flush: async () => {} }) }, '@/lib/write-ownership': { assertBusinessWriter: () => {}, writeOwnership: { canWrite: () => true } }, '@/services/image-storage': {}, '@/lib/composer': { uniqueReferences: (refs) => refs }, nanoid: { nanoid: () => 'conversation-id' }, './use-config-store': { useConfigStore: { getState: () => ({ config: {} }) } } });
+    const api = composer();
     const store = api.useComposerStore;
     store.getState().patch('image', { prompt: 'accepted', references: [] });
     api.consumeComposerDraft('image', store.getState().image);
@@ -73,4 +77,38 @@ test('accepted receipt clears only the unchanged draft; late receipt protects ne
     store.getState().patch('image', { nodeIds: ['B'] }, 'canvas:new:image');
     api.consumeComposerDraft('image', canvas, 'canvas:new:image');
     assert.deepEqual(store.getState().scoped['canvas:new:image'].nodeIds, ['B']);
+});
+
+test('external workbench submissions become immutable conversation plans without duplicating existing confirmed plans', () => {
+    for (const mode of ['image', 'video']) {
+        const { useComposerStore } = composer();
+        const store = useComposerStore.getState();
+        const submission = { id: 'external-submission', mode, prompt: 'original prompt', parameters: { imageModel: 'mock::image', videoModel: 'mock::video' }, references: [{ id: 'ref', name: 'original reference', dataUrl: 'data:fixture' }], referenceIds: ['ref'], actual: {}, canvas: false };
+        const prepared = { submission, model: 'mock::' + mode, endpoint: 'https://mock.example/v1', source: 'api' };
+        store.recordSubmittedPlan(prepared, mode + ':original-task');
+        const id = useComposerStore.getState().activeConversations[mode];
+        let entries = useComposerStore.getState().conversations[id].entries;
+        assert.equal(entries.length, 1);
+        assert.equal(entries[0].plan.taskId, mode + ':original-task');
+        assert.equal(entries[0].plan.state, 'submitted');
+        assert.equal(entries[0].plan.version, 1);
+        submission.prompt = 'new draft'; submission.references[0].name = 'changed reference';
+        store.recordSubmittedPlan(prepared, 'different-task');
+        entries = useComposerStore.getState().conversations[id].entries;
+        assert.equal(entries.length, 1);
+        assert.equal(entries[0].plan.submission.prompt, 'original prompt');
+        assert.equal(entries[0].plan.submission.references[0].name, 'original reference');
+        assert.equal(entries[0].plan.taskId, mode + ':original-task');
+        const normal = { ...prepared, id: 'normal-plan', version: 2, state: 'submitting', submission: { ...submission, id: 'normal-submission' } };
+        store.updateConversation(id, { entries: [...entries, { id: 'normal-entry', role: 'assistant', text: '', plan: normal }] });
+        store.recordSubmittedPlan(normal, 'normal-task');
+        entries = useComposerStore.getState().conversations[id].entries;
+        assert.equal(entries.length, 2);
+        assert.equal(entries[1].plan.state, 'submitting');
+        assert.equal(entries[1].plan.taskId, undefined);
+        store.recordSubmittedPlan({ ...prepared, submission: { ...submission, id: 'new-request' } }, 'new-task');
+        entries = useComposerStore.getState().conversations[id].entries;
+        assert.equal(entries[2].plan.version, 3);
+        assert.equal(entries[2].plan.taskId, 'new-task');
+    }
 });

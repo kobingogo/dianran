@@ -9,7 +9,7 @@ const browser = await chromium.launch({ channel: 'chrome' });
 let failed = false;
 try {
     const tests = process.argv.slice(3);
-    for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'workflow-failure', 'workflow-unknown', 'agent-skill-editor', 'agent-bridge-media-race', 'agent-undo-guard']) {
+    for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'workflow-failure', 'workflow-unknown', 'agent-skill-editor', 'agent-bridge-media-race', 'agent-undo-guard', 'submission-receipts']) {
         const context = await browser.newContext();
         const page = await context.newPage();
         page.setDefaultTimeout(30000);

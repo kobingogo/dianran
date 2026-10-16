@@ -12,7 +12,7 @@ import { CanvasDeliveryButton, deliverToCanvas, prepareCanvasSubmission } from "
 import { createComposerSubmission, creationSnapshot, type ComposerSubmission, type CreationSnapshot } from "@/lib/composer";
 import { beginCreationTask, updateCreationTask, useTaskStore, flushTaskSave } from "@/features/tasks/task-store";
 import { useReuseCreation } from "@/hooks/use-reuse-creation";
-import { consumeComposerDraft, useComposerStore } from "@/stores/use-composer-store";
+import { consumeComposerDraft, flushComposerSave, useComposerStore } from "@/stores/use-composer-store";
 import { CheckSquare, Download, FolderPlus, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { App, Button, Checkbox, Modal, Tag, Typography } from "antd";
@@ -35,7 +35,7 @@ import { createVideoGenerationTask, pollVideoGenerationTask, storeGeneratedVideo
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useAssetMutation } from "@/hooks/use-asset-mutation";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
-import { boolConfig, modelOptionName, resolveVideoSize, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { boolConfig, modelOptionName, resolveModelRequestConfig, resolveVideoSize, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
 import i18n from "@/i18n";
 import { STORAGE_NS } from "@/constant/brand";
@@ -185,6 +185,8 @@ export default function VideoPage() {
             intent.canvasProjectId = snapshot.submission.canvasProjectId;
             await saveLog(intent, false);
             beginCreationTask({ id: `video:${intent.id}`, batchId: intent.id, creationId: snapshot.submission.id, kind: "video", model, source: "api", sourcePath: "/video", summary: snapshot.text });
+            useComposerStore.getState().recordSubmittedPlan({ submission: snapshot.submission, source: "api", model, endpoint: resolveModelRequestConfig(snapshot.config, model).baseUrl }, `video:${intent.id}`);
+            await flushComposerSave();
             await flushTaskSave();
             setResults([{ id: intent.id, status: "pending" }]);
             submitted = true;

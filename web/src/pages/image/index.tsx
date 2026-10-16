@@ -14,7 +14,7 @@ import { CanvasDeliveryButton, deliverToCanvas, prepareCanvasSubmission } from "
 import { createComposerSubmission, creationSnapshot, type ComposerSubmission, type CreationSnapshot } from "@/lib/composer";
 import { beginCreationTask, updateCreationTask, useTaskStore, flushTaskSave } from "@/features/tasks/task-store";
 import { useReuseCreation } from "@/hooks/use-reuse-creation";
-import { consumeComposerDraft, useComposerStore } from "@/stores/use-composer-store";
+import { consumeComposerDraft, flushComposerSave, useComposerStore } from "@/stores/use-composer-store";
 import { CheckSquare, Download, PenLine, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { App, Button, Checkbox, Image, Modal, Tag } from "antd";
@@ -29,7 +29,7 @@ import { GenerationStatus } from "@/features/tasks/generation-status";
 import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 
 import { useImageCapabilities } from "@/components/image-settings-panel";
-import { modelOptionName, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
+import { modelOptionName, resolveModelRequestConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
@@ -202,7 +202,7 @@ export default function ImagePage() {
         catch (error) { showErrorToast(message, error, "生成意图保存失败，尚未发送生成请求"); if (agentTaskId) updateAgentTask(agentTaskId, { status: "failed", error: "not-submitted：生成意图保存失败，尚未发送请求" }); setRunning(false); submitting.current = false; return; }
         const taskIds = Array.from({ length: generationCount }, (_, index) => beginCreationTask({ id: `image:${intent.id}:${index}`, batchId: intent.id, creationId: snapshot.submission.id, kind: "image", model, source: "api", summary: text, sourcePath: "/image" }));
         setResults(taskIds.map((id) => ({ id, status: "pending" })));
-        try { await flushTaskSave(); } catch (error) { taskIds.forEach((id) => updateCreationTask(id, { phase: "failed", error: "任务记录未保存，未发送请求" })); setRunning(false); submitting.current = false; showErrorToast(message, error); return; }
+        try { useComposerStore.getState().recordSubmittedPlan({ submission: snapshot.submission, source: "api", model, endpoint: resolveModelRequestConfig(snapshot.config, model).baseUrl }, taskIds[0]); await flushComposerSave(); await flushTaskSave(); } catch (error) { taskIds.forEach((id) => updateCreationTask(id, { phase: "failed", error: "任务记录未保存，未发送请求" })); setRunning(false); submitting.current = false; showErrorToast(message, error); return; }
         if (!incoming || draft.prompt === incoming.composerContent) consumeComposerDraft("image", draft);
         const historyQueue = createSaveQueue<GenerationLog>(saveLog, () => {});
         const confirmedImages: GeneratedImage[] = [];

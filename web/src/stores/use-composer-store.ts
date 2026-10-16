@@ -7,7 +7,7 @@ import { STORAGE_NS, storageKey } from "@/constant/brand";
 import { resolveImageUrl } from "@/services/image-storage";
 import { uniqueReferences, type ComposerMode, type ComposerParameters } from "@/lib/composer";
 import type { ReferenceImage } from "@/types/image";
-import type { CreationConversation } from "@/lib/creation-conversation";
+import type { CreationConversation, CreationPlan } from "@/lib/creation-conversation";
 import { nanoid } from "nanoid";
 import { useConfigStore } from "./use-config-store";
 
@@ -29,6 +29,7 @@ type ComposerStore = {
     ensureConversation: (scope: string, mode: ComposerMode, fresh?: boolean) => string;
     activateConversation: (id: string) => void;
     updateConversation: (id: string, change: Partial<CreationConversation>) => void;
+    recordSubmittedPlan: (plan: Omit<CreationPlan, "id" | "version" | "state">, taskId: string) => void;
     saveAgentResultProject: (key: string, projectId: string) => void;
     saveAgentDraft: (key: string, draft: ComposerStore["agentDrafts"][string]) => void;
     setMode: (mode: ComposerMode) => void;
@@ -89,6 +90,14 @@ export const useComposerStore = create<ComposerStore>()(
                     useComposerStore.getState().patch(mode, next.draft || empty(), scope === mode ? undefined : scope);
                 },
                 updateConversation: (id, change) => set((state) => ({ conversations: { ...state.conversations, [id]: { ...state.conversations[id], ...change } } })),
+                recordSubmittedPlan: (plan, taskId) => {
+                    const state = useComposerStore.getState();
+                    const id = state.ensureConversation(plan.submission.mode, plan.submission.mode);
+                    const current = useComposerStore.getState().conversations[id];
+                    if (current.entries.some((entry) => entry.plan?.submission.id === plan.submission.id)) return;
+                    const version = Math.max(0, ...current.entries.flatMap((entry) => entry.plan ? [entry.plan.version] : [])) + 1;
+                    state.updateConversation(id, { entries: [...current.entries, { id: nanoid(), role: "assistant", text: "", plan: { ...structuredClone(plan), id: nanoid(), version, state: "submitted", taskId } }] });
+                },
                 saveAgentResultProject: (key, projectId) => set((state) => ({ agentResultProjects: { ...state.agentResultProjects, [key]: projectId } })),
                 saveAgentDraft: (key, draft) => set((state) => ({ agentDrafts: { ...state.agentDrafts, [key]: draft } })),
                 setMode: (mode) => set((state) => ({ mode, [mode]: { ...state[mode], initialized: true, prompt: state[mode].initialized ? state[mode].prompt : state[state.mode].prompt } })),
