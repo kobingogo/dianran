@@ -30,11 +30,12 @@ function twscrape(args, timeoutMs = 20 * 60_000) {
         const child = spawn(BIN, args, { stdio: ["ignore", "pipe", "pipe"] });
         let out = "";
         let err = "";
-        const timer = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
+        let timedOut = false;
+        const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); }, timeoutMs);
         child.stdout.on("data", (chunk) => (out += chunk));
         child.stderr.on("data", (chunk) => (err += chunk));
         child.on("error", (error) => (err += String(error)));
-        child.on("close", (code) => {
+        child.on("close", (code, signal) => {
             clearTimeout(timer);
             const rows = [];
             for (const line of out.split("\n")) {
@@ -45,7 +46,8 @@ function twscrape(args, timeoutMs = 20 * 60_000) {
                     /* ignore partial lines */
                 }
             }
-            resolvePromise({ code, rows, err: err.slice(-500) });
+            const status = timedOut ? `timeout ${timeoutMs}ms (${signal || "SIGTERM requested"})` : signal ? `signal ${signal}` : `exit ${code}`;
+            resolvePromise({ code, rows, status, failed: timedOut || Boolean(signal) || code !== 0, err: err.slice(-500) });
         });
     });
 }
@@ -81,7 +83,7 @@ log(`watchlist (scoring only; author collection ${cfg.collectAuthors ? "enabled"
 for (const q of (verifyOnly || replayOnly) ? cfg.queries.slice(0, 1) : cfg.queries) {
     const res = await twscrape(["search", provider === "redfox" ? `${q.redfoxKeyword} -filter:replies -filter:retweets` : `${q.query} since:${since}`, "--limit", String(q.limit || cfg.limitPerQuery)]);
     stats.queries[q.tag] = res.rows.length;
-    if (res.code !== 0 && !res.rows.length) stats.errors.push(`${q.tag}: exit ${res.code} ${res.err}`);
+    if (res.failed || res.code !== 0) stats.errors.push(`${q.tag}: ${res.status || `exit ${res.code}`} ${res.err}`);
     const minimum = Number(q.query.match(/min_faves:(\d+)/)?.[1] || 0);
     collect(res.rows.filter(row => provider !== "redfox" || (Number.isFinite(Date.parse(row.date)) && Date.parse(row.date) >= Date.parse(since) && row.likeCount !== null && row.likeCount >= minimum)), q.tag);
     log(`  query ${q.tag}: ${res.rows.length}`);
@@ -95,7 +97,7 @@ if (!verifyOnly && !replayOnly && provider === "twscrape" && cfg.collectAuthors)
         const res = await twscrape(["search", query, "--limit", String(cfg.limitPerQuery)]);
         stats.authorsSearched += batch.length;
         stats.queries[tag] = res.rows.length;
-        if (res.code !== 0 && !res.rows.length) stats.errors.push(`${tag}: exit ${res.code} ${res.err}`);
+        if (res.failed || res.code !== 0) stats.errors.push(`${tag}: ${res.status || `exit ${res.code}`} ${res.err}`);
         collect(res.rows, tag);
         log(`  ${tag}: ${res.rows.length}`);
     }
@@ -133,8 +135,8 @@ for (const p of pending) {
     if (replayOnly || p.prompt.length >= 60 || lookups >= cfg.maxThreadLookups) continue;
     lookups++;
     const res = await twscrape(["tweet_replies", p.t.id_str, "--limit", "20"], 5 * 60_000);
-    log(`  replies ${lookups}/${cfg.maxThreadLookups}: ${p.t.id_str}, ${res.rows.length} rows, exit ${res.code}`);
-    if (res.code !== 0) stats.errors.push(`replies ${p.t.id_str}: exit ${res.code} ${res.err}`);
+    log(`  replies ${lookups}/${cfg.maxThreadLookups}: ${p.t.id_str}, ${res.rows.length} rows, ${res.status || `exit ${res.code}`}`);
+    if (res.failed || res.code !== 0) stats.errors.push(`replies ${p.t.id_str}: ${res.status || `exit ${res.code}`} ${res.err}`);
     const own = res.rows.filter((r) => r.user?.id_str === p.t.user?.id_str).sort((a, b) => String(a.date).localeCompare(String(b.date)));
     for (const r of own) {
         const text = cleanText(r.rawContent).replace(/^(@\w+\s*)+/, "").trim();
