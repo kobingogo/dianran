@@ -84,6 +84,7 @@ export function useAgentBridge(params: AgentBridgeParams) {
     const applyAgentOps = useCallback(
         async (ops?: CanvasAgentOp[]) => {
             assertBusinessWriter();
+            if (useAgentStore.getState().canvasContext?.getSnapshot !== getSnapshot) throw new Error("画布已切换，请重新读取并审阅操作");
             const safeOps = ops || [];
             const before = getSnapshot();
             const generationOps = safeOps.filter((op): op is Extract<CanvasAgentOp, { type: "run_generation" }> => op.type === "run_generation" && Boolean(op.nodeId));
@@ -91,7 +92,7 @@ export function useAgentBridge(params: AgentBridgeParams) {
             const next = applyCanvasAgentOps(before, safeOps);
             await validateAgentMediaWrites(before, next, safeOps);
             assertBusinessWriter();
-            if (getSnapshot().revision !== before.revision) throw new Error("画布在校验媒体原文件时已改变，请重新读取并审阅操作");
+            if (useAgentStore.getState().canvasContext?.getSnapshot !== getSnapshot || getSnapshot().revision !== before.revision) throw new Error("画布在校验媒体原文件时已改变，请重新读取并审阅操作");
             if (generationOps.length && !generateNodeRef.current) throw new Error("生成入口尚未准备好，请重新读取画布");
             nodesRef.current = next.nodes;
             connectionsRef.current = next.connections;
@@ -108,12 +109,12 @@ export function useAgentBridge(params: AgentBridgeParams) {
             useCanvasStore.getState().updateProject(projectId, { nodes: next.nodes, connections: next.connections, viewport: next.viewport });
             await flushCanvasSave();
             if (generationOps.length) {
-                if (getSnapshot().revision !== saved.revision) throw new Error("节点已保存，但保存期间画布已改变；生成尚未提交，请重新审阅");
+                if (useAgentStore.getState().canvasContext?.getSnapshot !== getSnapshot || getSnapshot().revision !== saved.revision) throw new Error("节点已保存，但保存期间画布已改变；生成尚未提交，请重新审阅");
                 queueMicrotask(() =>
                     generationOps.forEach((op) => {
                         const target = saved.nodes.find((node) => node.id === op.nodeId);
                         const prompt = op.prompt?.trim() ? op.prompt : (target?.metadata?.composerContent ?? target?.metadata?.prompt ?? "");
-                        if (useAgentStore.getState().canvasContext?.getSnapshot().projectId !== projectId) return;
+                        if (useAgentStore.getState().canvasContext?.getSnapshot !== getSnapshot) return;
                         void generateNodeRef.current?.(op.nodeId, op.mode || target?.metadata?.generationMode || "image", prompt).catch((error) => useAgentStore.getState().addMessage({ id: crypto.randomUUID(), role: "error", text: error instanceof Error ? error.message : "生成未完成，请查看任务状态" }));
                     }),
                 );
@@ -125,7 +126,7 @@ export function useAgentBridge(params: AgentBridgeParams) {
     const undoAgentOps = useCallback(async () => {
         assertBusinessWriter();
         if (!agentUndoSnapshot) return null;
-        if (getSnapshot().revision !== agentUndoSnapshot.after) throw new Error("Agent 操作后已有新编辑或生成结果，不能恢复旧快照；请按节点调整");
+        if (useAgentStore.getState().canvasContext?.getSnapshot !== getSnapshot || getSnapshot().revision !== agentUndoSnapshot.after) throw new Error("Agent 操作后已有新编辑或生成结果，不能恢复旧快照；请按节点调整");
         const before = agentUndoSnapshot.before;
         nodesRef.current = before.nodes;
         connectionsRef.current = before.connections;
@@ -145,7 +146,7 @@ export function useAgentBridge(params: AgentBridgeParams) {
 
     const importMediaNodes = useCallback(async (imports: CanvasNodeData[]) => {
         assertBusinessWriter();
-        if (useAgentStore.getState().canvasContext?.getSnapshot().projectId !== projectId) throw new Error("画布已切换，请重新导入原任务");
+        if (useAgentStore.getState().canvasContext?.getSnapshot !== getSnapshot) throw new Error("画布已切换，请重新导入原任务");
         const existing = new Set(nodesRef.current.map((node) => node.id));
         const byId = new Map(imports.map((node) => [node.id, node]));
         const next = [...nodesRef.current.map((node) => {
@@ -157,7 +158,7 @@ export function useAgentBridge(params: AgentBridgeParams) {
         setNodes(next);
         useCanvasStore.getState().updateProject(projectId, { nodes: next });
         await flushCanvasSave();
-    }, [projectId]);
+    }, [getSnapshot, projectId]);
 
     useEffect(() => {
         setAgentCanvasContext({ snapshot: agentSnapshot, getSnapshot, applyOps: applyAgentOps, undoOps: undoAgentOps, importMediaNodes, canUndo: Boolean(agentUndoSnapshot && agentUndoSnapshot.after === agentSnapshot.revision) });
