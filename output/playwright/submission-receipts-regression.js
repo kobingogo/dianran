@@ -42,6 +42,10 @@ async page => {
       const {useConfigStore,defaultConfig}=await window.receiptLoad('/src/stores/use-config-store.ts');
       const config={...defaultConfig,count:'1',channels:[{id:'receipt',name:'receipt',baseUrl:provider+'/v1',apiKey:'mock-key',apiFormat:'openai',models:[{name:'gpt-image-1',capability:'image'},{name:'sora-2',capability:'video'}]}],model:'receipt::gpt-image-1',imageModel:'receipt::gpt-image-1',videoModel:'receipt::sora-2'};
       useConfigStore.setState({config});
+    },{mode,provider});
+    await page.getByText(mode==='image'?/gpt-image-1/:/sora-2/).first().waitFor();
+    await page.evaluate(async({mode,saveFailure})=>{
+      const config=(await window.receiptLoad('/src/stores/use-config-store.ts')).useConfigStore.getState().config;
       if(saveFailure){window.receiptPut=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(value,key){if(this.name==='app_state'&&String(key).endsWith(':composer_drafts'))throw new DOMException('fixture quota','QuotaExceededError');return window.receiptPut.apply(this,arguments);};}
       const {createComposerSubmission}=await window.receiptLoad('/src/lib/composer.ts');
       const submission=createComposerSubmission(mode,'外部工作台原始提交 '+mode,[],config);
