@@ -9,9 +9,10 @@ const browser = await chromium.launch({ channel: 'chrome' });
 let failed = false;
 try {
     const tests = process.argv.slice(3);
-    for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'agent-skill-editor']) {
+    for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'workflow-failure', 'workflow-unknown', 'agent-skill-editor']) {
         const context = await browser.newContext();
         const page = await context.newPage();
+        page.setDefaultTimeout(30000);
         const logs = [];
         page.on('console', message => logs.push(`${message.type()}: ${message.text()}`));
         page.on('pageerror', error => logs.push(error.stack));

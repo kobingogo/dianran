@@ -1,7 +1,7 @@
 // [dianran] Map raw HTTP / network / provider errors to short, actionable copy.
 import i18n from "@/i18n";
 
-export type FriendlyErrorKind = "network" | "auth" | "balance" | "rateLimit" | "timeout" | "notFound" | "badRequest" | "server" | "safety" | "canceled" | "unknown";
+export type FriendlyErrorKind = "network" | "auth" | "balance" | "rateLimit" | "timeout" | "notFound" | "badRequest" | "server" | "safety" | "canceled" | "uncertain" | "unknown";
 export type FriendlyErrorAction = "openConfig" | "openProxy" | "retry";
 
 export type FriendlyError = {
@@ -25,6 +25,7 @@ const SERVER_PATTERNS = [/\b50[0-3]\b/, /bad gateway/i, /service unavailable/i, 
 const CANCEL_PATTERNS = [/canceled/i, /cancelled/i, /aborted/i, /已取消/];
 
 export function classifyError(raw: string, status?: number): FriendlyErrorKind {
+    if (/结果未知|远端(?:任务)?状态未知/.test(raw)) return "uncertain";
     if (status === 401 || status === 403) return "auth";
     if (status === 402) return "balance";
     if (status === 429) return BALANCE_PATTERNS.some((p) => p.test(raw)) ? "balance" : "rateLimit";
@@ -56,11 +57,12 @@ const ACTIONS: Record<FriendlyErrorKind, FriendlyErrorAction[]> = {
     server: ["retry"],
     safety: ["retry"],
     canceled: ["retry"],
+    uncertain: [],
     unknown: ["retry"],
 };
 
 export function toFriendlyError(error: unknown, status?: number): FriendlyError {
     const raw = (error instanceof Error ? error.message : typeof error === "string" ? error : "") || "";
-    const kind = classifyError(raw, status);
+    const kind = (error as { outcome?: string } | null)?.outcome === "unknown" ? "uncertain" : classifyError(raw, status);
     return { kind, title: t(`${kind}.title`), hint: t(`${kind}.hint`), actions: ACTIONS[kind], raw };
 }

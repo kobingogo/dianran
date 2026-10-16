@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 
 import { requestEdit, requestGeneration, requestImageQuestion } from "@/services/api/image";
 import { requestAudioGeneration, storeGeneratedAudio } from "@/services/api/audio";
+import { canvasNodeError } from "@/lib/canvas/canvas-node-error";
 import { createVideoGenerationTask, isVideoTaskFailed, storeGeneratedVideo, waitForVideoGenerationTask, type VideoGenerationResult } from "@/services/api/video";
 import { defaultConfig, modelMatchesCapability, resolveModelRequestConfig, resolveModelScript, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { ensureImagePreview, uploadImage, resolveImageUrl } from "@/services/image-storage";
@@ -629,7 +630,8 @@ function InfiniteCanvasPage() {
                 void flushCanvasSave().then(() => { updateCreationTask(id, { saveState: node.metadata?.saveError ? "error" : "saved", saveError: node.metadata?.saveError }); for (const [configId, submitted] of newDrafts.current) { if (nodeTasks.current.get(configId) === id) { consumeComposerDraft(submitted.mode, submitted.draft, submitted.scope); newDrafts.current.delete(configId); } } }, (error) => updateCreationTask(id, { saveState: "error", saveError: String(error) }));
             } else if (node.metadata?.status === NODE_STATUS_ERROR || node.metadata?.errorDetails) {
                 settledTaskNodes.current.add(id);
-                updateCreationTask(id, { phase: node.metadata.videoTaskId || node.metadata.errorDetails?.includes("未知") ? "unknown" : "failed", error: node.metadata.errorDetails, remoteId: node.metadata.videoTaskId });
+                const errorDetails = canvasNodeError(node);
+                updateCreationTask(id, { phase: node.metadata.videoTaskId || errorDetails?.includes("未知") ? "unknown" : "failed", error: errorDetails, remoteId: node.metadata.videoTaskId });
             }
         }
     }, [nodes, projectLoaded]);
@@ -3073,7 +3075,7 @@ function InfiniteCanvasPage() {
                 const uploadedImage = await saveCanvasImage(image.dataUrl, node.id, controller.signal);
                 const imageConfig = NODE_DEFAULT_SIZE[CanvasNodeType.Image];
                 const retryImage: CanvasNodeImage = {
-                    id: imageId || node.metadata?.primaryImageId || nanoid(),
+                    id: imageId || node.metadata?.primaryImageId || node.metadata?.images?.find((image) => image.status === NODE_STATUS_ERROR)?.id || nanoid(),
                     status: NODE_STATUS_SUCCESS,
                     content: uploadedImage.url,
                     storageKey: uploadedImage.storageKey,
