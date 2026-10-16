@@ -2,13 +2,14 @@ async (page) => {
   page.on('dialog',dialog=>{if(dialog.type()==='beforeunload') void dialog.accept().catch(()=>{});});
   const base='http://127.0.0.1:4317';
   await page.goto(base+'/image');
+  await page.getByRole('textbox',{name:'提示词',exact:true}).waitFor();
   await page.evaluate(async () => {
     const path='/src/lib/write-ownership.ts';
-    const url=performance.getEntriesByType('resource').find(entry=>new URL(entry.name).pathname===path)?.name||path;
+    const url=performance.getEntriesByType('resource').find(entry=>new URL(entry.name).pathname===path)?.name;
+    if (!url) throw new Error('Image page writer module has not loaded');
     window.testWriteOwnership = (await import(url)).writeOwnership;
   });
   await page.waitForFunction(() => window.testWriteOwnership.canWrite());
-  await page.getByRole('textbox',{name:'提示词',exact:true}).waitFor();
   const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=32;c.height=32;c.getContext('2d').fillRect(0,0,32,32);return c.toDataURL('image/png');});
   await page.route('https://delivery-mock.example/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({data:[{b64_json:png.split(',')[1]}]}),headers:{'Access-Control-Allow-Origin':'*'}}));
   await page.evaluate(async(png)=>{

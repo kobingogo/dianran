@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- Agent 画布归属：操作前、媒体校验后、保存后与生成调度前核对当前快照函数，撤销和媒体导入也绑定同一实例。原主线两个真实 React 浏览器专项均复现旧操作越界；修复后切页中的原文件校验拒绝写回、正常撤销保留、后续编辑保护、A → B → A 的旧修改/撤销/导入均拒绝，原图与两画布数据保留，零生成请求。操作来自替身 Agent，真实本机对话仍待验收。
+
 - 本地 Skill 表单：修复创建后再编辑时标识、说明等字段未回填，以及编辑后空白创建残留旧内容。隔离浏览器连接实际临时工作区 HTTP 服务，核对创建、编辑回填与磁盘保存、再次空白创建清空和删除；原生模型/历史与目录发现使用替身，不启动 Codex turn 或真实生成。回归已注册默认浏览器检查，需核验用户实际 Agent 环境。
 
 - 提示词 manifest 压缩响应修复：采集前基线检查及部署后核对均启用 curl 标准解码，现有超时和重试边界不变。隔离 gzip/deflate HTTP 响应分别验证两处实际 shell 代码，旧实现已复现失败；流水线发布/项目授权关联回归通过。云端失败运行 [38587995040](https://github.com/kobingogo/dianran/actions/runs/38587995040) 在项目鉴权通过后遇到二进制 JSON 解析失败；最新运行 [38661240318](https://github.com/kobingogo/dianran/actions/runs/38661240318) 已发布 45 条，X 贡献 4 条但仍部分失败。补丁尚待合并后的云端验证，未修改凭据或采集参数。
