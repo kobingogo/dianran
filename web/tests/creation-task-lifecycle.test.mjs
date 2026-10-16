@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url), ts = require('typescript');
 function load(path, mocks) {
     const module = { exports: {} };
     const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
-    new Function('require', 'module', 'exports', code)((id) => { assert.ok(id in mocks, `dependency ${id}`); return mocks[id]; }, module, module.exports);
+    new Function('require', 'module', 'exports', 'window', code)((id) => { assert.ok(id in mocks, `dependency ${id}`); return mocks[id]; }, module, module.exports);
     return module.exports;
 }
 function fixture(disk = new Map()) {
