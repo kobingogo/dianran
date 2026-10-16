@@ -24,7 +24,7 @@ async(page)=>{
   });
   await page.getByRole('button',{name:'落笔生成',exact:true}).click();
   await page.getByRole('button',{name:'查看原任务 / 恢复结果',exact:true}).click();
-  await page.getByText('结果未知',{exact:true}).waitFor();
+  await page.locator('main').getByText('结果未知',{exact:true}).waitFor();
   await page.getByRole('button',{name:'新建生成请求',exact:true}).waitFor();
   await page.getByText(/原请求可能已被接受，新请求可能再次计费/).waitFor();
   if(bodies.length!==1) throw Error('Unknown response triggered automatic resubmission');
