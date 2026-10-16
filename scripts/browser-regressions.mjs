@@ -9,7 +9,7 @@ const browser = await chromium.launch({ channel: 'chrome' });
 let failed = false;
 try {
     const tests = process.argv.slice(3);
-    for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'workflow-failure', 'workflow-unknown', 'agent-skill-editor']) {
+    for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'workflow-failure', 'workflow-unknown', 'agent-skill-editor', 'submission-receipts']) {
         const context = await browser.newContext();
         const page = await context.newPage();
         page.setDefaultTimeout(30000);
@@ -20,7 +20,7 @@ try {
         try {
             await page.goto('http://127.0.0.1:4317/');
             const filename = `output/playwright/${name}-regression.js`;
-            const fixture = vm.runInNewContext(`(${await fs.readFile(filename, 'utf8')})`, { URL }, { filename });
+            const fixture = vm.runInNewContext(`(${await fs.readFile(filename, 'utf8')})`, { URL, Buffer }, { filename });
             const result = await fixture(page);
             if (!result) throw new Error(`${name} returned no result`);
             await fs.writeFile(resultFile, JSON.stringify(result));
