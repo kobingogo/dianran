@@ -12,6 +12,7 @@ try {
     for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'workflow-failure', 'workflow-unknown']) {
         const context = await browser.newContext();
         const page = await context.newPage();
+        page.setDefaultTimeout(30000);
         const logs = [];
         page.on('console', message => logs.push(`${message.type()}: ${message.text()}`));
         page.on('pageerror', error => logs.push(error.stack));
