@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 保存与完整媒体恢复：无变化的画布补丁、标题与终态回执保持原对象和时间；自动清理等待本页共享锁释放，连续清理依次完成并重新持锁，其他页面打开时不清理。同步和备份复用明确 storageKey 引用，任务标识和正文不当成文件；对象空字段按 JSON 语义比较。独立主线复现 8 项失败，修复后 26 项关联回归通过；真实 Chrome 与隔离 HTTP WebDAV 核对四个业务域、图片/视频原文件哈希、播放/下载、备份重载、双端分叉保全、旧 ETag 拒绝和不支持条件写入时零 manifest 写入。生成输出来自替身，未访问用户 WebDAV 或收费模型；用户实际服务仍待验收。
+
 - 本地 Skill 表单：修复创建后再编辑时标识、说明等字段未回填，以及编辑后空白创建残留旧内容。隔离浏览器连接实际临时工作区 HTTP 服务，核对创建、编辑回填与磁盘保存、再次空白创建清空和删除；原生模型/历史与目录发现使用替身，不启动 Codex turn 或真实生成。回归已注册默认浏览器检查，需核验用户实际 Agent 环境。
 
 - 提示词 manifest 压缩响应修复：采集前基线检查及部署后核对均启用 curl 标准解码，现有超时和重试边界不变。隔离 gzip/deflate HTTP 响应分别验证两处实际 shell 代码，旧实现已复现失败；流水线发布/项目授权关联回归通过。云端失败运行 [38587995040](https://github.com/kobingogo/dianran/actions/runs/38587995040) 在项目鉴权通过后遇到二进制 JSON 解析失败；最新运行 [38661240318](https://github.com/kobingogo/dianran/actions/runs/38661240318) 已发布 45 条，X 贡献 4 条但仍部分失败。补丁尚待合并后的云端验证，未修改凭据或采集参数。
