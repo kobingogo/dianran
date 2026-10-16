@@ -264,7 +264,7 @@ export function CanvasWorkflowPanel({
                     {(project?.workflowRuns || []).map((runRecord) => (
                         <div className="my-3" key={runRecord.id}>
                             <p>
-                                {runRecord.plan.title} · {runRecord.steps.map((step) => ({ pending: "未执行", running: "中断待核实", succeeded: "成功", failed: "失败", interrupted: "中断" })[step.status]).join(" → ")}
+                                {runRecord.plan.title} · {runRecord.steps.map((step) => ({ pending: "未执行", running: "中断待核实", succeeded: "成功", failed: "失败", interrupted: "中断待核实" })[step.status]).join(" → ")}
                             </p>
                             {runRecord.steps.some((step) => step.status === "pending") && !runRecord.steps.some((step) => ["running", "failed", "interrupted"].includes(step.status)) && (
                                 <button disabled={busy} onClick={() => void run(structuredClone(runRecord))}>

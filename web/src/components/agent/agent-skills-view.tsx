@@ -66,6 +66,12 @@ export function AgentSkillsView({ clientId }: { clientId: string }) {
 
     const editorValues = editor?.mode === "edit" ? skillFormValues(editor.detail) : editor?.values;
 
+    useEffect(() => {
+        if (!editor) return;
+        form.resetFields();
+        form.setFieldsValue(editor.mode === "edit" ? skillFormValues(editor.detail) : { name: "", description: "", instructions: "", displayName: "", shortDescription: "", defaultPrompt: "", ...editor.values });
+    }, [editor, form]);
+
     const refresh = (forceReload = true) => loadSkills(endpoint, token, forceReload);
     const connectionIsCurrent = (revision: number) => {
         const agent = useAgentStore.getState();

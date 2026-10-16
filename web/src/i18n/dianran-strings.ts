@@ -48,6 +48,7 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             server: { title: "服务商暂时出错", hint: "对方服务繁忙或故障（5xx），稍后重试即可。" },
             safety: { title: "内容未通过安全审核", hint: "提示词或参考图触发了服务商的内容审核，换个说法再试。" },
             canceled: { title: "已取消", hint: "这次生成已被取消。" },
+            uncertain: { title: "结果未知", hint: "原请求可能仍在处理，请先核对原任务。新请求可能再次计费；停止本地等待不代表取消远端任务。" },
             unknown: { title: "生成失败", hint: "可以展开「详情」查看服务商返回的具体原因。" },
         },
         tasks: {
@@ -139,6 +140,7 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             server: { title: "Provider error", hint: "The provider is busy or failing (5xx). Retry in a moment." },
             safety: { title: "Blocked by content safety", hint: "The prompt or reference image triggered moderation. Rephrase and retry." },
             canceled: { title: "Canceled", hint: "This generation was canceled." },
+            uncertain: { title: "Result unknown", hint: "The original request may still be running. Check that task first. A new request may be billed again; stopping the local wait does not cancel the remote task." },
             unknown: { title: "Generation failed", hint: "Expand Details to see the provider's reason." },
         },
         tasks: {

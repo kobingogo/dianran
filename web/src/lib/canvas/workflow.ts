@@ -12,6 +12,8 @@ import { getNodeDefinition } from "./node-registry";
 import { createCanvasNode } from "./canvas-node-factory";
 import { canvasReferenceIds } from "./canvas-composer-references";
 import { planPluginAction, resolvePluginAction, type WorkflowPluginAction } from "./plugin-actions";
+import { classifyError } from "@/lib/friendly-error";
+import { canvasNodeError } from "./canvas-node-error";
 
 export type WorkflowInput = { nodeId: string; stepId?: string };
 export type WorkflowParameters = Partial<ComposerParameters & Pick<AiConfig, "textModel" | "audioModel" | "reasoningEffort" | "systemPrompt" | "audioVoice" | "audioFormat" | "audioSpeed" | "audioInstructions">>;
@@ -306,8 +308,11 @@ export function workflowResults(step: WorkflowStep, state: WorkflowStepRun, node
     if (
         !results.length ||
         results.some((node) => node.type !== step.mode || node.metadata?.status !== "success" || !node.metadata.content || (step.action ? !node.metadata.storageKey || node.metadata.pluginActionRequestId !== state.requestId : step.source === "codex" ? !node.metadata.storageKey || Boolean(state.requestId && node.metadata.agentMediaRequestId !== state.requestId) : ((step.mode === "image" ? node.metadata.images : step.mode === "text" ? node.metadata.texts : undefined)?.filter((item) => item.status === "success" && item.content).length ?? (step.mode === "image" || step.mode === "text" ? 0 : 1)) < step.calls))
-    )
+    ) {
+        const unknown = results.some((node) => classifyError(canvasNodeError(node) || "") === "uncertain");
+        if (unknown) throw Object.assign(new Error("步骤结果未知，请先核对原任务；下游已停止，不会自动重新提交"), { interrupted: true });
         throw new Error("步骤未完整成功，下游已停止；请在结果节点重试或取任务状态");
+    }
     return results.map((node) => node.id);
 }
 

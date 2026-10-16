@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 // [dianran] Real generation state + friendly errors.
 import { GenerationStatus } from "@/features/tasks/generation-status";
 import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
+import { canvasNodeError } from "@/lib/canvas/canvas-node-error";
 import type { TaskKind } from "@/features/tasks/task-store";
 
 type ResizeCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -519,7 +520,7 @@ function ErrorContent({ node, theme, onRetry }: Pick<NodeContentRendererProps, "
     return (
         <div className="flex max-w-[280px] flex-col items-center gap-3 px-5 text-center">
             <FriendlyErrorView
-                error={node.metadata?.errorDetails || t("canvas.node.failed")}
+                error={canvasNodeError(node) || t("canvas.node.failed")}
                 color={theme.node.text}
                 mutedColor={theme.node.muted}
                 buttonStyle={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}

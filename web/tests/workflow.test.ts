@@ -98,6 +98,20 @@ test("partial failure preserves prior success and blocks downstream", async () =
     expect(run.steps[0].resultIds).toEqual(["saved-image"]);
     expect(run.steps[1].status).toBe("failed");
 });
+test("unknown provider results stay interrupted and never resubmit on resume", async () => {
+    const { workflowResults } = await import("../src/lib/canvas/workflow");
+    for (const details of [{ errorDetails: "结果未知：连接中断" }, { images: [{ id: "slot", status: "error" as const, content: "", naturalWidth: 200, naturalHeight: 200, bytes: 0, mimeType: "image/png", errorDetails: "远端状态未知，请核对原任务" }] }]) {
+        const run = createWorkflowRun(planWorkflow(nodes, [edge], ["first", "second"], config));
+        run.steps[0].configId = "runtime";
+        const result: CanvasNodeData = { id: "unknown", type: "image", title: "结果", position: { x: 0, y: 0 }, width: 200, height: 200, metadata: { status: "error", ...details } };
+        let calls = 0;
+        const execute = async () => { calls++; return workflowResults(run.plan.steps[0], run.steps[0], [result], [{ id: "output", fromNodeId: "runtime", toNodeId: result.id, kind: "generation" }]); };
+        await expect(executeWorkflow(run, execute, async () => {}, () => false)).rejects.toThrow("结果未知");
+        expect(run.steps.map(step => step.status)).toEqual(["interrupted", "pending"]);
+        await expect(executeWorkflow(run, execute, async () => {}, () => false)).rejects.toThrow("不会重复提交");
+        expect(calls).toBe(1);
+    }
+});
 test("templates create independent graphs and remap references without task identity", () => {
     const plan = planWorkflow(nodes, [edge], ["first", "second"], config);
     const template = workflowTemplate(plan, "海报到视频");
