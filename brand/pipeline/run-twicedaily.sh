@@ -78,7 +78,7 @@ elif [ -n "${DIANRAN_PROMPT_BASELINE_COMMIT:-}" ]; then
 fi
 # Never rebuild from an older main when a previous unmerged snapshot is online.
 BASE_VERSION="$(git show "$BASE_SHA:prompt-sources/manifest.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).generatedAt||""))')"
-LIVE_VERSION="$(curl -fsS https://dianran.vercel.app/prompt-sources/manifest.json | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).generatedAt||""))')"
+LIVE_VERSION="$(curl --compressed -fsS https://dianran.vercel.app/prompt-sources/manifest.json | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).generatedAt||""))')"
 [ "$BASE_VERSION" = "$LIVE_VERSION" ] || die "已发布基线与线上版本不一致；请设置 DIANRAN_PROMPT_BASELINE_COMMIT 为已核验的线上提交"
 if ! git show-ref --verify --quiet "refs/remotes/origin/$PUBLISHED_BRANCH"; then
     git push -q origin "$BASE_SHA:refs/heads/$PUBLISHED_BRANCH"

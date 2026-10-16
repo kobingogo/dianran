@@ -5,6 +5,8 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- 提示词 manifest 压缩响应修复：采集前基线检查及部署后核对均启用 curl 标准解码，现有超时和重试边界不变。隔离 gzip/deflate HTTP 响应分别验证两处实际 shell 代码，旧实现已复现失败；流水线发布/项目授权关联回归通过。云端失败运行 [38587995040](https://github.com/kobingogo/dianran/actions/runs/38587995040) 在项目鉴权通过后遇到二进制 JSON 解析失败；最新运行 [38661240318](https://github.com/kobingogo/dianran/actions/runs/38661240318) 已发布 45 条，X 贡献 4 条但仍部分失败。补丁尚待合并后的云端验证，未修改凭据或采集参数。
+
 - Vercel 项目级 Token 发布修复：采集前直接检查 dianran-prompts 项目访问权限，写入临时项目绑定并去掉资源部署的 --scope，保留项目身份和线上快照/封面核对。手动任务可选择 verify_deployment，仅重发 codex/prompt-published 当前快照，不采集、不修改资源基线。4 项本地测试通过，覆盖错误项目/无权限/缺失身份拒绝绑定、凭据不输出和发布脚本流程；workflow YAML 解析通过。真实项目级 Token 已在云端运行 [38419217468](https://github.com/kobingogo/dianran/actions/runs/38419217468) 验证成功，任务耗时 51 秒；已重发当前已发布提交 4e0f411b8fe29d28b646e22be86e29829cf375d9，生产别名、主站 manifest 版本和 WebP 封面核对通过。未新增提示词、未更新资源基线、未构建；修复分支不包含其他工作区改动，日常完整采集待合并 main 后验收。
 
 - PR #5 周更整理：从已发布资源基线保留 58 条新增，跳过 74 条已有身份／提示词，生成独立资源草稿 PR #3；原下架需求保留在资源审阅清单，需根据最新上游重核。未发布或合并，不能以旧整包覆盖后续补采。
