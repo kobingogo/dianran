@@ -8,7 +8,8 @@ const { chromium } = require('playwright');
 const browser = await chromium.launch({ channel: 'chrome' });
 let failed = false;
 try {
-    for (const name of ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry']) {
+    const tests = process.argv.slice(3);
+    for (const name of tests.length ? tests : ['copy', 'reliability', 'workflow', 'video-recovery', 'delivery', 'agent-plan', 'retry', 'agent-skill-editor']) {
         const context = await browser.newContext();
         const page = await context.newPage();
         const logs = [];
