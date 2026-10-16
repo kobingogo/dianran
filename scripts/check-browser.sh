@@ -23,4 +23,4 @@ done
 # Reuse the pinned Playwright dependency, awaiting each fixture directly. The CLI
 # returns before a snippet completes when its beforeunload modal state appears.
 npm install --prefix "$runtime_dir" --no-save --package-lock=false --no-audit --no-fund @playwright/cli@0.1.22
-node scripts/browser-regressions.mjs "$runtime_dir"
+node scripts/browser-regressions.mjs "$runtime_dir" "$@"
