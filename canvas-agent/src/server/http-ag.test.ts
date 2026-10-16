@@ -4,7 +4,34 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import ts from "typescript";
 import { startHttpServer } from "./http.js";
+
+async function corsFixture() {
+    const source = await fs.readFile(new URL("./http.ts", import.meta.url), "utf8");
+    const file = ts.createSourceFile("http.ts", source, ts.ScriptTarget.ES2022, true);
+    const declaration = file.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === "setCors");
+    assert.ok(declaration);
+    const code = ts.transpileModule(declaration.getText(file), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    const writes: unknown[] = [];
+    const cors = new Function("saveConfig", "validToken", code + "\nreturn setCors;")((config: unknown) => writes.push(structuredClone(config)), () => true);
+    const headers = new Map();
+    const response = { setHeader: (name: string, value: unknown) => headers.set(name, value) };
+    return { cors, response, writes };
+}
+
+test("隔离 HTTP 的新浏览器来源只在内存授权，不写用户全局配置", async () => {
+    const f = await corsFixture(), origin = "http://127.0.0.1:4317", config = { token: "test-only", origins: [] };
+    assert.equal(f.cors({ method: "POST", headers: { origin } }, f.response, new URL("http://127.0.0.1/canvas/state"), config, false), true);
+    assert.deepEqual(config.origins, [origin]);
+    assert.equal(f.writes.length, 0);
+});
+
+test("常规 HTTP 仍保存新来源且不会重复保存已有来源", async () => {
+    const f = await corsFixture(), origin = "http://127.0.0.1:4317", config = { token: "test-only", origins: [] };
+    for (let i = 0; i < 2; i++) assert.equal(f.cors({ method: "POST", headers: { origin } }, f.response, new URL("http://127.0.0.1/canvas/state"), config, true), true);
+    assert.equal(f.writes.length, 1);
+});
 
 test("隔离完整 HTTP 不保存用户配置，要求令牌并返回交互列表与废弃任意路径读取",async(t)=>{
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),"dianran-http-ag-"));t.after(()=>fs.rm(directory,{recursive:true,force:true}));

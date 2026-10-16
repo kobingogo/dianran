@@ -128,7 +128,7 @@ export function startHttpServer(options: { config?: CanvasAgentConfig; persist?:
     });
     app.use((req, res, next) => {
         const url = requestUrl(req, config);
-        if (!setCors(req, res, url, config)) return void res.status(403).json({ ok: false, error: "origin not allowed" });
+        if (!setCors(req, res, url, config, persist)) return void res.status(403).json({ ok: false, error: "origin not allowed" });
         if (req.method === "OPTIONS") return void res.json({});
         next();
     });
@@ -581,7 +581,7 @@ function requestUrl(req: Request, config: CanvasAgentConfig) {
 }
 
 /** 设置跨域响应头并记录通过 token 授权的来源。 */
-function setCors(req: Request, res: Response, url: URL, config: CanvasAgentConfig) {
+function setCors(req: Request, res: Response, url: URL, config: CanvasAgentConfig, persist: boolean) {
     const origin = req.headers.origin;
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
     res.setHeader("Access-Control-Allow-Headers", "content-type,x-canvas-agent-token");
@@ -591,7 +591,7 @@ function setCors(req: Request, res: Response, url: URL, config: CanvasAgentConfi
     config.origins ||= [];
     if (validToken(req, url, config.token) && !config.origins.includes(origin)) {
         config.origins.push(origin);
-        saveConfig(config);
+        if (persist) saveConfig(config);
     }
     res.setHeader("Vary", "Origin");
     return config.origins.includes(origin);
