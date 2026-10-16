@@ -33,7 +33,7 @@ import { modelOptionName, resolveModelRequestConfig, useConfigStore, useEffectiv
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
-import { ensureImagePreview, getImagePreviewRevision, previewUrlFor, resolveImageUrl, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
+import { imageToDataUrl, ensureImagePreview, getImagePreviewRevision, previewUrlFor, resolveImageUrl, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useAssetMutation } from "@/hooks/use-asset-mutation";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
@@ -184,7 +184,12 @@ export default function ImagePage() {
         const originalSubmission = snapshot.submission;
         slotSubmissionsRef.current = Array.from({ length: generationCount }, () => originalSubmission);
         try {
-            snapshot = { ...snapshot, submission: await prepareCanvasSubmission(snapshot.submission) };
+            const references = await Promise.all(snapshot.references.map(async (image) => {
+                const dataUrl = await imageToDataUrl(image.storageKey ? { storageKey: image.storageKey } : image);
+                if (!dataUrl) throw new Error("引用图片已失效：" + image.name);
+                return { ...image, dataUrl };
+            }));
+            snapshot = { ...snapshot, references, submission: await prepareCanvasSubmission(snapshot.submission) };
         } catch (error) {
             showErrorToast(message, error);
             setResults((value) => value.map((item) => ({ ...item, status: "failed", error: error instanceof Error ? error.message : t("workbench.generationFailed") })));
