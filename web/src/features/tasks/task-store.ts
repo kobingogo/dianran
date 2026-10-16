@@ -102,7 +102,7 @@ export function beginCreationTask(input: Pick<GenerationTask, "id" | "kind" | "m
 export function updateCreationTask(id: string, patch: Partial<GenerationTask>) {
     const task = useTaskStore.getState().tasks.find((item) => item.id === id);
     const terminal = patch.phase && !ACTIVE_PHASES.includes(patch.phase);
-    useTaskStore.getState().update(id, { ...patch, ...(terminal ? { endedAt: task?.phase === patch.phase ? task.endedAt : Date.now() } : patch.phase ? { endedAt: undefined } : {}) });
+    useTaskStore.getState().update(id, { ...patch, ...(terminal ? { endedAt: task?.phase === patch.phase ? task?.endedAt : Date.now() } : patch.phase ? { endedAt: undefined } : {}) });
 }
 
 export function useBoundTask(binding: { taskId?: string; nodeId?: string; sourcePath?: string }) {

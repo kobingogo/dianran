@@ -23,7 +23,7 @@ export function registerMediaPage() {
     registration = new Promise<void>((resolve, reject) => {
         pageLock = navigator.locks.request("dianran:media-page", { mode: "shared" }, async () => {
             await new Promise<void>((release) => { releasePage = release; resolve(); });
-        }).catch(reject);
+        }).then(() => undefined).catch(reject);
     });
     return registration;
 }
