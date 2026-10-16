@@ -11,6 +11,7 @@ function load(path, mocks, globals = {}) {
     return module.exports;
 }
 const merger = load("../src/services/app-sync-merge.ts", {});
+const mediaReferences = load("../src/lib/media-references.ts", {});
 const project = (title = "local", value = "a") => ({ id: "p", title, updatedAt: "2099-01-01", nodes: [{ id: "n", text: value }], connections: [] });
 const config = { url: "https://dav.example", directory: "dianran", username: "u", password: "p" };
 function fixture() {
@@ -46,6 +47,7 @@ function fixture() {
         "@/lib/write-ownership": { businessOperation: (fn) => fn, writeOwnership: { checkpoint: () => events.push("checkpoint") } },
         localforage: { createInstance: ({ storeName }) => db(storeName) }, "@/i18n": { t: (key) => key }, "./app-sync-merge": merger,
         "@/lib/install-write-barrier": { assertStorageSaved: () => {} }, "@/stores/use-composer-store": { flushComposerSave: flush },
+        "@/lib/media-references": mediaReferences,
         "@/services/file-storage": storage, "@/services/image-storage": { getImageBlob: storage.getMediaBlob, setImageBlob: storage.setMediaBlob, resolveImageUrl: storage.resolveMediaUrl },
         "@/services/webdav-sync": dav, "@/stores/use-asset-store": { flushAssetSave: flush, useAssetStore: assetStore },
         "@/stores/canvas/use-canvas-store": { useCanvasStore: canvasStore, flushCanvasSave: flush },
@@ -71,6 +73,20 @@ test("flush and blob backup precede network; absent manifests use create-only CA
     assert.ok(f.events.indexOf("flush") < f.events.indexOf("probe"));
     assert.ok(f.writes.every((item) => item.condition?.etag === null));
     assert.ok(f.stores.get("webdav_sync_backups").get(result.backupId));
+});
+test("task identities and ordinary text that resemble media keys are not files; declared missing media still stops sync", async () => {
+    const f = fixture(), value = project();
+    value.nodes[0].text = "image:ordinary prompt";
+    value.nodes[0].taskId = "image:request:0";
+    value.nodes[0].storageKey = "image:actual-file";
+    f.setCanvas({ projects: [value] }); f.media.set("image:actual-file", new Blob(["original media"], { type: "image/png" }));
+    const result = await f.app.syncAppDataToWebdav(config);
+    assert.equal(result.failed.length, 0);
+    assert.equal(f.stores.get("webdav_sync_backups").get(result.backupId).media.length, 1);
+    assert.equal(f.writes.filter((item) => item.path.includes("/files/")).length, 1);
+    const missing = fixture(); missing.setCanvas({ projects: [value] });
+    await assert.rejects(missing.app.syncAppDataToWebdav(config), /无法备份媒体 image:actual-file/);
+    assert.equal(missing.writes.length, 0);
 });
 test("unreliable local writes or unsupported condition semantics stop all manifest writes", async () => {
     for (const setup of [(f) => f.saveFailure(), (f) => f.unsupported()]) { const f = fixture(); setup(f); await assert.rejects(f.app.syncAppDataToWebdav(config)); assert.equal(f.writes.length, 0); }
@@ -169,6 +185,11 @@ test("temporary addresses on stored media do not create conflicts; ordinary text
     const assetA = { id: "asset", coverUrl: "blob:local", data: { storageKey: "image:one", dataUrl: "data:image/png;base64,AAAA" } };
     const assetB = { id: "asset", coverUrl: "blob:remote", data: { storageKey: "image:one", dataUrl: "data:image/png;base64,BBBB" } };
     assert.equal(merger.mergeRecords([assetA], [assetB], assert.fail).length, 1);
+});
+test("optional undefined receipt fields omitted by JSON do not create remote conflict copies", () => {
+    const receipt = { id: "receipt", error: undefined, parameters: { seed: undefined, count: 1 }, images: [{ storageKey: "image:one", dataUrl: "" }] };
+    assert.equal(merger.mergeRecords([receipt], [JSON.parse(JSON.stringify(receipt))], assert.fail).length, 1);
+    assert.equal(merger.mergeRecords([receipt], [{ ...receipt, error: "real failure" }], () => {}).length, 2);
 });
 
 test("restoring different bytes remaps identities and does not replace unrelated draft media", async () => {

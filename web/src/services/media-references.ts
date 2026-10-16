@@ -16,24 +16,36 @@ export const isSessionMedia = (key: string) => sessionFiles.has(key);
 
 let releasePage: (() => void) | undefined;
 let registration: Promise<void> | undefined;
+let pageLock: Promise<void> | undefined;
 export function registerMediaPage() {
     if (!navigator.locks) return Promise.resolve();
     if (registration) return registration;
     registration = new Promise<void>((resolve, reject) => {
-        void navigator.locks.request("dianran:media-page", { mode: "shared" }, async () => {
+        pageLock = navigator.locks.request("dianran:media-page", { mode: "shared" }, async () => {
             await new Promise<void>((release) => { releasePage = release; resolve(); });
-        }).catch(reject);
+        }).then(() => undefined).catch(reject);
     });
     return registration;
 }
 
+let cleanupQueue: Promise<void> = Promise.resolve();
+export function cleanupStoredMedia(fileStore: "image_files" | "media_files", usedData: unknown) {
+    // A page must finish releasing/reacquiring its shared lock before its next cleanup.
+    const operation = cleanupQueue.catch(() => {}).then(() => cleanupStoredMediaOwned(fileStore, usedData));
+    cleanupQueue = operation;
+    return operation;
+}
+
 // Automatic collection cannot know another page's unsaved references. Keep its files until that page closes.
-export async function cleanupStoredMedia(fileStore: "image_files" | "media_files", usedData: unknown) {
+async function cleanupStoredMediaOwned(fileStore: "image_files" | "media_files", usedData: unknown) {
     if (!navigator.locks) return;
     await registerMediaPage();
+    const released = pageLock;
     releasePage?.();
     releasePage = undefined;
     registration = undefined;
+    pageLock = undefined;
+    await released;
     try {
         await navigator.locks.request("dianran:media-page", { ifAvailable: true }, async (lock) => {
             if (!lock) return;

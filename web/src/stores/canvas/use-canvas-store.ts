@@ -144,9 +144,12 @@ export const useCanvasStore = create<CanvasStore>()(
                     return get().projects.find((item) => item.id === id) || null;
                 },
                 renameProject: (id, title) =>
-                    set((state) => ({
-                        projects: state.projects.map((project) => (project.id === id ? { ...project, title: title.trim() || project.title, updatedAt: new Date().toISOString() } : project)),
-                    })),
+                    set((state) => {
+                        const project = state.projects.find((item) => item.id === id);
+                        const name = title.trim();
+                        if (!project || !name || name === project.title) return state;
+                        return { projects: state.projects.map((item) => item.id === id ? { ...item, title: name, updatedAt: new Date().toISOString() } : item) };
+                    }),
                 deleteProjects: (ids) =>
                     set((state) => {
                         const now = new Date().toISOString();
@@ -157,9 +160,13 @@ export const useCanvasStore = create<CanvasStore>()(
                     }),
                 replaceProjects: (projects, deletedProjects = []) => set({ projects, deletedProjects }),
                 updateProject: (id, patch) =>
-                    set((state) => ({
-                        projects: state.projects.map((project) => (project.id === id ? { ...project, ...patch, updatedAt: new Date().toISOString() } : project)),
-                    })),
+                    set((state) => {
+                        const project = state.projects.find((item) => item.id === id);
+                        if (!project) return state;
+                        if (Object.entries(patch).every(([key, value]) => value === project[key as keyof CanvasProject] || JSON.stringify(value) === JSON.stringify(project[key as keyof CanvasProject]))) return state;
+                        const next = { ...project, ...patch };
+                        return { projects: state.projects.map((item) => item.id === id ? { ...next, updatedAt: new Date().toISOString() } : item) };
+                    }),
             };
         },
         {

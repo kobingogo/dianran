@@ -60,7 +60,11 @@ export const useTaskStore = create<TaskStore>()((set) => ({
     tasks: [],
     centerOpen: false,
     add: (task) => set((state) => ({ tasks: [task, ...state.tasks.filter((item) => item.id !== task.id)].filter((item, index, all) => item.managed || all.slice(0, index).filter((value) => !value.managed).length < MAX_TASKS) })),
-    update: (id, patch) => set((state) => ({ tasks: state.tasks.map((task) => (task.id === id ? { ...task, ...patch, updatedAt: Date.now() } : task)) })),
+    update: (id, patch) => set((state) => {
+        const task = state.tasks.find((item) => item.id === id);
+        if (!task || Object.entries(patch).every(([key, value]) => task[key as keyof GenerationTask] === value)) return state;
+        return { tasks: state.tasks.map((item) => item === task ? { ...task, ...patch, updatedAt: Date.now() } : item) };
+    }),
     clearFinished: () => set((state) => ({ tasks: state.tasks.flatMap((task) => isActiveTask(task) || task.phase === "unknown" || (task.saveState === "error" || task.saveState === "saving") ? [task] : task.managed ? [{ ...task, hidden: true }] : []) })),
     setCenterOpen: (centerOpen) => set({ centerOpen }),
 }));
@@ -96,8 +100,9 @@ export function beginCreationTask(input: Pick<GenerationTask, "id" | "kind" | "m
     return input.id;
 }
 export function updateCreationTask(id: string, patch: Partial<GenerationTask>) {
+    const task = useTaskStore.getState().tasks.find((item) => item.id === id);
     const terminal = patch.phase && !ACTIVE_PHASES.includes(patch.phase);
-    useTaskStore.getState().update(id, { ...patch, ...(terminal ? { endedAt: Date.now() } : patch.phase ? { endedAt: undefined } : {}) });
+    useTaskStore.getState().update(id, { ...patch, ...(terminal ? { endedAt: task?.phase === patch.phase ? task?.endedAt : Date.now() } : patch.phase ? { endedAt: undefined } : {}) });
 }
 
 export function useBoundTask(binding: { taskId?: string; nodeId?: string; sourcePath?: string }) {

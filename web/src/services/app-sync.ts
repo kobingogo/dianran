@@ -4,6 +4,7 @@ import localforage from "localforage";
 import i18n from "@/i18n";
 import { mergeCanvasSnapshots, mergeRecords } from "./app-sync-merge";
 import { assertStorageSaved } from "@/lib/install-write-barrier";
+import { collectMediaStorageKeys } from "@/lib/media-references";
 import { flushComposerSave } from "@/stores/use-composer-store";
 import { getMediaBlob, resolveMediaUrl, setMediaBlob } from "@/services/file-storage";
 import { getImageBlob, resolveImageUrl, setImageBlob } from "@/services/image-storage";
@@ -361,15 +362,8 @@ async function replaceStoredLogs(store: LogStore, logs: StoredLog[], removeMissi
     for (const log of previous) { const id = getStringField(log, "id"); if (id && !keeping.has(id)) await store.removeItem(id); }
 }
 
-function collectStorageKeys(value: unknown, keys = new Set<string>()) {
-    if (typeof value === "string") {
-        if (storageKeyPattern.test(value)) keys.add(value);
-        return [...keys];
-    }
-    if (!value || typeof value !== "object") return [...keys];
-    if ("storageKey" in value && typeof value.storageKey === "string" && storageKeyPattern.test(value.storageKey)) keys.add(value.storageKey);
-    Object.values(value).forEach((item) => (Array.isArray(item) ? item.forEach((child) => collectStorageKeys(child, keys)) : collectStorageKeys(item, keys)));
-    return [...keys];
+function collectStorageKeys(value: unknown) {
+    return [...collectMediaStorageKeys(value)].filter((key) => storageKeyPattern.test(key));
 }
 
 function domainPath(domain: DomainKey, path: string) {
