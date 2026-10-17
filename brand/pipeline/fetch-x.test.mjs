@@ -74,3 +74,22 @@ print('fixed labels, duplicates suppressed, private details omitted')
     const result = await exec('python3', ['-c', python, new URL('./twscrape-x.py', import.meta.url).pathname]);
     assert.match(result.stdout, /private details omitted/);
 });
+
+test('unexpected X errors retain only approved exception types or HTTP codes', async () => {
+    const python = `import ast, contextlib, io, sys, types
+from pathlib import Path
+tree=ast.parse(Path(sys.argv[1]).read_text())
+function=next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name=='report_status')
+scope={'sys':sys,'reported_statuses':set()}
+exec(compile(ast.Module(body=[function],type_ignores=[]),sys.argv[1],'exec'),scope)
+output=io.StringIO()
+prefix='Unknown error. Account timeouted for 15 minutes. Err: '
+with contextlib.redirect_stderr(output):
+ for detail in ['IndexError: PRIVATE_COOKIE; username=PRIVATE_ACCOUNT', 'IndexError: repeated PRIVATE_TOKEN', 'HttpStatusError 403; username=PRIVATE_ACCOUNT', 'HttpStatusError 503; queue=PRIVATE_QUERY', 'TypeError: PRIVATE_RESPONSE', 'PRIVATE_EXCEPTION: SECRET', 'HttpStatusError 999; SECRET', 'HttpStatusError 403PRIVATE_TOKEN; SECRET']:
+  scope['report_status'](types.SimpleNamespace(record={'message':prefix+detail}))
+assert output.getvalue()=='twscrape-x status: unexpected-response/IndexError\\ntwscrape-x status: unexpected-response/http-403\\ntwscrape-x status: unexpected-response/http-503\\ntwscrape-x status: unexpected-response/TypeError\\ntwscrape-x status: unexpected-response\\n', output.getvalue()
+print('exception classes and HTTP codes retained; arbitrary details omitted')
+`;
+    const result = await exec('python3', ['-c', python, new URL('./twscrape-x.py', import.meta.url).pathname]);
+    assert.match(result.stdout, /arbitrary details omitted/);
+});
