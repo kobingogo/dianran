@@ -1,7 +1,8 @@
 async page => {
- const context=await page.context().browser().newContext(),base='http://127.0.0.1:4317';
+ const context=await page.context().browser().newContext(),base='http://127.0.0.1:4317',pages=[],errors=[];
  try{
-  const pages=await Promise.all([context.newPage(),context.newPage()]);
+  pages.push(...await Promise.all([context.newPage(),context.newPage()]));
+  pages.forEach((p,i)=>p.on('pageerror',error=>errors.push({page:i,error:error.message})));
   await Promise.all(pages.map((p,i)=>p.goto(base+(i?'/video':'/image'))));
   await Promise.all(pages.map(p=>p.getByRole('textbox',{name:'提示词',exact:true}).waitFor()));
   const reference=await pages[0].evaluate(()=>{const c=document.createElement('canvas');c.width=64;c.height=32;return c.toDataURL('image/png').split(',')[1];});
@@ -25,5 +26,8 @@ async page => {
   const after=await pages[0].evaluate(()=>indexedDB.databases());
   if(JSON.stringify(before)!==JSON.stringify(after))throw Error('First uploads triggered another database schema upgrade');
   return{sharedStorage:true,pages:['image','video'],drafts:'separate image/video prompts retained after simultaneous reload',uploads:'both original files retained after simultaneous reload',schema:'unchanged after initial readiness'};
+ }catch(error){
+  const states=await Promise.all(pages.map(async(p,i)=>{await p.screenshot({path:'output/playwright/evidence/storage-cold-tabs-page-'+i+'.png'}).catch(()=>{});return{url:p.url(),body:await p.locator('body').innerText().catch(()=>''),errors:errors.filter(e=>e.page===i)};}));
+  throw new Error(error.message+'\nCold page states: '+JSON.stringify(states));
  }finally{await context.close();}
 }
