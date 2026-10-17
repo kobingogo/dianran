@@ -10,10 +10,11 @@ import type { ReferenceImage } from "@/types/image";
 import type { CreationConversation, CreationPlan } from "@/lib/creation-conversation";
 import { nanoid } from "nanoid";
 import { useConfigStore } from "./use-config-store";
+import { emptyComposerDraft } from "@/lib/composer-draft-defaults";
 
 export type ComposerDraft = { initialized: boolean; prompt: string; references: ReferenceImage[]; canvas: boolean; parameters?: ComposerParameters; nodeIds?: string[] };
 type Draft = ComposerDraft;
-export const EMPTY_COMPOSER_DRAFT: Draft = { initialized: false, prompt: "", references: [], canvas: false };
+export const EMPTY_COMPOSER_DRAFT: Draft = emptyComposerDraft();
 type ComposerStore = {
     hydrated: boolean;
     mode: ComposerMode;
@@ -51,7 +52,7 @@ if (typeof window !== "undefined") {
         if (document.visibilityState === "hidden" && writeOwnership.canWrite()) void draftQueue.flush().catch(() => {});
     });
 }
-const empty = (): Draft => ({ initialized: false, prompt: "", references: [], canvas: false });
+const empty: () => Draft = emptyComposerDraft;
 export const useComposerStore = create<ComposerStore>()(
     persist(
         (set): ComposerStore => {
