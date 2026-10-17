@@ -13,13 +13,52 @@ on:
         description: Re-publish the current published snapshot without collecting new prompts
         type: boolean
         default: false
+      verify_x:
+        description: Verify the existing first X query only; do not collect other sources or publish
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: dianran-prompt-publication
   cancel-in-progress: false
 jobs:
+  verify-x:
+    if: inputs.verify_x == true
+    runs-on: ubuntu-latest
+    env:
+      TWSCRAPE_PYTHON: python
+      TWSCRAPE_DB: ${{ runner.temp }}/twscrape/accounts.db
+      DIANRAN_PROMPT_PIPELINE_ROOT: ${{ runner.temp }}/x-verification
+      X_PROVIDER: twscrape
+      X_WINDOW_DAYS: '1.5'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare isolated search verification
+        run: |
+          test "${{ inputs.verify_deployment }}" != true
+          mkdir -p "$DIANRAN_PROMPT_PIPELINE_ROOT"
+          git init -q "$DIANRAN_PROMPT_PIPELINE_ROOT"
+          pip install -r brand/pipeline/requirements-x.txt
+      - name: Verify single X query
+        env:
+          TWITTER_COOKIES: ${{ secrets.TWITTER_COOKIES }}
+        run: |
+          test -n "$TWITTER_COOKIES"
+          node brand/pipeline/fetch-x.mjs --verify-search
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: x-search-verification
+          path: ${{ runner.temp }}/x-verification/candidates/twscrape-search-verification.json
   update:
+    if: inputs.verify_x != true
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROMPT_RESOURCE_TOKEN }}
