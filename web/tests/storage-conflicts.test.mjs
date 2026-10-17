@@ -34,6 +34,44 @@ async function database() {
     return { name, read, put, close: () => db.close() };
 }
 
+const firstDraft = (mode, prompt) => JSON.stringify({ version: 0, state: {
+    mode, image: { initialized: mode === "image", prompt: mode === "image" ? prompt : "", references: [], canvas: false },
+    video: { initialized: mode === "video", prompt: mode === "video" ? prompt : "", references: [], canvas: false },
+    scoped: {}, agentDrafts: {}, conversations: {}, activeConversations: {},
+} });
+test("first image and video drafts merge when both pages originally read an absent snapshot", async () => {
+    const db = await database(), key = "infinite-canvas:composer_drafts";
+    try {
+        await Promise.all([
+            atomicStorageWrite(db.name, "app_state", key, null, firstDraft("image", "图片页输入")),
+            atomicStorageWrite(db.name, "app_state", key, null, firstDraft("video", "视频页输入")),
+        ]);
+        const saved = JSON.parse(await db.read("app_state", key)).state;
+        assert.equal(saved.image.prompt, "图片页输入"); assert.equal(saved.video.prompt, "视频页输入");
+        assert.equal(saved.image.initialized, true); assert.equal(saved.video.initialized, true);
+    } finally { db.close(); }
+});
+test("first drafts with competing prompts still reject and back up the conflicting write", async () => {
+    const db = await database(), key = "infinite-canvas:composer_drafts";
+    try {
+        const original = firstDraft("image", "已保存输入"), rejected = firstDraft("image", "另一页输入");
+        await atomicStorageWrite(db.name, "app_state", key, null, original);
+        await assert.rejects(atomicStorageWrite(db.name, "app_state", key, null, rejected), StorageConflictError);
+        assert.equal(await db.read("app_state", key), original);
+        const backup = await db.read(CONFLICT_STORE, storageConflictId(db.name, "app_state", key));
+        assert.equal(backup.local, rejected); assert.equal(backup.remote, original);
+    } finally { db.close(); }
+});
+test("clearing an existing composer prompt does not overwrite a newer prompt from another page", async () => {
+    const db = await database(), key = "infinite-canvas:composer_drafts";
+    try {
+        const base = firstDraft("image", "原始输入"), remote = firstDraft("image", "已修改输入");
+        await db.put("app_state", key, remote);
+        await assert.rejects(atomicStorageWrite(db.name, "app_state", key, base, firstDraft("image", "")), StorageConflictError);
+        assert.equal(await db.read("app_state", key), remote);
+    } finally { db.close(); }
+});
+
 test("two stale pages add records and continue editing without deleting the other page's additions", async () => {
     const db = await database(); const key = "infinite-canvas:canvas_store";
     try {

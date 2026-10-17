@@ -1,5 +1,6 @@
 import { clearStorageConflict, mergeStoredSnapshot, reportStorageConflict, StorageConflictError, type StorageConflict } from "./storage-conflicts";
 import { comparable } from "../services/app-sync-merge";
+import { emptyComposerDraft } from "./composer-draft-defaults";
 
 export const CONFLICT_STORE = "write_conflicts";
 const pageId = crypto.randomUUID();
@@ -33,7 +34,10 @@ export async function atomicStorageWrite(database: string, store: string, key: s
         read.onsuccess = () => {
             try {
                 const remote = read.result;
-                result = mergeStoredSnapshot(base, remove ? undefined : local, remote);
+                // A missing draft snapshot still has the composer's known empty defaults.
+                const baseline = base == null && remote != null && !remove && typeof local === "string" && store === "app_state" && key.endsWith(":composer_drafts")
+                    ? JSON.stringify({ state: { image: emptyComposerDraft(), video: emptyComposerDraft() } }) : base;
+                result = mergeStoredSnapshot(baseline, remove ? undefined : local, remote);
                 if (result === undefined) target.delete(key); else target.put(result, key);
                 transaction.objectStore(CONFLICT_STORE).delete(id);
                 // A saved business record now protects these files; release their pending-write pins atomically.

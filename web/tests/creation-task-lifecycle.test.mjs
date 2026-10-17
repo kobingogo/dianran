@@ -61,7 +61,7 @@ test('storage failure is exposed and damaged storage is not overwritten', async 
 });
 function composer() {
     let nextId = 0;
-    return load('../src/stores/use-composer-store.ts', { zustand: require('zustand'), 'zustand/middleware': { persist: (creator) => creator, createJSONStorage: () => ({}) }, localforage: { createInstance: () => ({}) }, '@/constant/brand': { STORAGE_NS: 'test', storageKey: (key) => key }, '@/lib/canvas/save-queue': { createSaveQueue: () => ({ flush: async () => {} }) }, '@/lib/write-ownership': { assertBusinessWriter: () => {}, writeOwnership: { canWrite: () => true } }, '@/services/image-storage': {}, '@/lib/composer': { uniqueReferences: (refs) => refs }, nanoid: { nanoid: () => 'entry-' + (++nextId) }, './use-config-store': { useConfigStore: { getState: () => ({ config: {} }) } } });
+    return load('../src/stores/use-composer-store.ts', { zustand: require('zustand'), 'zustand/middleware': { persist: (creator) => creator, createJSONStorage: () => ({}) }, localforage: { createInstance: () => ({}) }, '@/constant/brand': { STORAGE_NS: 'test', storageKey: (key) => key }, '@/lib/canvas/save-queue': { createSaveQueue: () => ({ flush: async () => {} }) }, '@/lib/write-ownership': { assertBusinessWriter: () => {}, writeOwnership: { canWrite: () => true } }, '@/services/image-storage': {}, '@/lib/composer': { uniqueReferences: (refs) => refs }, '@/lib/composer-draft-defaults': load('../src/lib/composer-draft-defaults.ts', {}), nanoid: { nanoid: () => 'entry-' + (++nextId) }, './use-config-store': { useConfigStore: { getState: () => ({ config: {} }) } } });
 }
 test('accepted receipt clears only the unchanged draft; late receipt protects new text, references and canvas inputs', () => {
     const api = composer();
