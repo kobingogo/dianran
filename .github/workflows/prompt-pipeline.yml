@@ -13,13 +13,58 @@ on:
         description: Re-publish the current published snapshot without collecting new prompts
         type: boolean
         default: false
+      verify_x:
+        description: Verify the existing first X query only; do not collect other sources or publish
+        type: boolean
+        default: false
+      x_http_backend:
+        description: HTTP backend for isolated X verification only
+        type: choice
+        options: [httpx, curl]
+        default: httpx
 permissions:
   contents: read
 concurrency:
   group: dianran-prompt-publication
   cancel-in-progress: false
 jobs:
+  verify-x:
+    if: inputs.verify_x == true
+    runs-on: ubuntu-latest
+    env:
+      TWSCRAPE_PYTHON: python
+      TWS_HTTP_BACKEND: ${{ inputs.x_http_backend || 'httpx' }}
+      X_PROVIDER: twscrape
+      X_WINDOW_DAYS: '1.5'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare isolated search verification
+        run: |
+          test "${{ inputs.verify_deployment }}" != true
+          echo "TWSCRAPE_DB=$RUNNER_TEMP/twscrape/accounts.db" >> "$GITHUB_ENV"
+          echo "DIANRAN_PROMPT_PIPELINE_ROOT=$RUNNER_TEMP/x-verification" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/x-verification"
+          git init -q "$RUNNER_TEMP/x-verification"
+          pip install -r brand/pipeline/requirements-x.txt 'twscrape[curl]==0.20.1'
+      - name: Verify single X query
+        env:
+          TWITTER_COOKIES: ${{ secrets.TWITTER_COOKIES }}
+        run: |
+          test -n "$TWITTER_COOKIES"
+          node brand/pipeline/fetch-x.mjs --verify-search
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: x-search-verification
+          path: ${{ runner.temp }}/x-verification/candidates/twscrape-search-verification.json
   update:
+    if: inputs.verify_x != true
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROMPT_RESOURCE_TOKEN }}

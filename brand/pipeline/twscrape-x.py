@@ -34,6 +34,14 @@ def report_status(message):
         status = "missing-authentication-cookies"
     elif "cooling account for 60s" in text:
         status = "transport-failure"
+    if status == "unexpected-response":
+        detail = text.partition("Err: ")[2].split(";", 1)[0].split(":", 1)[0]
+        if detail in ("IndexError", "KeyError", "TypeError", "ValueError", "AttributeError", "ImportError", "RuntimeError", "JSONDecodeError"):
+            status += f"/{detail}"
+        elif detail.startswith("HttpStatusError "):
+            code = detail.removeprefix("HttpStatusError ")
+            if code.isascii() and code.isdigit() and 100 <= int(code) <= 599:
+                status += f"/http-{int(code)}"
     if status and status not in reported_statuses:
         reported_statuses.add(status)
         print(f"twscrape-x status: {status}", file=sys.stderr, flush=True)
