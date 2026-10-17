@@ -28,8 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TWSCRAPE_PYTHON: python
-      TWSCRAPE_DB: ${{ runner.temp }}/twscrape/accounts.db
-      DIANRAN_PROMPT_PIPELINE_ROOT: ${{ runner.temp }}/x-verification
       X_PROVIDER: twscrape
       X_WINDOW_DAYS: '1.5'
     steps:
@@ -43,8 +41,10 @@ jobs:
       - name: Prepare isolated search verification
         run: |
           test "${{ inputs.verify_deployment }}" != true
-          mkdir -p "$DIANRAN_PROMPT_PIPELINE_ROOT"
-          git init -q "$DIANRAN_PROMPT_PIPELINE_ROOT"
+          echo "TWSCRAPE_DB=$RUNNER_TEMP/twscrape/accounts.db" >> "$GITHUB_ENV"
+          echo "DIANRAN_PROMPT_PIPELINE_ROOT=$RUNNER_TEMP/x-verification" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/x-verification"
+          git init -q "$RUNNER_TEMP/x-verification"
           pip install -r brand/pipeline/requirements-x.txt
       - name: Verify single X query
         env:
