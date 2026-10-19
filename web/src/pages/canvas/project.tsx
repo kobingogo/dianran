@@ -839,6 +839,15 @@ function InfiniteCanvasPage() {
         () => nodes.filter((node) => node.position.x + node.width > viewBounds.left && node.position.x < viewBounds.right && node.position.y + node.height > viewBounds.top && node.position.y < viewBounds.bottom),
         [nodes, viewBounds],
     );
+    const showNodePanel = (node: CanvasNodeData) =>
+        !agentPanelOpen &&
+        node.type !== CanvasNodeType.Group &&
+        ![CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Config].includes(node.type as CanvasNodeType) &&
+        !isNodeResizing &&
+        dialogNodeId === node.id &&
+        !selectionBox &&
+        !getNodeDefinition(node.type)?.hidePanel;
+    const isNodePanelOpen = visibleNodes.some(showNodePanel);
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
 
@@ -3596,7 +3605,7 @@ function InfiniteCanvasPage() {
                             isConnectionTarget={connectionTargetNodeId === node.id}
                             isConnecting={Boolean(connectingParams)}
                             referenceSelectionState={!referencePickerNodeId ? undefined : node.id === referencePickerNodeId ? "target" : referenceConnectedNodeIds.has(node.id) || !isCanvasReferenceNode(node, nodes) ? "disabled" : "available"}
-                            showPanel={!agentPanelOpen && ![CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Config].includes(node.type as CanvasNodeType) && !isNodeResizing && dialogNodeId === node.id && !selectionBox && !getNodeDefinition(node.type)?.hidePanel}
+                            showPanel={showNodePanel(node)}
                             groupChildCount={groupChildCountById.get(node.id) || 0}
                             isGroupDropTarget={dropTargetGroupId === node.id}
                             batchExpanded={expandedBatchNodeIds.has(node.id)}
@@ -3698,7 +3707,7 @@ function InfiniteCanvasPage() {
                     />
                 ) : null}
 
-                <CanvasToolbar
+                {isNodePanelOpen ? null : <CanvasToolbar
                     selectedCount={selectedNodeIds.size}
                     canvasTool={canvasTool}
                     canUndo={historyState.canUndo}
@@ -3720,7 +3729,7 @@ function InfiniteCanvasPage() {
                     onCanvasToolChange={setCanvasTool}
                     onBackgroundModeChange={setBackgroundMode}
                     onShowImageInfoChange={setShowImageInfo}
-                />
+                />}
 
                 {(creationContext?.projectId === projectId || !composerTarget || dockTarget || composerTarget.type === CanvasNodeType.Group) ? <div style={dockTarget && !creationContext ? { left: Math.max(0, Math.min(size.width - Math.min(640, size.width), dockTarget.position.x * viewport.k + viewport.x)), top: Math.max(0, Math.min(size.height - 360, (dockTarget.position.y + dockTarget.height) * viewport.k + viewport.y + 12)), width: Math.min(640, size.width), bottom: "auto", right: "auto", maxHeight: "calc(100% - 100px)" } : undefined} className="pointer-events-none absolute inset-x-0 bottom-16 z-[80] mx-auto max-h-[calc(100%_-_120px)] w-full max-w-[840px] overflow-y-auto px-2 pb-[env(safe-area-inset-bottom)] sm:bottom-20 sm:px-5">
                     <CanvasDockedComposer projectId={projectId} nodes={nodes} target={dockTarget} availableInputs={dockTarget ? connectedNodesByNodeId.get(dockTarget.id) || [] : []} runningId={runningNodeId} onSubmit={submitCanvasComposer}

@@ -15,7 +15,7 @@ async page => {
     const toolbar=page.getByRole('toolbar',{name:'笔架',exact:true});await toolbar.getByRole('button',{name:'文本',exact:true}).click();
     await page.waitForFunction(()=>window.__undoCanvas.getState().projects[0].nodes.length===1);
     const original=await page.evaluate(()=>window.__undoCanvas.getState().projects[0].nodes[0]);
-    const originalNode=page.locator(`[data-node-id="${original.id}"]`);await originalNode.dblclick();await originalNode.locator('textarea').fill('用户原始文本');await page.keyboard.press('Escape');
+    const originalNode=page.locator(`[data-node-id="${original.id}"]`);await originalNode.dblclick();await originalNode.locator('textarea').fill('用户原始文本');await page.keyboard.press('Escape');await page.keyboard.press('Escape');await toolbar.getByRole('button',{name:'文本',exact:true}).waitFor();
     await page.waitForFunction(id=>window.__undoCanvas.getState().projects[0].nodes.find(n=>n.id===id)?.metadata.content==='用户原始文本',original.id);
     const apply=()=>page.evaluate(async id=>{const c=window.__undoAgent.getState().canvasContext;return c.applyOps([{type:'update_node',id,metadata:{content:'Agent 修改文本'}},{type:'add_node',id:'agent-added',nodeType:'text',metadata:{content:'Agent 新增文本'},position:{x:0,y:0}}]);},original.id);
     phase='normal bridge undo';const first=await apply();if(!first.receipt.saved||first.receipt.generation!=='not-requested')throw Error('Agent edits were not durably saved');
