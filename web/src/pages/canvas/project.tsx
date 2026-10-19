@@ -839,9 +839,15 @@ function InfiniteCanvasPage() {
         () => nodes.filter((node) => node.position.x + node.width > viewBounds.left && node.position.x < viewBounds.right && node.position.y + node.height > viewBounds.top && node.position.y < viewBounds.bottom),
         [nodes, viewBounds],
     );
-    const isNodePanelOpen = !agentPanelOpen && !isNodeResizing && !selectionBox && visibleNodes.some((node) =>
-        ![CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Config].includes(node.type as CanvasNodeType) && dialogNodeId === node.id && !getNodeDefinition(node.type)?.hidePanel,
-    );
+    const showNodePanel = (node: CanvasNodeData) =>
+        !agentPanelOpen &&
+        node.type !== CanvasNodeType.Group &&
+        ![CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Config].includes(node.type as CanvasNodeType) &&
+        !isNodeResizing &&
+        dialogNodeId === node.id &&
+        !selectionBox &&
+        !getNodeDefinition(node.type)?.hidePanel;
+    const isNodePanelOpen = visibleNodes.some(showNodePanel);
 
     const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
 
@@ -3599,7 +3605,7 @@ function InfiniteCanvasPage() {
                             isConnectionTarget={connectionTargetNodeId === node.id}
                             isConnecting={Boolean(connectingParams)}
                             referenceSelectionState={!referencePickerNodeId ? undefined : node.id === referencePickerNodeId ? "target" : referenceConnectedNodeIds.has(node.id) || !isCanvasReferenceNode(node, nodes) ? "disabled" : "available"}
-                            showPanel={!agentPanelOpen && ![CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Config].includes(node.type as CanvasNodeType) && !isNodeResizing && dialogNodeId === node.id && !selectionBox && !getNodeDefinition(node.type)?.hidePanel}
+                            showPanel={showNodePanel(node)}
                             groupChildCount={groupChildCountById.get(node.id) || 0}
                             isGroupDropTarget={dropTargetGroupId === node.id}
                             batchExpanded={expandedBatchNodeIds.has(node.id)}
