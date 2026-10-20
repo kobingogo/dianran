@@ -60,7 +60,7 @@ node canvas-proxy/index.js --origin http://localhost:3000 --target https://api.o
 
 ## 开源与致谢
 
-点染由 **KobinFlow** 维护，基于 [infinite-canvas](https://github.com/basketikun/infinite-canvas) 发展，感谢原作者与开源贡献者。采用 [MIT License](LICENSE)，保留原始版权与许可声明，来源说明见 [NOTICE](NOTICE)。
+点染由 **KobinFlow** 维护。采用 [MIT License](LICENSE)；第三方版权与许可信息见 [NOTICE](NOTICE)。
 
 <a id="english"></a>
 
@@ -70,4 +70,4 @@ node canvas-proxy/index.js --origin http://localhost:3000 --target https://api.o
 
 Run `bun install --frozen-lockfile` and `bun run dev` inside `web/`, then open `http://localhost:3000`. Configure your provider's Base URL, API key and models in Settings. Canvases, assets and generation history are primarily stored in your browser; generation requests go to your configured provider. Optional local services, WebDAV and deployment analytics follow their own data paths.
 
-New workflow and creation-assistance features are undergoing validation. See the [pending tests](docs/content/docs/progress/pending-test.mdx). Licensed under [MIT](LICENSE), based on [infinite-canvas](https://github.com/basketikun/infinite-canvas); original copyright notices are retained.
+New workflow and creation-assistance features are undergoing validation. See the [pending tests](docs/content/docs/progress/pending-test.mdx). Licensed under [MIT](LICENSE); third-party copyright and license notices are in [NOTICE](NOTICE).
