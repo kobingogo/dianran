@@ -1,0 +1,74 @@
+{
+  "id": "social-covers",
+  "title": "小红书封面",
+  "titleEn": "Social covers",
+  "description": "一个选题，三种封面风格（大字报、拼贴、实拍感）对比选择，3:4 竖版。",
+  "descriptionEn": "One topic, three 3:4 cover styles to compare: bold type, collage and photo-style.",
+  "tags": [
+    "社媒",
+    "封面"
+  ],
+  "accent": "#D14D72",
+  "nodes": [
+    {
+      "key": "topic",
+      "type": "text",
+      "title": "选题与标题（先改这里）",
+      "x": 0,
+      "y": 290,
+      "w": 340,
+      "h": 240,
+      "content": "选题：周末在家做一顿 30 分钟的日式早餐\n封面大标题：30 分钟｜日式早餐\n小标题：新手也能零失败\n要求：竖版 3:4，标题清晰可读，画面明亮有食欲。"
+    },
+    {
+      "key": "bold",
+      "type": "config",
+      "title": "大字报风格",
+      "x": 440,
+      "y": 0,
+      "w": 340,
+      "h": 240,
+      "size": "3:4",
+      "count": 1,
+      "prompt": "{{topic}}\n大字报封面：纯色背景上超大中文标题，配一个简洁的早餐插画图标，对比强烈。"
+    },
+    {
+      "key": "collage",
+      "type": "config",
+      "title": "拼贴风格",
+      "x": 440,
+      "y": 290,
+      "w": 340,
+      "h": 240,
+      "size": "3:4",
+      "count": 1,
+      "prompt": "{{topic}}\n拼贴手账风封面：食物照片剪贴、手写标注、贴纸和胶带元素，标题放在中间。"
+    },
+    {
+      "key": "photo",
+      "type": "config",
+      "title": "实拍感风格",
+      "x": 440,
+      "y": 580,
+      "w": 340,
+      "h": 240,
+      "size": "3:4",
+      "count": 1,
+      "prompt": "{{topic}}\n实拍感封面：俯拍木质餐桌上的日式早餐（米饭、味噌汤、烤鱼、玉子烧），上方留白放标题。"
+    }
+  ],
+  "connections": [
+    [
+      "topic",
+      "bold"
+    ],
+    [
+      "topic",
+      "collage"
+    ],
+    [
+      "topic",
+      "photo"
+    ]
+  ]
+}

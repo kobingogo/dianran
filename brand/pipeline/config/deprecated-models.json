@@ -1,0 +1,9 @@
+{
+  "_comment": "Models that Dianran no longer offers or that their vendor has retired. Entries whose model matches (case-insensitive, normalised label or raw imageModel) are retired by brand/pipeline/merge.mjs. Keep this list short and edit it by hand.",
+  "models": [
+    { "match": "dall-e-2", "reason": "OpenAI 旧版图像模型，已被 GPT Image 取代" },
+    { "match": "dall-e-3", "reason": "OpenAI 旧版图像模型，已被 GPT Image 取代" },
+    { "match": "midjourney v5", "reason": "Midjourney 旧版本" },
+    { "match": "sd 1.4", "reason": "Stable Diffusion 1.4，过旧" }
+  ]
+}

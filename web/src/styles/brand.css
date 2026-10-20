@@ -1,0 +1,35 @@
+/* [dianran] Brand accent. Names stay; values follow tokens.css (朱砂 / 黛青). */
+:root {
+    --brand: var(--zhu-500);
+    --brand-strong: var(--zhu-600);
+    --brand-soft: var(--zhu-100);
+    --brand-indigo: var(--dai-600);
+    --primary: var(--zhu-500);
+    --primary-foreground: #ffffff;
+    --ring: var(--zhu-500);
+}
+
+::selection {
+    background: color-mix(in srgb, var(--zhu-500) 28%, transparent);
+}
+
+/* [dianran] phase4: homepage hero strip marquee */
+@keyframes dr-marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+.dr-marquee {
+    animation: dr-marquee 80s linear infinite;
+}
+.dr-marquee:hover {
+    animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+    .dr-marquee {
+        animation: none;
+    }
+}

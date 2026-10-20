@@ -1,0 +1,80 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import react from "@vitejs/plugin-react";
+import { defineConfig, type Plugin } from "vite";
+
+import { parseChangelog } from "./src/lib/release";
+
+const webDir = dirname(fileURLToPath(import.meta.url));
+// [dianran] Product version + changelog live in brand/ so upstream VERSION / CHANGELOG.md merges never conflict.
+const readFirst = (...files: string[]) => {
+    const file = files.map((name) => resolve(webDir, name)).find((path) => existsSync(path));
+    return file ? readFileSync(file, "utf8") : "";
+};
+const localVersion = readFirst("../brand/VERSION", "../VERSION").trim() || "dev";
+const localChangelog = readFirst("../brand/CHANGELOG.md", "../CHANGELOG.md");
+
+// Expose /plugins/index.json with local plugin files from public/plugins.
+// The frontend can discover and list them when enabled; development reads the directory live, while builds emit a static registry.
+function localPluginsManifest(): Plugin {
+    const pluginsDir = resolve(webDir, "public/plugins");
+    const listLocalPlugins = () => {
+        try {
+            return readdirSync(pluginsDir)
+                .filter((file) => file.endsWith(".js"))
+                .sort()
+                .map((file) => `/plugins/${file}`);
+        } catch {
+            return [];
+        }
+    };
+    return {
+        name: "local-plugins-manifest",
+        configureServer(server) {
+            server.middlewares.use("/plugins/index.json", (_req, res) => {
+                res.setHeader("Content-Type", "application/json");
+                res.end(JSON.stringify(listLocalPlugins()));
+            });
+        },
+        generateBundle() {
+            this.emitFile({ type: "asset", fileName: "plugins/index.json", source: JSON.stringify(listLocalPlugins()) });
+        },
+    };
+}
+
+export default defineConfig({
+    base: process.env.VITE_BASE || "/",
+    plugins: [react(), localPluginsManifest()],
+    server: {
+        proxy: {
+            "/prompt-sources": {
+                target: "https://dianran-prompts.vercel.app",
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/prompt-sources/, ""),
+            },
+        },
+    },
+    resolve: {
+        alias: {
+            "@": resolve(webDir, "src"),
+        },
+    },
+    // [dianran] Split stable vendor code into long-cacheable chunks; pages are lazy (see src/router.tsx).
+    build: {
+        chunkSizeWarningLimit: 1200,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (!id.includes("node_modules")) return undefined;
+                    if (/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom)\//.test(id)) return "vendor-react";
+                    return undefined;
+                },
+            },
+        },
+    },
+    define: {
+        __APP_VERSION__: JSON.stringify(localVersion),
+        __APP_RELEASES__: JSON.stringify(parseChangelog(localChangelog)),
+    },
+});

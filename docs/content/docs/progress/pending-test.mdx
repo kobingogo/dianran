@@ -1,0 +1,205 @@
+---
+title: Pending Tests
+description: Implemented changes that still need manual verification
+---
+
+# Pending Tests
+
+- 画布节点编辑面板打开时暂时收起左侧工具栏，避免窄画布布局下工具栏覆盖面板输入。独立本地 887×1034 视口复测：打开文本节点面板后可输入，文本同步显示于节点预览；零模型请求，临时画布已清理。触屏和生产部署仍待用户验收。
+
+- 首次双页草稿：两页都读到缺失记录时，仅对图片/视频草稿使用同一份默认空值作比较基线；新建单页仍按原逻辑保存，已有基线不变。独立图片/视频提示词与参考图在同源两页同时首次启动、上传、刷新后均保留原身份/字节；旧实现对应模块测试失败，修复后 205 项前端行为通过。相同提示词竞争编辑或清空仍拒绝覆盖并保留冲突备份。存储初始化 PR #19 已合并；本项仍待单独合并 main；真实用户浏览器及模型仍待验收。
+
+- 本地存储初始化：应用启动前用现有 localforage 依次准备所需存储表，避免表结构升级与缓存/历史写入竞争使参考图上传停在“添加中”。原文件与作品不迁移、不清空；初始化失败不启动创作，提示保留原数据并刷新重试。本地旧实现自然复现及 IDB 事件已留存；修复后十轮参考图回放、初始化失败→刷新恢复→上传→再次刷新保留草稿与原文件身份，以及 202 项前端行为测试、完整 15 项浏览器专项通过。真实渠道和用户浏览器仍待验收。
+
+- 图片参考图准备失败：在保存生成意图和清空草稿前准备参考图数据，复用准备结果发送，不重复下载或读取。实际 UI 上传 PNG 后删除原文件并撤销 Blob URL，旧实现零请求但草稿被清空；修复后零请求、无活跃任务，提示词与原引用保留。恢复同一原文件后经 UI 仅提交一次 edits，multipart 原始字节一致且结果保存成功；专项已注册默认浏览器检查。本地 200 项行为测试通过；渠道为固定替身，未验证真实模型，现有超时、并发、重试和计费确认不变。
+
+- 外部工作台提交会话回执：图片与视频在请求前保存原始方案、任务身份及来源，普通已确认方案按 submission.id 去重，后续草稿不改写原提交。旧主线复现会话缺失回归，浏览器证实任务完成但没有对应方案；修复后两类任务可从本次创作查看，方案在 POST 前已持久化，编辑新草稿并刷新后原身份保留、无重复提交。使用页面内工作台命令与替身图片/视频渠道，真实 Agent 和模型仍待验收。
+
+- Agent 画布归属：操作前、媒体校验后、保存后与生成调度前核对当前快照函数，撤销和媒体导入也绑定同一实例。原主线两个真实 React 浏览器专项均复现旧操作越界；修复后切页中的原文件校验拒绝写回、正常撤销保留、后续编辑保护、A → B → A 的旧修改/撤销/导入均拒绝，原图与两画布数据保留，零生成请求。操作来自替身 Agent，真实本机对话仍待验收。
+
+- Agent HTTP 配置隔离：显式 `persist:false` 时，新授权浏览器来源仅存于服务内存，不调用全局配置保存；常规持久化服务仍保存新来源，已有来源不重复保存。原主线复现隔离回归失败，修复后 172 项 Agent 行为测试通过；测试中的配置保存函数为记录调用的替身，不读取或输出用户凭据。需在本机配套 Agent 更新后核验实际服务启动和正常配对。
+
+- 本地 Skill 表单：修复创建后再编辑时标识、说明等字段未回填，以及编辑后空白创建残留旧内容。隔离浏览器连接实际临时工作区 HTTP 服务，核对创建、编辑回填与磁盘保存、再次空白创建清空和删除；原生模型/历史与目录发现使用替身，不启动 Codex turn 或真实生成。回归已注册默认浏览器检查，需核验用户实际 Agent 环境。
+
+- 提示词 manifest 压缩响应修复：采集前基线检查及部署后核对均启用 curl 标准解码，现有超时和重试边界不变。隔离 gzip/deflate HTTP 响应分别验证两处实际 shell 代码，旧实现已复现失败；流水线发布/项目授权关联回归通过。云端失败运行 [38587995040](https://github.com/kobingogo/dianran/actions/runs/38587995040) 在项目鉴权通过后遇到二进制 JSON 解析失败；最新运行 [38661240318](https://github.com/kobingogo/dianran/actions/runs/38661240318) 已发布 45 条，X 贡献 4 条但仍部分失败。补丁尚待合并后的云端验证，未修改凭据或采集参数。
+
+- Vercel 项目级 Token 发布修复：采集前直接检查 dianran-prompts 项目访问权限，写入临时项目绑定并去掉资源部署的 --scope，保留项目身份和线上快照/封面核对。手动任务可选择 verify_deployment，仅重发 codex/prompt-published 当前快照，不采集、不修改资源基线。4 项本地测试通过，覆盖错误项目/无权限/缺失身份拒绝绑定、凭据不输出和发布脚本流程；workflow YAML 解析通过。真实项目级 Token 已在云端运行 [38419217468](https://github.com/kobingogo/dianran/actions/runs/38419217468) 验证成功，任务耗时 51 秒；已重发当前已发布提交 4e0f411b8fe29d28b646e22be86e29829cf375d9，生产别名、主站 manifest 版本和 WebP 封面核对通过。未新增提示词、未更新资源基线、未构建；修复分支不包含其他工作区改动，日常完整采集待合并 main 后验收。
+
+- PR #5 周更整理：从已发布资源基线保留 58 条新增，跳过 74 条已有身份／提示词，生成独立资源草稿 PR #3；原下架需求保留在资源审阅清单，需根据最新上游重核。未发布或合并，不能以旧整包覆盖后续补采。
+
+- X 回执与安全诊断：异常退出或超时后已有部分数据仍记录查询失败，并保留可用候选；超时后正常退出也标中断，回执区分超时、信号与退出码。底层仅输出去重的固定分类，不输出账户、Cookie、请求或响应详情。新增行为回归覆盖实际子进程、完整验证/采集入口及日志隐私；搜索/回复 20/5 分钟、查询范围、重试和发布规则不变。新诊断仍待云端运行，不能据此断言历史超时属于限流或 Cookie 失效。
+
+- 提示词云端流水线：代码与资源仓库分离，台北每日 06:30／18:30 定时及手动触发已准备；按用户确认取消新增数量门槛、内容过滤和 Civitai 排序校验。GitHub CI 已验证 6 项流水线回归及资源完整性，浏览器覆盖保存故障、刷新不重提、视频恢复、当前创作过程投递与结果未知确认；最终状态见 PR #4 checks；尚待授权合入默认分支后进行真实采集、资源 PR、部署及站点快照验收。
+
+- 提示词手动采集发布：内置来源按钮通过维护者本地 Agent 启动现有完整采集发布流水线；显示进度、各源结果，区分已发布、无变化、失败和未知。发布回执与当前站点快照一致后刷新缓存；自定义来源仍直拉 JSON，自动刷新不触发发布。独立 HTTP 行为测试覆盖任务身份去重、待人工/失败、脏仓库保护及重启未知状态；未构建、未部署前端或 Agent、未执行真实采集发布。需使用配置 `DIANRAN_PROMPT_PIPELINE_ROOT` 的干净独立仓库验收真实平台登录、采集发布、断线恢复、当前站点代理和新版 Agent 配套连接。见 [流水线与本机配置](../../../../brand/pipeline/README.md)。
+
+- 工作流恢复：候选槽位的未知错误优先用于节点、任务中心和工作流汇总，显示「中断待核实」并停止下游；明确失败后经现有新请求确认沿用原失败槽位，核对后仅执行未开始的下游。新增状态回归在 main 原实现失败，修复后 17 项关联行为测试及两个隔离浏览器流程通过；未知/刷新/核对始终两次原调用，明确失败后取消不调用，确认重生与继续下游总共四次调用，同一节点和原上游保留。默认浏览器检查已注册这两项。替身渠道无真实费用，不代表实际模型已验收；超时、请求参数、重试与计费确认规则未改变。
+
+[创作输入与讨论设计](../../../CREATION-CONVERSATION-DESIGN.md)首轮已落地本地工作区，尚未发布或通过用户验收。此前统一 Agent 入口条目作为上一轮检查记录保留，其中额外 Agent tab 和两处编辑同一草稿的设计已被本轮取代。
+
+- 统一输入：图片/视频主输入只保留媒体类型，原输入框提供「先讨论 / 直接生成」、`/ Skill` 与素材引用；对话模型单独选择，可以与生成模型来自不同渠道。指令型 Skill 作为方法参考，不执行脚本或 MCP；实际工具协作仍通过本机工具面板及现有审批执行。
+
+- 讨论、方案和作品：复用云端文本请求并新增本机创作讨论端点，浏览器保存多轮上下文；主区域按创作会话串联消息、版本方案、具体任务与原位作品，执行后修改生成新版本。方案确认前不发媒体请求；模型/渠道/引用/参数改变需重新审阅。新建保留旧记录，历史预览不改草稿，继续历史为显式动作；刷新不自动重提。图片意图与任务保存后移走同一份输入，迟到回执不清空新草稿。
+
+- 画布：新建生成输入靠近选定节点，进入讨论时同一草稿接续到右侧，收起回到画布；固定目标与引用，提供「引用所选节点」。恢复讨论保留原目标，目标删除不给新选区代替。本机初次生成可填充原空节点，修改在原作品旁新建并关联；API 延用配置与结果图，修改保留原作。
+
+- 本轮验证：独立浏览器确认图片用途切换保留草稿、视频讨论及原输入 Skill 菜单、画布右侧接续/收起/新建、历史预览保留当前输入、选区改变仍固定原目标、刷新恢复原对象且只有一份输入、缺少对话配置时反馈与草稿保留；隔离源码 HTTP 服务确认健康检查 200、未认证讨论请求 401、认证后的无效讨论 400，未触发模型调用。未执行语法检查、类型检查或构建，未部署、未新增真实付费生成。云端不同渠道、真实本机多轮回复/方案/产物、重复确认、保存失败、真实任务刷新恢复、多素材固定引用、深浅主题与软键盘仍需实机验收。确认 17371 服务空闲后已以本轮源码重启并保留配置，健康与新增端点校验通过；用户网页重连和真实讨论仍待确认。见[实施与验收说明](../../../CREATION-CONVERSATION-IMPLEMENTATION.md)。
+
+- 统一 Agent 创作入口：主复合输入框支持 Agent 模式、`/` Skill 与 `@` 画布引用，和可收起的协作详情共用草稿/附件/模型/权限/会话；图片、视频主区域承载对话、审批及按会话过滤的图片作品。非画布会话复用持久结果画布，目标删除、保存失败及会话切换拒绝提交；详细 MCP 状态默认折叠。9 项行为回归及独立浏览器草稿/跨页/刷新/快捷入口走查通过，未构建/发布/付费调用；真实 Skill、审批、产物回填、深色与软键盘待验收。见 [统一入口与验收](../../../AGENT-CREATION-ENTRY.md)。
+
+- Skill 安装首轮：技能页新增 GitHub 安装及「资源与版本」。支持选择仓库内 Skill、固定提交与完整文件审阅，确认后安装到点染工作空间；保留脚本、二进制资源和仓库许可证，更新显示增改删并完整备份/回退。文本编辑、空白资源、二进制上传及删除均按整目录修订检查，同名新资源拒绝覆盖，入口与来源记录受保护。检查声明的命令与环境变量，缺项阻止专属技能提交；未声明依赖、MCP 与实际运行仍待验证。沿用结构化 `/` 调用和跨页广播，安装不会执行脚本或自动安装依赖。23 项后端与真实隔离 HTTP 行为回归通过，覆盖多技能选择、原文件/许可证、更新回退、历史完整性、资源并发冲突、路径保护及依赖检查；未构建/类型检查、未发布/部署、未安装真实开源技能或新增付费调用。待验证真实 GitHub 链接、文件预览、上传/删除、远端更新/本地冲突/回退、重启与断开、`/` 使用及画布交付。见 [Skill 安装说明](../../../SKILL-INSTALLATION.md)。
+
+- 两类插件开发：Codex MCP 可查询本机模型与已启用处理动作、创建注册类型节点并用 canvas_preview_workflow 固定当前画布修订打开审阅，不自动提交。画布图片工具栏「素材处理」可创建已连接原图的去背景、AI 放大 2 倍、像素裁剪、完整留白/填满裁切、PNG/JPEG/WebP 转换和原文件 ZIP 节点。五个图片处理动作接入工作流、冻结授权源码/版本/参数，原图不覆盖；本地任务和原始输出回执持久保存，恢复只保存已有结果，下游等待原文件保存成功。首次模型下载、WASM/浏览器能力、设备内存、透明边缘质量、大图与批量、ZIP 原件、Codex→处理→API 视频、刷新中断及多页冲突仍待实机验证。输出回执无法落盘时如实报保存失败，不标记成功。83 项行为回归通过（网页 39 项、Agent 44 项），覆盖冻结依赖、版本变化、透明通道、保存失败、恢复不重复执行与固定目标审阅；未运行构建或类型检查，未进行真实模型推理或新增付费生成。尚未发布/部署本轮前端、Agent 和 Codex 插件版本；安装的旧版没有新增审阅工具。使用与 SDK 契约见 [插件 SDK](../../../../plugins/canvas/sdk/README.md)。
+
+- 工作流本机 Codex 生图：打开画布「工作流」，为图片配置选择本机 Codex 模型，再预览选定节点及下游并确认执行。每个图片步骤提交一个原生任务，数量、比例等要求由提示词表达；进度节点原位回填原图，实际保存成功后才传入下游 API 视频或其他步骤。运行保留原请求身份，断线、切画布、响应未知和保存失败停止下游；在原节点查询/重新保存后，使用「核对已有结果并继续」，不重提原生任务或自动改用 API。模板及 ZIP 保留来源/模型，不包含 Token 或上次的未验证能力授权；Agent 的 dianran-plan 可声明 source: codex、image 模式与明确模型。23 项模拟行为回归通过，覆盖工作流、原生提交/断线、产物导入和画布草稿；未构建、未部署、未实际付费生图。待用户验证真实 Codex→视频、连续两个本机步骤、参考编辑、浏览器刷新/切页、保存冲突和模板导入流程。
+
+- 多页面冲突保护：每个页面保持直接编辑，不恢复只读或编辑权交接。画布、素材、独立画布草稿、模板、业务任务、本机回执及生成历史在 IndexedDB 同一事务内核对读取基线与最新数据；独立记录合并，同一记录编辑/删除冲突停止覆盖并保存双方快照。冲突提示可下载本页数据；画布/素材可另存冲突副本后刷新，删除冲突保留另一页面内容。新媒体先持久登记保护，业务保存成功后原子解除；其他创作页面打开时暂停自动清理，单页核对引用和删除共用事务。不支持 Web Locks 时保留文件、不执行自动清理。待验证两个真实标签页的同/不同画布编辑、同素材删除与修改、草稿冲突、任务并行、冲突副本、文件保存失败和关闭页面后的清理。详见 [多页面冲突保护](../../../MULTI-PAGE-CONFLICT-PROTECTION.md)。
+
+- 跨页面创作交互首轮已落地：本机/API 图片、视频和画布登记业务任务；原位卡与节点按具体身份显示状态，任务中心区分生成和保存，返回作品时带批次/节点身份。结束列表清除不删作品，未知与保存失败任务保留；任务记录使用 localforage，不静默裁剪业务历史。
+
+- 草稿与历史：本机/视频回执持久保存后移走原草稿，同步图片与画布图片在结果确认并保存后处理；迟到回执不清空修改过的新草稿，画布配置输入保持。查看历史不改输入与模型，「复用条件」替换已有草稿前确认。图片历史可按 API/本机筛选，本机回执缺失意图也计入异常记录。
+
+- 恢复与保存：视频分别沿原 ID 查询，各自更新原卡；停止等待不称为取消远端任务。图片/视频生成成功后保存失败保留预览，独立重试保存；画布选中失败保存节点可重试文件保存，不创建生成请求。作品默认停留当前页面，自动交付画布不再强制跳转；Agent 生图面板改为工作台入口，连接教程折叠。
+
+- 本轮验证：16 项任务生命周期/草稿/本机落图/视频保存行为回归通过；独立本地浏览器确认图片历史筛选、视频页与空白画布加载。未执行构建或类型检查，未部署本轮改动，未新增付费真实生成；真实渠道输出、多任务恢复、存储故障与手机软键盘仍待实机验收。详见 [实施说明与验收矩阵](../../../CREATION-INTERACTION-IMPLEMENTATION.md)、[统一规则](../../../CREATION-INTERACTION-RULES.md)；不将原型或页面加载记为全链路通过。
+
+- 本机连接提示：区分发现服务但缺少 Token 与无法发现服务；已有 Token 时直接连接，模型菜单明确区分生成方式和连接设置。已在用户 Chrome 编辑页面补齐 Token，确认已连接并读取、选择本机模型；提示修正已部署。Codex 内置浏览器仍停留在连接中，首次配对与本地网络权限仍需验收。
+
+- 图片本机生图：左上角独立来源切换已移除，在复合输入框模型菜单选择本机 Codex 或 API 模型；共用提示词、参考图、素材引用和「落笔生成」，本机模式隐藏 API 参数、报价和 Key 引导。检查桌面与手机模型菜单、连接与刷新、本机模型明确选择、来源切换与草稿保留；没有活动画布时先保存新结果画布再提交原生任务，结果区查询任务、保存原图并打开原画布。未验证能力提交仍需额度确认，提交失败或回执未知不自动回退 API 或重复生成。正式站点已完成本机 gpt-5.6-sol 文生图、原画布保存及刷新恢复，Agent 0.7.1 已发布并安装本地 Codex 插件；手机、参考编辑、独立 ZIP 恢复及用户实际浏览器仍待验收。
+
+- 多页面直接操作：已停用应用启动时的排他编辑锁和只读浏览入口，新打开的同源标签页读取本地数据后可直接编辑、生成，无需交接编辑权；读取失败保留错误提示与重试入口。请打开两个本地页面验收生图、视频、画布和底部输入区；未运行构建。
+
+逐项手动验收按 [T01–T17 手册](../../../T01-T17-MANUAL-ACCEPTANCE.md) 执行，分别记录正常操作、故障与真实环境结果；未测项不视为通过。
+
+- 产品走查优先项：无可用渠道/模型时首页和首次提交引导到正确配置步骤；空画布提供可关闭的添加节点/工作流入口；手机 Composer 参数控件换行显示，并说明本轮张数与画布默认张数的区别；首页说明浏览器本地保存及分别备份画布和素材；结束的任务可返回原工作台。任务来源只记录站内路径；网络观测记录不持久化，显式业务任务刷新后恢复。桌面/手机布局、实际配置流程和用户手动验收待确认。
+
+- AG01–AG10 本轮实现及隔离验证已完成，含真实本机 Codex 一张生图与一次参考编辑产物登记；Codex turn 随后返回额度上限错误。正式图片工作台的实际连接提交、原项目保存和刷新恢复已验证；仍需在空浏览器验证 ZIP；外部 MCP 要用用户自己的安装流程核对授权登记。Grok Build 和原生视频未接入。见 [AG 交付汇总](../../../MULTI-AGENT-DELIVERY.md)、[媒体验收](../../../AG07-AG10-VALIDATION.md) 和 [T12 矩阵](../../../T12-ACCEPTANCE-MATRIX.md)。
+
+- T06 插件与脚本授权：安装/更新先审阅来源、完整源码与 SHA-256，取消不执行；启动使用授权源码快照。本地插件发现不执行；模型辅助 HTTP 默认 Key 限于绑定渠道路径，重定向不自动跟随。独立行为回归与浏览器取消零执行检查通过，真实插件与脚本仍待验收，见 [T06/T16 记录](../../../T06-T16-VALIDATION.md)。
+- T07/T08 请求与就绪状态：未提交、渠道拒绝与结果未知明确区分；图片/视频先保存意图，视频 ID 保存失败保留可抢救身份并阻止提前查询；未知请求刷新不自动重提，新请求提示可能再计费。首页和 Composer 按当前能力、渠道、Key、模型区分配置/读取模型/生成成功，默认占位模型不冒充可调用；真实渠道、部分槽位与错误 Key 待验收，见 [T07/T08 记录](../../../T07-T08-VALIDATION.md)。
+- T09 存储说明：首页、设置与使用说明明确浏览器来源隔离、Key/素材调用路径和项目 ZIP 范围；设置可查询/主动申请持久化，被拒绝或不支持仍可创作和备份。Docker 补共享代理策略构建输入，尚未构建/部署验收，见 [T09/T11/T14 记录](../../../T09-T11-T14-VALIDATION.md)。
+- T10 WebDAV：同步先可靠保存并备份媒体，使用强 ETag 条件写入；同项目及删除/编辑冲突保留双方，不按时钟丢弃作品。分域失败报告已完成部分，恢复重建冲突媒体身份并刷新当前页面；缺条件写入明确停止。13 项隔离/实际 HTTP 回归通过，真实多设备与服务仍待验收，见 [T10 记录](../../../T10-VALIDATION.md)。
+- T11/T13 模板创作：五个首页模板均可填写、创建独立画布并预览工作流；四模式执行、冻结上游输入、预设、条件报价/耗时、只读比较和携带原素材的模板 ZIP 已在当前工作区整合。21 项模块检查通过，隔离浏览器检查剩余模板填写/预览、预设、交付、工作流与视频恢复；另有部分文本失败→人工确认重试的浏览器脚本仍需修正并复测，模块回归覆盖了计划与局部失败保护。真实渠道输出一致性、完整四模式交互、手机体验和用户验收待完成；未合并 PR、未部署。见 [T11 记录](../../../T11-INTEGRATION-VALIDATION.md)、[主流程验收记录](../../../MAJOR-FLOW-ACCEPTANCE.md)与 [T13 记录](../../../T13-VALIDATION.md)。
+- Cloudflare 本地准备：离线提示词快照工具、Worker 路由与静态资源配置模板、站点产物复制工具已落地，6 项行为检查和当前提示词包 dry-run 通过；真实 R2 上传/绑定、边缘缓存、CI、域名、HTTPS、统计迁移及部署回退仍未验收。见 [本地准备说明](../../../cloudflare/README.md)。
+- T14 自愿诊断工具：默认关闭，仅本页面会话记录固定操作类别/时间/耗时，不记录内容、Key、模型/渠道或项目身份，不上传，可停止、导出或删除。工具检查通过，真实用户研究尚未开展，不将模拟操作作为用户反馈。
+- T15 ZIP 响应优化：模拟 40/200 节点工程形成性能基线，ZIP 打包移到 Worker。同一约 60 MB 快照对比，旧算法出现 204–229 ms 主线程长任务，Worker 两轮未观测到导出长任务，67 文件解包与摘要校验通过；不承诺总耗时更快。真实设备、生产打包与 CSP 仍待测，见 [T15 基线](../../../T15-PERFORMANCE-BASELINE.md)。
+- T16 提示词统计：稳定批次身份与明确接收回执，响应丢失保留批次，服务端排他写入与聚合去重；沿用原频率和边界，静态或旧 API 明确停用。不完整复制/应用信号不代表作品质量。线上成对发布及真实 Blob 去重仍待验收，内容入库规则以本轮流水线说明为准，见 [T06/T16 记录](../../../T06-T16-VALIDATION.md)。
+
+- T05 本地代理授权：代理仅监听本机，启动时显式授权网页来源和服务目标，导入本机配对文件后才可转发；配对凭据独立保存，不进入目标 URL、上游请求、日志或普通配置分享。预检不授予权限，重定向明确拒绝，浏览器本地访问失败提供中文恢复指引。12 项针对性行为检查与独立 Chromium 模拟模型列表、Axios、SSE、WebDAV、配置导出和拒绝恢复检查通过；真实渠道、正式 HTTPS 站点权限及目标浏览器仍待用户验收。代理 0.2.0 包已准备，npm 与前端必须成对发布，见 [T05 验收记录](../../../T05-PROXY-VALIDATION.md)。
+
+
+- T03 项目备份：导出包升级 v4，缺件、读取失败及未打包媒体不再误报完整备份；卡片、批量和编辑页列出问题并可主动导出抢救包，保存失败也有抢救出口。导入校验整包大小、摘要、身份与引用，生成新文件身份，不覆盖已有媒体；抢救恢复需确认，项目保存失败保留内存内容与文件。新增 8 项真实 ZIP/隔离存储回归通过。请在独立浏览器存储验证打开、下载、参数与关系，以及缺件/旧包拒绝、抢救确认与失败重试；不代表站点全量备份，详见 [作品保全验收记录](../../../WORK-PRESERVATION-VALIDATION.md)。
+
+- T02 素材保存：素材列表只使用 IndexedDB，新增/修改/删除/导入、Agent 添加与 WebDAV 替换等待实际写入；失败保留内存列表，「我的素材」及画布素材侧栏可重试或导出带缺失清单的抢救包。测试写入失败不报成功、重试后刷新读到最新值、读取失败/未知版本不覆盖原数据、失败删除不清理文件；检查批量失败反馈、表单不重复添加及离开提醒。新增 8 项隔离回归通过，浏览器与真实 Agent/WebDAV 待验收。项目备份见 T03，跨页保护仍待 T04，详见 [作品保全验收记录](../../../WORK-PRESERVATION-VALIDATION.md)。
+
+- T01 作品保全：图片与媒体清理共用磁盘素材、画布、草稿、模板和生成历史引用，读取失败停止清理，新上传/导入文件在本页会话内保留。验证视频只留在历史中时，删除无关素材并刷新仍可播放、下载；草稿/模板/运行快照引用不丢失；读取故障不删除原文件；真正无引用的旧文件仍能清理。11 项隔离回归已通过，浏览器场景待验收。素材保存回执和项目备份见 T02/T03，跨页竞争仍待 T04，详见 [作品保全验收记录](../../../WORK-PRESERVATION-VALIDATION.md)。
+
+- 早晚提示词更新（`brand/pipeline/run-twicedaily.sh`）：没有新增条目、精选名单和封面变化时不部署，`manifest.json` 的 `generatedAt` 保持不变。符合当前时间、互动、媒体、提示词与去重条件的新增直接入库，不再受内容词或每轮 60 条门槛阻止发布；每周下架仍通过独立 PR 审阅。正常发布后，https://dianran.vercel.app/prompt-sources/manifest.json 的 `generatedAt` 应与该次提交一致，任一封面返回 `image/webp`。同一天同一档重跑应更新原来的 PR。三个抓取源都失败时不发布。
+
+- 线上入口是 https://dianran.vercel.app 。打开 `/prompt-sources/manifest.json` 应返回 JSON，封面从同域 `/prompt-sources/covers/` 加载。更新提示词后刷新，不必等整站重新构建；`dianran-next.vercel.app` 不再作为入口。
+
+- 提示词快照 `prompts-2026-10-07`：YouMind GPT Image 2、YouMind Nano Banana Pro、Civitai 热门有新增条目，X 热门条数不变。刷新后应看到新封面；点染精选轮换 6 条，手作「水墨远山」退出精选并进入归档。本轮已取消内容词过滤，不再以标题含「换脸」作为排除标准。
+
+- PR 整合修复：复制生成中的图片/视频、创建组副本后，副本不应继续转圈或查询原视频任务，原节点不受影响。Banana Prompt Quicker 的「拍照解题」「汽车发动机工作原理3D剖面图」「创意丝绸宇宙」「奇幻水下场景冰棒」具有独立 ID；刷新旧缓存后收藏、详情和使用统计应定位正确条目。
+
+The current release needs manual verification in these areas:
+
+- Phase6 P0 统一 Composer：首页、桌面与手机共用生图/视频输入；模型、比例、画质/清晰度、张数/时长和更多分别打开对应弹层，手机为底部面板。验证上传、粘贴、素材 `@` 引用、排序与移除，独立模式草稿刷新后恢复，Ctrl/Cmd+Enter 提交与中文输入法不误提交。
+- 草稿交接与请求快照：首页提交携带身份、附件及能力解析后的参数，工作台只消费一次；返回或刷新不得重复生成。生成中修改草稿不影响本轮结果及「本轮参数」。确认 N 张图对应 N 次请求，视频仅一次创建任务；默认显示「费用由所选渠道计费」，无固定金额、费用倍率或伪精确耗时。
+- 能力参数：切模型保留合法值，非法值吸附并提示；Gemini 3 高清发 2K，显式 1K/2K/4K 覆盖画质，覆盖所有开放比例（含 1:8）。视频 Veo 4/6/8、Sora 4/8/12、Relay 5/6/8/10，均无 4K；Sora 1080p 档注明真实像素，单图用 input_reference，不发送 mode / first_frame / last_frame。
+- 结果闭环：图片可作参考、转视频；视频可提取当前帧作参考。送入画布支持选择已有或新建画布，默认仅结果节点及本轮提示词/实际参数 metadata，不创建输入/配置/关系；「在画布中创作」只选择落点，提交后创建项目、结果成功后送入。删除历史或素材后，仍被画布或 Composer 引用的文件应保留。
+- 当前边界：SiliconFlow 多图编辑、Sora 尾帧和首尾帧模式的多余附件在提交前明确拦截；既有视频 7 张收集上限保留。真实渠道计费/模型产出与手机原生软键盘仍需人工验收；自动化使用模拟响应，未产生真实付费调用。完整过程投递与工作流 MVP 见下面新增验收项，设计来源见 [phase6 方案](../../../phase6/INTERACTION-PLAN.md)。
+
+- 保存与读取可靠性：顶栏区分正在保存、已保存到本机和失败；IndexedDB 写入失败保留当前内存与最新待保存快照，可重试保存或导出 ZIP。读失败不覆盖原数据并可重试读取，画布业务数据不降级到 localStorage；关闭有未落盘修改的页面会提示。验证正常保存、配额失败、备份、恢复后重试与刷新。
+- 快照重试与任务恢复：图片/视频工作台重试沿用原始提交；画布重试优先使用结果本身的输入快照。视频 ID 先持久化再查询，网络中断保留 ID 并使用 GET 恢复，渠道地址变更阻止向错误地址查询。切换画布或离开时终止本地请求；远端任务是否取消仍以渠道为准。
+- 完整过程投递：结果「送入画布」弹窗可勾选「连同创作过程送入画布」，保留本轮参考素材、配置、结果及输入/生成关系。重复投递不重复建图，仅结果投递可升级为完整过程；缺少原快照或文件时阻止完整投递。默认仅结果仍保留，旧作品不覆盖。
+- 工作流 MVP：画布顶栏「工作流」预览选定配置或及其下游的步骤、依赖、模型、实际参数和逻辑生成请求数，确认后沿用原生成路径；支持生图/视频与图片、视频、文本资源，不支持文本/音频生成、组和自定义脚本。环、缺失输入和不支持的节点阻止执行；多图步骤必须全部成功，下游使用主图。修改配置不自动调用，原配置和作品保留。
+- 工作流运行与模板：每步调用前保存运行身份，成功步骤不重提；中断后可在原结果重试或取状态，再「核对已有结果并继续」剩余步骤。模板保存在本机，展开为独立节点、参数与连线；无 Key、临时任务和 blob URL。模板引用的文件参与清理保留，缺失文件需恢复后再执行。
+- Agent 多步骤规划：完整的 `dianran-plan` 回复显示「审阅创作计划」，复用工作流预览与确认；审阅不修改画布或调用模型。计划只接收白名单字段，步骤结果保留原 threadId/turnId/itemId。Agent 指引已更新；真实服务生成计划、权限模式与切会话仍需用户验收。
+- 可复现检查：新增 GitHub Actions，前端类型/测试/构建、Agent 测试、提示词身份和本地资源检查，以及独立浏览器模拟验收；周更流水线在提交前校验 9 库 1424 条记录。运行方法与边界见 [可靠性与工作流验收记录](../../../WORKFLOW-RELIABILITY-VALIDATION.md)。
+
+- Phase6 P1 画布 Composer：底部停靠输入复用首页规则，操作对象显示新建、继续编辑或编辑配置；切节点与生图/视频模式，提示词、附件、参数和引用草稿应分别保留，刷新后恢复。浏览选中不会自动引用，只有「用作参考」或继续编辑/转视频加入本轮。
+- 自动建图与迭代：空白提交得到配置+结果，上传参考只在提交时得到素材+配置+结果；选中空图片/视频节点应原位填充。继续编辑和转视频创建分支，再生成使用原输入快照创建新版本；原结果保留，「本轮参数」和「定位来源配置」可追溯，修改上游仅显示输入已变化，不自动重新请求。
+- 引用与多图：`@[node:…]`、本轮引用条与配置输入连线一致；删除正文提及不应偷偷删除引用，引用条移除才退出本轮；历史连线未加入本轮时显式显示可用输入。整组/单图/副本/附件同资源去重，失效节点或缺失本地文件阻止提交。验证批次部分成功、单图重试、展开、切主图、比例与副本来源；保留原画布 15 张选择范围。
+- 视频任务恢复：查询中断与远端生成失败分开，保留已有任务 ID；「取任务状态」和刷新恢复不得再次创建任务。「停止等待」仅停止本地等待和查询，不声称取消远端任务。
+- Agent 最小对齐：打开侧栏时画布 Composer 卸载，仅保留一个可提交编辑器；会话草稿独立，带来源的结果按 threadId/turnId/itemId 定位原消息，消息可定位结果。协议及消息存储版本不变；真实本地 Agent 连接和服务商仍需人工复核，自动化使用模拟消息/请求，未付费调用。
+- 首屏优化：移除未使用的 ProConfigProvider，英语词包按需加载；复核首页、生图/视频、画布的浅/深色，以及切换英语和刷新后恢复语言，中文和水墨视觉保持现有全局主题。
+
+- Video size and default model: changing the image size must not change the video size, and the reverse must also hold. When no separate video size was saved, reuse the old size only if it is a legal video ratio and its short side is at most 1080; otherwise the video size defaults to 1280×720 and the stored image size stays unchanged. A new install should show "Not set · Configure" on the video page and canvas video settings, linking to settings. A saved video model must stay as stored. New standard/HD quality values affect only the outgoing request; stored values such as auto and high must not be rewritten.
+- Canvas image previews: canvas image nodes, the left element list, the node reference bar, my-assets cards, the asset picker, image workbench result cards and history thumbnails, and the image/video workbench reference strips all render from a preview capped at a 768px long edge, so image-heavy views no longer decode the originals. Previews live locally only: canvas data, asset data, generation history, exported zips, and WebDAV sync must never contain preview content, and previews should be cleaned up when an image is deleted or no longer used. Opening the full-size image, editing, downloading, exporting, and generation references must keep using the original; an image that is already at or under 768px, exists only as a remote URL, or uses a custom cover should fall back to the original.
+- Canvas drag and connection rendering performance: Dragging a single node, a multi-selection, or a whole group should stay responsive, and the drop position after releasing should match the dragged preview. Group highlighting should appear and disappear at the right moment when dragging nodes over a group, releasing should add them to the group, and dragging them out should remove them; dragging a group node itself should not highlight any group. When zoomed or panned so only part of the canvas is visible, every connection crossing the viewport should still render (including ones whose endpoints are both off-screen), connection click selection and the context menu should still work, and the dashed preview while creating a connection should follow the cursor as before.
+- 本地代理：配置页显示当前网页来源和渠道/服务授权命令，额外下载或 WebDAV 地址需显式加入目标。旧开放代理不能直接连接新版前端；运行配套版本并导入配对文件后测试。关闭代理恢复直连，data/blob 地址保持原行为；上游重定向当前拒绝，含 CDN 跳转的真实下载需单独验收。
+- Image and video size settings: Image settings should split resolution (`1k` / `2k` / `4k` / auto) from aspect ratio (`1:1`, `2:3`, `3:2`, `4:3`, `3:4`, `16:9`, `9:16`, `21:9`, `9:21`, auto) and fill W/H from that pair. Video settings should keep `480p` / `720p` / `1080p` (plus a custom `p` value) and `1:1` / `3:4` / `4:3` / `16:9` / `9:16` / `21:9` / auto, then fill W/H from that pair. Duration should be a 4–30 second slider with the current value on the right; auto ratio should disable W/H.
+- Built-in video requests: without a custom call script, OpenAI-format channels should send `mode`, `first_frame`/`last_frame` or `image[]`, `generate_audio`, `watermark`, and reference videos/audio like the insertable template, and must not use `input_reference[]`. Gemini-format channels should use `predictLongRunning` with `image`/`lastFrame` or `referenceImages`, and must not report that video is unsupported. Refreshing the page should continue polling a Gemini task.
+- Video generation mode: Video settings should offer First & last frame and General reference. One image is sent as the first frame, two images as first and last frames, and more than two images as general references even if first-and-last-frame mode is selected. Built-in requests and request scripts should use `frames` or `reference`.
+- Gemini image generation: Gemini-format channels and the Gemini image call-script template should send `generationConfig.responseModalities: ["TEXT", "IMAGE"]` with `imageConfig.aspectRatio` / `imageConfig.imageSize`, and must not send `responseFormat`.
+- Video request scripts: opening Call Script for a Video model should open a full-screen stepped editor. The left panel should follow Read the rules → Let another AI write it → Available variables, and list `videos` (File[]) and `audios` (File[]). Copy script brief should include the capability, variables, return requirements, and writing rules. Inserted templates should be async functions whose parameter lists unpack `params` (image templates must include `quality`, `size`, `count`, and `background`). The OpenAI video template should use FormData with `mode`, duration, size, resolution, audio, watermark, and reference images/videos/audios; `mode=frames` should send `first_frame` / `last_frame`, and `mode=reference` should send `image[]`, then poll and download `/content`. After pasting a script from another AI and saving, generating from the canvas with connected reference videos or audio should pass those files into the script.
+- URL credential import: opening the app with a new valid `baseUrl` and `apiKey` should append a provider without changing existing providers; importing the same Base URL again, including trailing-slash or `/v1` variants, should update only that provider and remain idempotent; an API key without a Base URL or an invalid Base URL should leave all settings unchanged.
+- Documentation navigation and page contents: at phone width, opening the documentation sidebar should show the current section and its description at the top. Expanding it should allow switching among Overview, Canvas Guide, Development, Progress, Business, and Support; the selected section and page list should update together while the desktop top tabs remain unchanged. At widths of 960px and above, a table of contents with hierarchical track lines should appear to the right of the article, support heading navigation, and highlight the current heading while scrolling; narrower layouts should keep the top collapsible contents control.
+- Canvas Agent generation-flow references: when a generation prompt contains only `@[node:...]` references already passed through `referenceNodeIds`, the existing text, image, video, audio, or group nodes should connect directly to the generated config node without creating a duplicate prompt text node; prompts containing ordinary prose should continue creating their own prompt text node.
+- Video frame capture: right-clicking a video node with content should show Capture first frame, Capture last frame, and Capture current frame. Each action should create and select a proportional image node to the right, connect the video to the image, use the player's visible position for the current frame, and leave the original playback position unchanged.
+- Text nodes: the Generate button should no longer appear in the upper-right corner of the node body, and text should use the full content area. The image-generation action in the hover toolbar should continue to create a generation configuration.
+- Multi-text generation: requesting more than one result should create one text-result node and one source connection. Its upper-right count should expand all successful alternatives like a multi-image node; setting an alternative as primary should immediately replace the body while retaining the previous primary, and edits to any primary text should remain when switching away and back.
+- Group references: group nodes should use a transparent, lightweight border and title treatment and expose a source handle on the right. Connecting a group to a generation node should include every populated image, video, audio, text, and reference-capable extension node inside it. Regular prompt mentions should list the group's resources, while the generation-config composer should allow selecting the whole group with one `@`; resources referenced both individually and through the group must be sent only once.
+- Group selected nodes: after selecting two or more nodes, a rounded dashed bound should wrap the whole selection, with Group above it. It wraps those nodes in a group without moving them, then selects the new group. Selecting a group should allow Ungroup from the hover toolbar, context menu, or `Ctrl/Cmd+Shift+G`. Nodes already in the same group should show Ungroup instead of grouping again. Dragging into a group, group references, and the left-panel tree should keep working.
+- Node reference bar: regular prompt panels, expanded editors, and generation-config inputs should show their current input nodes above the editor. Images and videos should use thumbnails with hover previews, while text, audio, and extension nodes show their matching type. A group connection should expand into every valid content node inside the group, and removing any expanded item should disconnect the whole group. The plus button should enter canvas selection for adding multiple valid references. Connected nodes, the target itself, children already referenced through a group, and unsupported nodes must not be selectable again; ESC or the top hint should return to the input, and new connections should immediately update the `@` list.
+- Multi-image transparency: when a multi-image node containing transparent PNG or WebP assets is expanded, transparent areas in both the primary and alternatives should reveal the canvas; switching primary images must not introduce a white or panel-colored background.
+- Canvas navigation: the canvas should open in Move mode by default, and the bottom toolbar should switch between Select and Move modes and reflect the active mode with its icon; Select should draw a clearly spaced dashed range whose dash length, gap, and stroke width remain visually constant at every zoom level, while Move should drag elements directly and pan only when dragging the blank background. Clicking blank canvas space in either mode should deselect the current node and close its top toolbar and lower prompt panel. Holding Control or Space should temporarily invert the active tool without changing the toolbar mode: Select becomes Move, and Move becomes range selection. After clicking any canvas-page button, pressing Space should only invert the tool and must not trigger that button again. Middle-button panning from any position and additive node selection with Shift/Cmd should continue to work, while Space remains available inside text inputs and editable content.
+- English routes without a locale prefix should load directly without a redirect loop; switching between English and Simplified Chinese should keep navigation, settings, titles, descriptions, Ant Design components, and persisted preferences in the selected language.
+- Global Dropdown, Menu, Select, Cascader, and TreeSelect popup backgrounds, hover states, and selected states in both light and dark themes.
+- Canvas node resize stability: importing an image should open its prompt panel, resizing it immediately from any corner should temporarily hide the panel, remain smooth without flashing or triggering a maximum update depth error, and restore the panel after release. Prompt scrolling, generated-prompt restoration, edit-prompt persistence after closing an existing image or text node panel, expanded prompt editing with live synchronization and `@` references, image editing, drag-and-drop references, and generation configuration should continue to work.
+- Text output count: both a text node's lower prompt panel and a generation configuration node in Text mode should expose an independent generation count from 1 to 15, default to one, and create that many text nodes. Changing the text count must not alter the image count, and switching a generation configuration node back to Image should continue to use the configured image count.
+- Node editing entry points: the image toolbar should default to icons without labels and no longer include Edit; the text toolbar should no longer include Edit or Edit text. Clicking an image, text, or video node without dragging should open its lower prompt panel directly, while image toolbar labels can still be enabled explicitly from the toolbar settings.
+- Canvas side panel: clicking an element row should smoothly center and select its node without zooming above 100%; image elements with content should still open the large preview without triggering canvas focus.
+- 画布左侧树形列表：组内节点应缩进显示在所属组下方，并带有清晰的层级连接线；组箭头可以收起和展开子节点，搜索或类型筛选时仍应保留匹配节点所属的组。
+- Multi-image canvas generation: starting N images should immediately create one image node with N expandable slots and one incoming connection; each empty slot should independently show generating or failure while requests are running, every slot with image content should always display that image, and the first successful image should appear as the primary image immediately. The collapsed state should use a compact stack with at most three closely spaced backplates and a clearly legible count control; only clicking the count control should expand or collapse the slots upward and to the right, while double-clicking the image should open its large preview. Every completed secondary image should keep a clearly legible primary-image action visible in both themes. Expanded groups should remain expanded when clicking elsewhere, dragging, resizing, or previewing, and multiple groups may remain expanded together.
+- Multi-image primary selection: choosing another primary image should preserve the node center and current maximum edge while adapting to the new image ratio; free-resize nodes should keep their exact dimensions, and the viewport zoom indicator must not change.
+- Failed multi-image slots: every failed slot, including the current primary slot, should expose retry and delete actions. Retry should update only that slot without replacing an existing successful primary image; delete should remove only that failed slot and update the displayed count.
+- Multi-image resize: resizing the root node while child images are expanded should keep the group expanded and resize normally without triggering nested React updates or an application error.
+- Multi-image alternatives: expanded images should use up to four columns so larger batches stay compact; double-clicking any completed child image should preview that exact image without changing the primary image. Every completed image, including the primary image, should provide an independent download action, while alternatives should also keep clearly legible create-copy and set-primary actions in both themes. Create-copy should add an independent image node to the right of the group, select it, and leave the original image group unchanged.
+- Canvas Agent startup, MCP status, model and permission controls, approvals, version reporting, diagnostics, streaming responses, history consistency, multi-tab isolation, and local Skill management.
+- Canvas Agent credential redaction: Codex and Claude CLI stderr containing Bearer tokens, `sk-` keys, explicit API key/token/authorization assignments, ANSI formatting, or credentials split across output chunks should reach neither debug logs nor browser diagnostic events in plaintext; ordinary stderr text should remain intact.
+- Image API model parameters: `gpt-image-*` generation and edit requests should omit `response_format`, while `dall-e-*` requests should continue sending `response_format: "b64_json"`.
+- Image URL persistence: canvas and image-workbench generation should download each remote API result only once, validate it as a decodable image, and persist it in IndexedDB; `200` responses containing non-image data should fail, stopping canvas generation during download should not save or apply the result, CORS-blocked but displayable images should keep their original URL without an empty storage key, and plugin calls should still receive Data URLs whenever the remote image is readable.
+- Multi-reference image editing: OpenAI-format edits with more than one reference image should submit files as repeated `image[]` form fields; a single reference should continue using `image`. Newly created OpenAI image scripts should use the same field names. Gemini-format channels and already saved custom scripts are unchanged.
+- Agent header tabs in English and Chinese at different panel widths; labels should collapse to icons and counts before either edge is clipped.
+- Agent message layout, Markdown, code blocks, attachments, token statistics, progress timelines, command groups, and scroll-follow behavior.
+- Agent inline references: type `/` to select an enabled Skill or `@` to select a canvas asset at the caret; tokens should remain aligned with text, support keyboard navigation and hover previews, and preserve their positions after sending or refreshing.
+- Agent message metadata: image attachments, Skills, canvas references, and local previews should survive page refreshes and Agent restarts through exact `clientMessageId`, `threadId`, and `turnId` ownership; protocol upgrades must not reset the independent storage format, unknown or damaged storage must refuse writes without overwriting files, no records may be silently pruned by count or size, and deleting a thread should remove its metadata and preview assets without relying on browser IndexedDB or text matching.
+- Prompt Center layout, source synchronization, search, asset insertion, prompt detail dialogs, and compact split-layout prompt pickers in the image and video workbenches.
+- Workbench history image cleanup: after generating content in the image or video workbench, deleting an asset, canvas image node, canvas content, or canvas project must not remove thumbnails, results, or references from generation history; deleting a generation record should still remove its dedicated local files.
+- Prompt text labels: when a regular node or generation configuration is connected to several text nodes, every upstream text block appended to the prompt should start with its label such as `【Text 1】` or `【Text 2】`, numbered in connection order and matching both the `@` references in the prompt and the reference bar. A single text input should still be labeled, and image, video, and audio numbering must stay unchanged.
+- Local mask editing: the dialog footer should offer Reset, Export to canvas, and Generate now. Both actions require a painted area and an edit request; Export to canvas should only write the nodes and connections while prefilling the composed prompt in the result node's prompt panel for manual generation, and Generate now should start the request right after writing the nodes. After painting an area and entering an edit request, confirming should add a mask annotation node below the source image showing the original picture with a translucent blue overlay on the painted area that matches the color and opacity used while painting in the dialog, create the result node to the right, and connect both the source image and the mask annotation to it. The request should be sent as two ordinary reference images with a prompt that names them by index, without the `mask` API parameter, and it should also work for Gemini-format channels; only the marked area should change, and the result must not keep any blue overlay.
+- Settings import/export and WebDAV-related configuration.
+- WebDAV canvas deletion: deleting a previously synced canvas and syncing again should not restore it from WebDAV; canvases created on another device and not deleted should still appear after sync. Refreshing before the next sync should still keep the deletion. Asset and generation-history deletions are unchanged.
+- Local storage settings: the Settings page should provide a Local storage tab that reads only the `infinite-canvas` database and shows IndexedDB usage, total site usage, browser quota, quota percentage, and per-object-store record counts and content size; refreshing after local data changes should update the figures without blocking the rest of the page.
+- Asset image download: opening an image that still previews in My Assets and clicking Download image should save the file. Titles with Chinese characters, spaces, or brackets such as `【】` should remain the downloaded filename and must not need renaming. Images saved from the canvas in the same session should download as well.
+- Canvas video task resume: starting an OpenAI-style video generation should store the remote task ID on the video node. After a page refresh, a still-pending video should keep polling automatically; if polling stopped, **Get task status** should resume with that task ID until the video is ready, the task fails, or the status request errors. Task failure should then allow a normal retry that creates a new generation.
+
+The Chinese version contains the complete item-by-item acceptance checklist.
+
+## 图片分辨率尺寸表
+
+- 画布本机 Codex 生图：复合输入框的模型菜单可选择本机 Codex，使用当前画布草稿、附件及图片/文字节点参考；受理后清空未再编辑的本轮草稿，画布进度节点原位填回图片，任务中心定位该节点。重连查询原请求，查询/保存重试不新建生成；原生图片一次提交一个任务，数量和比例通过提示词表达，视频仍使用原 API 渠道。10 项针对性行为测试通过，未执行构建、未新增真实付费生图；待验证浏览器菜单、真实输出、切页/刷新和保存失败场景。
+
+选择分辨率和宽高比后，W/H 按下表填写，单位为像素。预设尺寸不受「16 倍数对齐」开关影响；该开关只控制手动输入尺寸时的对齐。最终生成尺寸以所选模型的实际输出为准。
+
+| 宽高比 | 1K | 2K | 4K |
+| --- | ---: | ---: | ---: |
+| **1:1** | **1024 × 1024** | **2048 × 2048** | **2880 × 2880** |
+| **2:3** | 1024 × 1536 | 1360 × 2048 | 2336 × 3520 |
+| **3:2** | 1536 × 1024 | 2048 × 1360 | 3520 × 2336 |
+| **4:3** | 1024 × 768 | 2048 × 1536 | 3312 × 2480 |
+| **3:4** | 768 × 1024 | 1536 × 2048 | 2480 × 3312 |
+| **16:9** | 1536 × 864 | 2048 × 1152 | **3840 × 2160** |
+| **9:16** | 864 × 1536 | 1152 × 2048 | **2160 × 3840** |
+| **21:9** | 2016 × 864 | 2688 × 1152 | **3840 × 1648** |
+| **9:21** | 864 × 2016 | 1152 × 2688 | **1648 × 3840** |
+
+待验收：
+
+- 在画布和图像工作台逐项切换 3 档分辨率与 9 种比例，W/H 应与表格一致，重新打开设置后仍选中正确档位；重点检查 1K 的 2:3、16:9、21:9 及对应竖图，以及 4K 的 1:1。
+- 所有 4K 预设提交时均不应触发本地总像素或最长边限制；生成和编辑请求、调用脚本应收到所选像素尺寸。
+- 分辨率为自动时保留比例选择，比例为自动时禁用 W/H；手动输入 W/H 后，对齐开关仍应按原有方式工作。
+- Gemini 在质量为自动时，应将表中尺寸识别为对应的 1K / 2K / 4K；显式选择质量时维持原有优先级。视频尺寸设置应保持原有行为。
+- Dianran phase 3 polish: all error toasts show friendly Chinese text with the raw provider error only in a collapsible "详情" and the console; prompt library covers load only from `/prompt-sources/covers/` (unbundled ones show a local placeholder); the canvas task center sits top-right without covering the side panel or bottom toolbar and shifts left when the Agent panel is open; SiliconFlow, OpenRouter and relays returning 404 on `/responses` fall back to `/chat/completions` (image generation uses `/images/generations` or chat image output per provider) — verify with real keys; the canvas Agent panel is closed by default and remembers the last choice; home, onboarding, settings and canvas have no horizontal overflow at 390px; the 5 home page templates open as new canvases.

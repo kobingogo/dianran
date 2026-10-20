@@ -1,0 +1,14 @@
+{
+    "name": "canvas-official-plugins",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "点染 Dianran 官方插件的集中构建(产物放进 web/public/plugin-market)",
+    "scripts": {
+        "build": "node build.mjs"
+    },
+    "devDependencies": {
+        "@infinite-canvas/plugin-sdk": "file:../sdk",
+        "esbuild": "^0.25.0"
+    }
+}

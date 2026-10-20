@@ -1,0 +1,13 @@
+{
+  "name": "dianran-local",
+  "version": 1,
+  "description": "Local marketplace for the Dianran (点染) ZCode plugin.",
+  "plugins": [
+    {
+      "name": "dianran",
+      "version": "0.2.0",
+      "description": "Use ZCode to read and operate the Dianran canvas through the local Canvas Agent MCP server.",
+      "source": "."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "dianran-local",
+  "interface": {
+    "displayName": "点染 Dianran"
+  },
+  "plugins": [
+    {
+      "name": "dianran",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dianran"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

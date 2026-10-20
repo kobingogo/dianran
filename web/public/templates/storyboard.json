@@ -1,0 +1,90 @@
+{
+  "id": "storyboard",
+  "title": "四格分镜",
+  "titleEn": "Storyboard",
+  "description": "写下故事和画风，按镜头顺序生成 4 张横版分镜，适合短片、广告脚本预演。",
+  "descriptionEn": "Write the story and art style, then render four widescreen shots in order for short films or ad previs.",
+  "tags": [
+    "分镜",
+    "视频"
+  ],
+  "accent": "#7A4FB5",
+  "nodes": [
+    {
+      "key": "story",
+      "type": "text",
+      "title": "故事与画风（先改这里）",
+      "x": 0,
+      "y": 415,
+      "w": 340,
+      "h": 280,
+      "content": "故事：一个小女孩在雨夜捡到一只发光的纸鹤，纸鹤带她穿过城市的屋顶，最后落在一盏路灯上，雨停了。\n画风：电影感的赛璐璐动画风格，冷暖对比（蓝色夜雨 + 暖黄色光），宽银幕构图，统一的角色造型：短发、黄色雨衣、红色雨靴。"
+    },
+    {
+      "key": "shot1",
+      "type": "config",
+      "title": "镜头 1 · 相遇",
+      "x": 440,
+      "y": 0,
+      "w": 340,
+      "h": 240,
+      "size": "16:9",
+      "count": 1,
+      "prompt": "{{story}}\n镜头 1（远景）：雨夜的小巷，小女孩蹲下，发现地上一只微微发光的纸鹤。"
+    },
+    {
+      "key": "shot2",
+      "type": "config",
+      "title": "镜头 2 · 起飞",
+      "x": 440,
+      "y": 290,
+      "w": 340,
+      "h": 240,
+      "size": "16:9",
+      "count": 1,
+      "prompt": "{{story}}\n镜头 2（中景）：纸鹤从她掌心飞起，光芒照亮她惊讶的脸，雨滴在光中闪烁。"
+    },
+    {
+      "key": "shot3",
+      "type": "config",
+      "title": "镜头 3 · 屋顶",
+      "x": 440,
+      "y": 580,
+      "w": 340,
+      "h": 240,
+      "size": "16:9",
+      "count": 1,
+      "prompt": "{{story}}\n镜头 3（俯拍大远景）：女孩追着纸鹤奔跑在城市屋顶上，远处是灯火和雨幕。"
+    },
+    {
+      "key": "shot4",
+      "type": "config",
+      "title": "镜头 4 · 雨停",
+      "x": 440,
+      "y": 870,
+      "w": 340,
+      "h": 240,
+      "size": "16:9",
+      "count": 1,
+      "prompt": "{{story}}\n镜头 4（仰拍）：纸鹤停在一盏路灯上化作暖光，雨停了，女孩抬头微笑。"
+    }
+  ],
+  "connections": [
+    [
+      "story",
+      "shot1"
+    ],
+    [
+      "story",
+      "shot2"
+    ],
+    [
+      "story",
+      "shot3"
+    ],
+    [
+      "story",
+      "shot4"
+    ]
+  ]
+}

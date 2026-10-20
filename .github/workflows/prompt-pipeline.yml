@@ -1,0 +1,99 @@
+name: Prompt library update
+run-name: prompt-pipeline ${{ inputs.request_id || github.run_id }}
+on:
+  schedule:
+    # UTC 22:30 / 10:30 = Asia/Taipei 06:30 / 18:30.
+    - cron: '30 10,22 * * *'
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Maintainer request identity (leave empty for a GitHub manual run)
+        type: string
+      verify_deployment:
+        description: Re-publish the current published snapshot without collecting new prompts
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: dianran-prompt-publication
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROMPT_RESOURCE_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.PROMPT_VERCEL_TOKEN }}
+      TWITTER_COOKIES: ${{ secrets.TWITTER_COOKIES }}
+      TWSCRAPE_PYTHON: python
+      CIVITAI_API_TOKEN: ${{ secrets.CIVITAI_API_TOKEN }}
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      DIANRAN_PROMPT_PIPELINE_ROOT: ${{ github.workspace }}/resources
+      DIANRAN_PROMPT_BASELINE_COMMIT: ${{ vars.PROMPT_BASELINE_COMMIT }}
+      DIANRAN_PIPELINE_RESULT_FILE: ${{ github.workspace }}/pipeline-result/result.json
+      DIANRAN_PIPELINE_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      X_PROVIDER: twscrape
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: code
+      - name: Check maintainer credentials
+        run: |
+          test -n "$GH_TOKEN" && test -n "$VERCEL_TOKEN" && test -n "$TWITTER_COOKIES"
+          echo "TWSCRAPE_DB=$RUNNER_TEMP/twscrape/accounts.db" >> "$GITHUB_ENV"
+          mkdir -p pipeline-result
+      - uses: actions/checkout@v4
+        with:
+          repository: kobingogo/dianran-prompts
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.PROMPT_RESOURCE_TOKEN }}
+          path: resources
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare collection tools
+        run: |
+          npm ci --prefix code/brand --no-audit --no-fund
+          pip install -r code/brand/pipeline/requirements-x.txt
+          npm install --global vercel@58.5.1
+          git -C resources config user.name dianran-prompt-maintainer
+          git -C resources config user.email prompt-maintainer@users.noreply.github.com
+      - name: Check deployment credentials
+        run: |
+          if ! node code/brand/pipeline/vercel-project.mjs; then
+            echo "::error::无法访问 Vercel dianran-prompts 项目，请核对 PROMPT_VERCEL_TOKEN 的项目授权。"
+            node --input-type=module -e 'import { writeFileSync } from "node:fs"; writeFileSync(process.env.DIANRAN_PIPELINE_RESULT_FILE, JSON.stringify({status:"failed", snapshot:"", added:0, sources:"Vercel 项目访问检查失败，请核对 PROMPT_VERCEL_TOKEN；未执行采集或发布", runUrl:process.env.DIANRAN_PIPELINE_RUN_URL}));'
+            exit 1
+          fi
+      - name: Verify existing snapshot deployment
+        if: inputs.verify_deployment == true
+        run: |
+          git -C resources fetch origin codex/prompt-published
+          SHA="$(git -C resources rev-parse FETCH_HEAD)"
+          bash code/brand/pipeline/deploy.sh prompts "$SHA"
+          git -C resources show "$SHA:prompt-sources/manifest.json" > pipeline-result/manifest.json
+          node --input-type=module -e 'import { readFileSync, writeFileSync } from "node:fs"; const snapshot = JSON.parse(readFileSync("pipeline-result/manifest.json", "utf8")).generatedAt; writeFileSync(process.env.DIANRAN_PIPELINE_RESULT_FILE, JSON.stringify({status:"published", snapshot, added:0, sources:"仅重新发布当前已上线快照，未执行采集", runUrl:process.env.DIANRAN_PIPELINE_RUN_URL}));'
+      - name: Collect and publish
+        if: inputs.verify_deployment != true
+        run: bash code/brand/pipeline/run-twicedaily.sh
+      - name: Preserve failure receipt
+        if: always()
+        run: |
+          mkdir -p pipeline-result
+          if [ ! -f pipeline-result/result.json ]; then
+            node --input-type=module -e 'import { writeFileSync } from "node:fs"; writeFileSync(process.env.DIANRAN_PIPELINE_RESULT_FILE, JSON.stringify({status:"failed", snapshot:"", added:0, sources:"流水线未完成，请查看云端运行记录", runUrl:process.env.DIANRAN_PIPELINE_RUN_URL}));'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prompt-pipeline-result
+          path: pipeline-result/result.json
+      - name: Write execution summary
+        if: always()
+        run: |
+          if [ -f pipeline-result/result.json ]; then cat pipeline-result/result.json >> "$GITHUB_STEP_SUMMARY"; fi
+          if [ -f resources/candidates/merge-report.json ]; then cat resources/candidates/merge-report.json >> "$GITHUB_STEP_SUMMARY"; fi
