@@ -1,16 +1,18 @@
 import { recordCapabilityEvidence } from "@/stores/use-capability-evidence-store";
 // [dianran] 3-step first-run guide: pick provider -> paste key -> auto-fetch models & assign defaults.
 import { useEffect, useMemo, useState } from "react";
-import { App, Button, Input, Modal, Segmented, Select, Steps, Switch, Tag } from "antd";
-import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, KeyRound, LoaderCircle, PencilRuler, ShieldCheck, Sparkles } from "lucide-react";
+import { App, Button, Input, Modal, Segmented, Select, Steps, Switch, Tag, Upload } from "antd";
+import { ArrowLeft, ArrowRight, Check, Copy, ExternalLink, FileKey, KeyRound, LoaderCircle, PencilRuler, ShieldCheck, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import copy from "copy-to-clipboard";
 
-import { BRAND, LOCAL_PROXY_PACKAGE, PRESET_PROVIDERS, type PresetProvider } from "@/constant/brand";
+import { BRAND, PRESET_PROVIDERS, type PresetProvider } from "@/constant/brand";
 import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 import { toFriendlyError } from "@/lib/friendly-error";
 import { fetchImageModels } from "@/services/api/image";
+import { pairLocalProxy } from "@/services/api/local-proxy";
+import { normalizeProxyBase, normalizeProxyTarget } from "../../../../canvas-proxy/policy.js";
 import { createModelChannel, DEFAULT_LOCAL_PROXY_URL, encodeChannelModel, modelOptionsFromChannels, useConfigStore, type AiConfig, type ApiCallFormat, type ModelCapability } from "@/stores/use-config-store";
 import { buildChannelModels, type PickedDefaults } from "./model-defaults";
 import { useOnboardingStore } from "./onboarding-store";
@@ -57,7 +59,9 @@ export function OnboardingWizard() {
     const [manualNames, setManualNames] = useState<string[]>([]);
     const [defaults, setDefaults] = useState<PickedDefaults>({});
     const [finished, setFinished] = useState(false);
+    const [pairing, setPairing] = useState(false);
     const proxyEnabled = useConfigStore((state) => state.config.proxyEnabled);
+    const proxyUrl = useConfigStore((state) => state.config.proxyUrl) || DEFAULT_LOCAL_PROXY_URL;
     const updateConfig = useConfigStore((state) => state.updateConfig);
 
     // Reset / seed whenever the guide opens.
@@ -139,7 +143,12 @@ export function OnboardingWizard() {
         if (path) navigate(path);
     };
 
-    const proxyCommand = `npx ${LOCAL_PROXY_PACKAGE}@latest`;
+    let proxyCommand = "";
+    try {
+        const proxy = new URL(normalizeProxyBase(proxyUrl));
+        const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+        if (proxy.protocol === "http:") proxyCommand = `node canvas-proxy/index.js --host ${quote(proxy.hostname)} --port ${quote(proxy.port || "80")} --origin ${quote(window.location.origin)} --target ${quote(normalizeProxyTarget(baseUrl))}`;
+    } catch { /* Do not suggest a command granting access to an invalid service or proxy address. */ }
     const fetchKind = fetchState.status === "error" ? toFriendlyError(fetchState.error).kind : undefined;
 
     const stepProvider = (
@@ -237,12 +246,18 @@ export function OnboardingWizard() {
                     {fetchKind === "network" ? (
                         <div className="mt-4 space-y-2 border-t border-red-200/70 pt-3 text-xs text-stone-600 dark:border-red-900/50 dark:text-stone-300">
                             <div>{t("onboarding.fetch.proxyIntro")}</div>
-                            <div className="flex items-center gap-2 rounded-md bg-white px-2 py-1.5 font-mono text-[11px] dark:bg-stone-900">
+                            <div>从点染项目根目录运行配套代理（0.2.0 或更新版），导入启动时生成的配对文件。旧版代理不支持配对；授权仅限下方网页来源与服务地址。</div>
+                            {proxyCommand ? <div className="flex items-center gap-2 rounded-md bg-white px-2 py-1.5 font-mono text-[11px] dark:bg-stone-900">
                                 <span className="min-w-0 flex-1 truncate">{proxyCommand}</span>
                                 <button type="button" className="text-stone-400 hover:text-stone-700" onClick={() => (copy(proxyCommand), message.success(t("onboarding.copied")))} aria-label="copy">
                                     <Copy className="size-3.5" />
                                 </button>
-                            </div>
+                            </div> : <div>请先核对渠道基础地址与本机 HTTP 代理地址。</div>}
+                            <Upload accept=".json" showUploadList={false} beforeUpload={(file) => {
+                                setPairing(true);
+                                void file.text().then(pairLocalProxy).then((url) => { updateConfig("proxyUrl", url); updateConfig("proxyEnabled", true); message.success("本地代理已配对，请点击重试读取模型"); }).catch((error) => message.error(error instanceof Error ? error.message : "代理配对失败")).finally(() => setPairing(false));
+                                return false;
+                            }}><Button size="small" loading={pairing} icon={<FileKey className="size-3.5" />}>导入代理配对文件</Button></Upload>
                             <div className="flex items-center gap-2">
                                 <Switch
                                     size="small"
@@ -252,7 +267,7 @@ export function OnboardingWizard() {
                                         if (checked && !useConfigStore.getState().config.proxyUrl) updateConfig("proxyUrl", DEFAULT_LOCAL_PROXY_URL);
                                     }}
                                 />
-                                <span>{t("onboarding.fetch.proxySwitch", { url: DEFAULT_LOCAL_PROXY_URL })}</span>
+                                <span>{t("onboarding.fetch.proxySwitch", { url: proxyUrl })}</span>
                             </div>
                         </div>
                     ) : null}

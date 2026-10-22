@@ -14,7 +14,7 @@ async (page) => {
         return route.continue();
     });
     await page.goto(base + "/image?provider=whatstoken");
-    const key = page.locator('input[type="password"]');
+    const key = page.getByPlaceholder("sk-...", { exact: true });
     await key.waitFor();
     if (await key.inputValue() || new URL(page.url()).searchParams.has("provider")) throw Error("Token input must start blank; provider link should be consumed");
     if (requests.length) throw Error("Opening Token dialog must not call provider");
