@@ -181,13 +181,13 @@ async function getAllPrompts(): Promise<Prompt[]> {
     return picked.size ? all.filter((item) => item.pickOf || !picked.has(item.id)) : all;
 }
 
-export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page = 1, pageSize = 20 }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number } = {}) {
+export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, sort = "newest", page = 1, pageSize = 20 }: { keyword?: string; tag?: string[]; category?: string; sort?: "newest" | "title"; page?: number; pageSize?: number } = {}) {
     const items = await getAllPrompts();
     const normalizedKeyword = keyword.trim().toLowerCase();
     const normalizedPage = Math.max(1, page);
     const normalizedPageSize = Math.max(1, Math.min(100, pageSize));
     const withoutTagFilter = filterPrompts(items, { keyword: normalizedKeyword, category, tags: [] });
-    const filtered = filterPrompts(items, { keyword: normalizedKeyword, category, tags: tag });
+    const filtered = filterPrompts(items, { keyword: normalizedKeyword, category, tags: tag }).sort((a, b) => sort === "title" ? a.title.localeCompare(b.title) : (Date.parse(b.updatedAt || b.createdAt || "") || 0) - (Date.parse(a.updatedAt || a.createdAt || "") || 0) || a.title.localeCompare(b.title));
     const categories = enabledSources().map((source) => source.name);
 
     return {
@@ -253,12 +253,18 @@ function filterPrompts(items: Prompt[], options: { keyword: string; category: st
         if (isActiveOption(options.category) && item.category !== options.category) return false;
         if (options.tags.length && !options.tags.some((tag) => item.tags.includes(tag))) return false;
         if (!options.keyword) return true;
-        return [item.title, item.prompt, item.description, item.category, ...item.tags].join(" ").toLowerCase().includes(options.keyword);
+        return [item.title, item.prompt, item.description, item.category, item.author || "", item.imageModel || item.model || "", ...item.tags].join(" ").toLowerCase().includes(options.keyword);
     });
 }
 
 function collectTags(items: Prompt[]) {
-    return Array.from(new Set(items.flatMap((item) => item.tags).filter(Boolean)));
+    const counts = new Map<string, number>();
+    for (const item of items) {
+        for (const tag of new Set(item.tags.filter((value) => value && !value.startsWith("@") && value !== item.author && value !== item.imageModel && value !== item.model && value !== "图像"))) {
+            counts.set(tag, (counts.get(tag) || 0) + 1);
+        }
+    }
+    return [...counts.keys()].sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0) || a.localeCompare(b));
 }
 
 function isActiveOption(value: string) {

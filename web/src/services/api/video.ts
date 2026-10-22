@@ -6,6 +6,7 @@ import axios from "axios";
 import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
+import { presetApiFlags } from "@/constant/brand";
 import { dataUrlToFile, readFileAsDataUrl } from "@/lib/image-utils";
 import { planVideoRequest } from "@/lib/model-capabilities";
 import { getMediaBlob, resolveMediaUrl, uploadMediaFile, type UploadedFile } from "@/services/file-storage";
@@ -18,6 +19,7 @@ import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
 type VideoResponse = { id: string; status?: string; error?: { message?: string }; url?: string; result_url?: string; video_url?: string; content?: { video_url?: string; url?: string } | null };
 type ApiVideoResponse = VideoResponse | { code?: number | string; data?: VideoResponse | null; msg?: string; message?: string; error?: { message?: string } };
 type ApiEnvelope<T> = T | { code?: number | string; data?: T | null; msg?: string; message?: string; error?: { message?: string } };
+type WhatsTokenVideoResponse = Omit<VideoResponse, "id"> & { id?: string; task_id?: string; data?: Array<{ url?: string }> };
 type RequestOptions = { signal?: AbortSignal };
 type VideoMediaOptions = RequestOptions & { videos?: ReferenceVideo[]; audios?: ReferenceAudio[] };
 const apiText = (key: string, options?: Record<string, unknown>) => i18n.t(`apiErrors.${key}`, options);
@@ -82,7 +84,7 @@ async function createVideoGenerationTaskOwned(config: AiConfig, prompt: string, 
         catch (error) { throw generationError(error, readAxiosError(error, apiText("videoTaskCreateFailed"))); }
     }
     assertVideoConfig(requestConfig, requestConfig.model);
-    const task = await (requestConfig.apiFormat === "gemini" ? createGeminiVideoTask(requestConfig, selectedModel, prompt, references, options) : createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options));
+    const task = await (requestConfig.apiFormat === "gemini" ? createGeminiVideoTask(requestConfig, selectedModel, prompt, references, options) : usesWhatsTokenWan(requestConfig) ? createWhatsTokenVideoTask(requestConfig, selectedModel, prompt, references, options) : createOpenAIVideoTask(requestConfig, selectedModel, prompt, references, options));
     return { ...task, endpoint: requestConfig.baseUrl };
 }
 
@@ -97,7 +99,52 @@ async function pollVideoGenerationTaskOwned(config: AiConfig, task: VideoGenerat
     if (task.endpoint && task.endpoint !== requestConfig.baseUrl) throw new Error("任务所属渠道地址已改变，请恢复原渠道地址后取任务状态");
     assertVideoConfig(requestConfig, requestConfig.model);
     if (task.provider === "gemini") return pollGeminiVideoTask(requestConfig, task, options);
+    if (usesWhatsTokenWan(requestConfig)) return pollWhatsTokenVideoTask(requestConfig, task, options);
     return pollOpenAIVideoTask(requestConfig, task, options);
+}
+
+function usesWhatsTokenWan(config: AiConfig) {
+    return presetApiFlags(config.baseUrl).videoApi === "whatstoken" && /^wan3\.0-video(?:-|$)/i.test(modelOptionName(config.model));
+}
+
+async function createWhatsTokenVideoTask(config: AiConfig, model: string, prompt: string, references: ReferenceImage[], options?: VideoMediaOptions): Promise<VideoGenerationTask> {
+    const body = await prepareGenerationInput(async () => {
+        const videos = options?.videos || [], audios = options?.audios || [];
+        const mode = resolveVideoMode(config.videoMode, references.length);
+        if (mode === "frames" && references.length && (videos.length || audios.length)) throw new Error("Wan 首尾帧不能与参考视频或音频混用，请切换到参考模式");
+        if (audios.length && !references.length && !videos.length) throw new Error("Wan 音频参考需要同时添加参考图片或视频");
+        // WhatsToken documents URL inputs; Wan's upstream also supports base64 images. Local audio/video need a hosted URL.
+        const mediaUrl = (item: ReferenceVideo | ReferenceAudio) => {
+            if (!isPublicMediaUrl(item.url)) throw new Error("WhatsToken 视频或音频参考需要可公开访问的 HTTP(S) 地址，当前本地文件尚未提交");
+            return item.url;
+        };
+        const videoUrls = videos.map(mediaUrl), audioUrls = audios.map(mediaUrl);
+        const images = await Promise.all(references.map(async (image, index) => ({ url: await imageToDataUrl(image), role: mode === "reference" ? "reference_image" : index === 0 ? "first_frame" : "last_frame" })));
+        const plan = videoPlan(config, model);
+        return { model: modelOptionName(model), prompt, resolution: plan.resolution.toUpperCase(), ...(plan.ratio === "auto" ? {} : { ratio: plan.ratio }), duration: plan.seconds, ...(images.length ? { images } : {}), ...(videoUrls.length ? { videos: videoUrls } : {}), ...(audioUrls.length ? { audios: audioUrls } : {}) };
+    });
+    try {
+        const created = (await axios.post<WhatsTokenVideoResponse>(aiApiUrl(config, "/video/generations"), body, { headers: aiHeaders(config, "application/json"), signal: options?.signal })).data;
+        if (created.error || created.status === "failed" || created.status === "cancelled") throw new Error(readApiErrorMessage(created) || apiText("videoGenerationFailed"));
+        const id = created.task_id || created.id;
+        if (!id) throw new Error(apiText("noVideoTaskId"));
+        return { id, provider: "openai", model };
+    } catch (error) {
+        throw generationError(error, readAxiosError(error, apiText("videoTaskCreateFailed")));
+    }
+}
+
+async function pollWhatsTokenVideoTask(config: AiConfig, task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
+    try {
+        const video = (await axios.get<WhatsTokenVideoResponse>(aiApiUrl(config, `/video/generations/${encodeURIComponent(task.id)}`), { headers: aiHeaders(config), signal: options?.signal })).data;
+        if (video.error || video.status === "failed" || video.status === "cancelled") return { status: "failed", error: readApiErrorMessage(video) || apiText("videoGenerationFailed") };
+        if (video.status !== "completed") return { status: "pending" };
+        const url = video.data?.map((item) => item.url).find((value): value is string => typeof value === "string" && isPublicMediaUrl(value));
+        if (!url) return { status: "failed", error: apiText("noPlayableVideo") };
+        return { status: "completed", result: await videoResultFromUrl(url, options) };
+    } catch (error) {
+        throw new Error(readAxiosError(error, apiText("videoTaskQueryFailed")));
+    }
 }
 
 async function createPluginVideoTask(config: AiConfig, model: string, script: string, prompt: string, references: ReferenceImage[], options?: VideoMediaOptions): Promise<VideoGenerationTask> {

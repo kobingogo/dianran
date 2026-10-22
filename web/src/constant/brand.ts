@@ -81,6 +81,8 @@ export type PresetProvider = {
      * SiliconFlow's body (image_size / batch_size / image); "chat" = /v1/chat/completions with modalities ["image","text"] (OpenRouter).
      */
     imageApi?: "openai" | "siliconflow" | "chat";
+    /** Wan uses JSON /video/generations on WhatsToken. Other video models retain their existing protocol. */
+    videoApi?: "whatstoken";
 };
 
 /** Optional "official" provider injected at build time (e.g. your own new-api relay), shown first in the guide. */
@@ -101,6 +103,16 @@ const featuredProvider: PresetProvider[] = featuredBaseUrl
 
 export const PRESET_PROVIDERS: PresetProvider[] = [
     ...featuredProvider,
+    {
+        id: "whatstoken",
+        name: { "zh-CN": "WhatsToken", "en-US": "WhatsToken" },
+        baseUrl: "https://www.whatstoken.ai/v1",
+        apiFormat: "openai",
+        region: "any",
+        note: { "zh-CN": "读取渠道模型，自由选择生图与视频模型", "en-US": "Fetch available models and choose image or video models" },
+        recommended: { image: ["gpt-image-2-official"], video: ["wan3.0-video"] },
+        videoApi: "whatstoken",
+    },
     {
         id: "relay",
         name: { "zh-CN": "OpenAI 兼容中转", "en-US": "OpenAI-compatible relay" },
@@ -158,7 +170,7 @@ export const PRESET_PROVIDERS: PresetProvider[] = [
 ];
 
 /** Endpoint flags of the preset whose base URL host matches (works for channels created before the flags existed). */
-export function presetApiFlags(baseUrl: string): Pick<PresetProvider, "textApi" | "imageApi"> {
+export function presetApiFlags(baseUrl: string): Pick<PresetProvider, "textApi" | "imageApi" | "videoApi"> {
     const host = (value: string) => {
         try {
             return new URL(value).host.toLowerCase();
@@ -168,5 +180,5 @@ export function presetApiFlags(baseUrl: string): Pick<PresetProvider, "textApi" 
     };
     const target = host(baseUrl.trim());
     const preset = target ? PRESET_PROVIDERS.find((item) => item.baseUrl && host(item.baseUrl) === target) : undefined;
-    return { textApi: preset?.textApi, imageApi: preset?.imageApi };
+    return { textApi: preset?.textApi, imageApi: preset?.imageApi, videoApi: preset?.videoApi };
 }
