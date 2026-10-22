@@ -15,6 +15,7 @@ export function fixture(){
  const mocks={
   '@/i18n':{t:(key,opts)=>opts?.defaultValue||key},
   '@/services/api/proxy-transport':{authorizedProxyPairing:()=>null},
+  '@/services/api/model-gateway':{modelGatewayUrl:()=>''},
   '@/lib/write-ownership':{businessOperation:owned,assertBusinessWriter:()=>{if(!writer)throw Error('readonly')}},
   '@/lib/localforage-storage':{canvasIndexedStorage:storage},
   '@/services/image-storage':{ensureImagePreview:async()=>{},resolveImageUrl:async key=>images.has(key)?`blob:${key}`:'',getImageBlob:async key=>images.get(key)||null,setImageBlob:async(key,blob)=>{images.set(key,blob);return `blob:${key}`},deleteStoredImages:async keys=>keys.forEach(key=>images.delete(key)),imageToDataUrl:async()=> 'data:image/png;base64,a',uploadImage:async()=>{throw Error('unexpected image download')}},

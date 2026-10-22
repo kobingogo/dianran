@@ -16,7 +16,7 @@ function fixture() {
     const storage=load("../src/stores/use-local-proxy-store.ts",{zustand:require("zustand"),"@/constant/brand":{storageKey:(key)=>key},"@/lib/write-ownership":{assertBusinessWriter:()=>{if(!writer)throw new Error("readonly");}},"../../../canvas-proxy/policy.js":policy},{window});
     const fetch=async(input,init)=>{calls.push({input:String(input),init});if(failNetwork)throw new TypeError("Failed to fetch");return Response.json(response,{status});};
     const axios={interceptors:{request:{use:(fn)=>{interceptors.request=fn;}},response:{use:(success,failure)=>{interceptors.failure=failure;}}}};
-    const transport=load("../src/services/api/proxy-transport.ts",{axios,"@/stores/use-local-proxy-store":storage,"../../../../canvas-proxy/policy.js":policy},{window,fetch});
+    const transport=load("../src/services/api/proxy-transport.ts",{axios,"./model-gateway":{isModelGatewayRequest:()=>false},"@/stores/use-local-proxy-store":storage,"../../../../canvas-proxy/policy.js":policy},{window,fetch});
     const service=load("../src/services/api/local-proxy.ts",{"@/stores/use-config-store":{normalizeLocalProxyUrl:(url)=>url,LOCAL_PROXY_PACKAGE:"@kobinflow/canvas-proxy"},"@/stores/use-local-proxy-store":storage,"./proxy-transport":transport,"../../../../canvas-proxy/policy.js":policy},{window,fetch});
     return {storage,transport,service,window,database,calls,pairing,interceptors,respond:(value,code=200)=>{response=value;status=code;},failNetwork:()=>{failNetwork=true;},readonly:()=>{writer=false;}};
 }

@@ -16,6 +16,7 @@ export type RawPrompt = {
     sourceUrl?: string;
     imageMode?: string;
     imageModel?: string;
+    model?: string;
     imageSize?: string;
     imageCount?: number;
     /** [dianran] 点染精选 copies point back to the original entry id. */
@@ -78,6 +79,7 @@ function normalizeItems(values: unknown[], source: PromptSource) {
             sourceUrl: absoluteUrl(source.url, stringValue(record.sourceUrl)),
             imageMode: optionalString(record.imageMode),
             imageModel: optionalString(record.imageModel),
+            model: optionalString(record.model),
             imageSize: optionalString(record.imageSize),
             imageCount: optionalNumber(record.imageCount),
             pickOf: optionalString(record.pickOf),

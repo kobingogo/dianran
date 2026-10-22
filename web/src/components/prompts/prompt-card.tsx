@@ -18,7 +18,7 @@ function PromptCoverPlaceholder({ className }: { className: string }) {
 export function PromptCover({ src, alt, className, loading = "lazy" }: { src?: string; alt: string; className: string; loading?: "lazy" | "eager" }) {
     const [failed, setFailed] = useState("");
     if (!src || failed === src) return <PromptCoverPlaceholder className={className} />;
-    return <img src={src} alt={alt} className={`bg-stone-100 object-cover dark:bg-stone-900 ${className}`} loading={loading} decoding="async" onError={() => setFailed(src)} />;
+    return <img src={src} alt={alt} className={`bg-stone-100 object-contain dark:bg-stone-900 ${className}`} loading={loading} decoding="async" onError={() => setFailed(src)} />;
 }
 
 export function PromptCard({
@@ -56,12 +56,19 @@ export function PromptCard({
                 <div className={compact ? "px-3 py-2.5" : "p-4"}>
                     <div className="flex items-start justify-between gap-3">
                         <h2 className="line-clamp-1 text-sm font-semibold text-stone-950 dark:text-stone-100">{item.title}</h2>
-                        {!compact ? <span className="shrink-0 text-xs text-stone-400 dark:text-stone-500">{formatPromptDate(item.updatedAt, i18n.resolvedLanguage)}</span> : null}
+                        {!compact ? <span className="shrink-0 text-xs text-stone-400 dark:text-stone-500">{formatPromptDate(item.updatedAt || item.createdAt, i18n.resolvedLanguage)}</span> : null}
                     </div>
-                    {!compact ? <><p className="mt-2 line-clamp-3 text-xs leading-5 text-stone-600 dark:text-stone-400">{item.description || item.prompt}</p>{item.author && /^https:\/\/((x|twitter)\.com|civitai\.com)\//.test(item.sourceUrl || "") ? <p className="mt-2 truncate text-[11px] text-stone-400 dark:text-stone-500">{item.author} · {/civitai\.com/.test(item.sourceUrl || "") ? "Civitai" : "X"}</p> : null}<div className="mt-3 flex flex-wrap gap-1.5">{item.tags.map((tag) => <Tag key={tag} className="m-0 text-[11px]">{tag}</Tag>)}</div></> : null}
+                    {!compact ? (
+                        <>
+                            <p className="mt-2 line-clamp-3 text-xs leading-5 text-stone-600 dark:text-stone-400">{item.description || item.prompt}</p>
+                            {item.author && /^https:\/\/((x|twitter)\.com|civitai\.com)\//.test(item.sourceUrl || "") ? <p className="mt-2 truncate text-[11px] text-stone-400 dark:text-stone-500">{item.author} · {/civitai\.com/.test(item.sourceUrl || "") ? "Civitai" : "X"}</p> : null}
+                            {item.imageModel || item.model ? <p className="mt-1 truncate text-[11px] text-stone-500 dark:text-stone-400">{item.imageModel || item.model}</p> : null}
+                            <div className="mt-3 flex flex-wrap gap-1.5">{item.tags.filter((tag) => !/^@/.test(tag) && tag !== item.imageModel && tag !== item.model && tag !== "图像").slice(0, 2).map((tag) => <Tag key={tag} className="m-0 text-[11px]">{tag}</Tag>)}</div>
+                        </>
+                    ) : null}
                 </div>
             </button>
-            {!compact ? <div className="mt-auto flex items-center gap-2 px-4 pb-4"><Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={() => {
+            {!compact ? <div className="mt-auto flex flex-wrap items-center gap-2 px-4 pb-4"><Button block={actionType === "primary"} type={actionType} size="small" icon={actionIcon} onClick={() => {
                 trackPromptUsage(item.id, actionLabel ? "use" : "copy");
                 onCopy();
             }}>{actionLabel || t("common.copy")}</Button>{extraAction}</div> : null}

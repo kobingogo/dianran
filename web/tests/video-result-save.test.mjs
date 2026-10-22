@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url), ts = require('typescript');
 function load(upload) {
-    const mocks = { '@/lib/generation-outcome': {}, '@/stores/use-capability-evidence-store': {}, '@/services/api/proxy-transport': {}, '@/lib/write-ownership': { businessOperation: (operation) => operation }, axios: {}, nanoid: {}, '@/i18n': { t: (key) => key }, '@/lib/image-utils': {}, '@/lib/model-capabilities': {}, '@/services/file-storage': { uploadMediaFile: upload }, '@/services/image-storage': {}, '@/stores/use-config-store': {}, './model-plugin': {} };
+    const mocks = { "@/constant/brand": { presetApiFlags: () => ({}) }, '@/lib/generation-outcome': {}, '@/stores/use-capability-evidence-store': {}, '@/services/api/proxy-transport': {}, '@/lib/write-ownership': { businessOperation: (operation) => operation }, axios: {}, nanoid: {}, '@/i18n': { t: (key) => key }, '@/lib/image-utils': {}, '@/lib/model-capabilities': {}, '@/services/file-storage': { uploadMediaFile: upload }, '@/services/image-storage': {}, '@/stores/use-config-store': {}, './model-plugin': {} };
     const module = { exports: {} }, code = ts.transpileModule(readFileSync(new URL('../src/services/api/video.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
     new Function('require', 'module', 'exports', code)((id) => { assert.ok(id in mocks, `dependency ${id}`); return mocks[id]; }, module, module.exports);
     return module.exports;

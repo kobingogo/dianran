@@ -1,6 +1,6 @@
-import { FolderPlus, Search } from "lucide-react";
-import { type ReactNode, type UIEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { App, Button, Empty, Input, Spin, Tag } from "antd";
+import { ChevronDown, FolderPlus, Search } from "lucide-react";
+import { type ReactNode, type UIEvent, useEffect, useRef, useState } from "react";
+import { App, Button, Dropdown, Empty, Input, Select, Spin, Tag } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { PromptCard } from "@/components/prompts/prompt-card";
@@ -12,20 +12,24 @@ import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { ALL_PROMPTS_OPTION, type Prompt } from "@/services/api/prompts";
 import { showErrorToast } from "@/features/errors/error-toast";
-import { subscribePromptUsageStatus, getPromptUsageStatus } from "@/services/usage-stats";
+import { trackPromptUsage } from "@/services/usage-stats";
+import { useOpenCreationDraft } from "@/hooks/use-open-creation-draft";
 
 export default function PromptsPage() {
     const { message } = App.useApp();
     const { t } = useTranslation();
-    const usageStatus = useSyncExternalStore(subscribePromptUsageStatus, getPromptUsageStatus);
+    const openDraft = useOpenCreationDraft();
     const [titleKeyword, setTitleKeyword] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState(ALL_PROMPTS_OPTION);
+    const [sortBy, setSortBy] = useState<"newest" | "title">("newest");
+    const [showAllTags, setShowAllTags] = useState(false);
     const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
     const addAsset = useAssetStore((state) => state.addAsset);
     const copyText = useCopyText();
     const mutateAsset = useAssetMutation();
-    const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, total: totalPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory });
+    const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, total: totalPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory, sort: sortBy });
+    const visibleTags = showAllTags ? promptTags : [...new Set([...promptTags.slice(0, 12), ...selectedTags])];
 
     useEffect(() => {
         if (query.isError) showErrorToast(message, query.error, t("prompts.loadFailed"));
@@ -72,25 +76,26 @@ export default function PromptsPage() {
                     <div className="text-center">
                         <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">{t("prompts.title")}</h1>
                         <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{t("prompts.total", { count: totalPrompts })}</p>
-                        <p className="mt-1 text-xs text-stone-500">复制与应用次数只是部分交互信号，不代表生成成功或作品质量。{usageStatus === "unavailable" ? "当前部署未启用配套统计 API，上报已停用。" : usageStatus === "available" ? "当前统计 API 可用，批次经确认后记账。" : "统计 API 尚未确认可用；开发环境不上报。"}</p>
+                        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">选择提示词进入工作台，按需添加参考图并确认模型后生成。</p>
                     </div>
                     <div className="mt-5 grid items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
                         <aside className="thin-scrollbar max-h-72 overflow-y-auto border-b border-stone-200 pb-5 lg:sticky lg:top-0 lg:max-h-[calc(100dvh-6rem)] lg:border-b-0 lg:border-r lg:pb-8 lg:pr-5 dark:border-stone-800">
                             <PromptFilter label={t("prompts.category")} options={promptCategoryOptions} selected={selectedCategory} onChange={changeCategory} />
                             <div className="mt-6">
-                                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">{t("prompts.tags")}</div>
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500">{t("prompts.commonTags")}</div>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {promptTags.map((tag) => {
+                                    {visibleTags.map((tag) => {
                                         const active = tag === ALL_PROMPTS_OPTION ? selectedTags.length === 0 : selectedTags.includes(tag);
                                         return <Tag.CheckableTag key={tag} checked={active} className={cn("prompt-filter-tag", active && "is-active")} onChange={() => toggleTag(tag)}>{tag === ALL_PROMPTS_OPTION ? t("common.all") : tag}</Tag.CheckableTag>;
                                     })}
                                 </div>
+                                {promptTags.length > 12 ? <button type="button" className="mt-2 text-xs text-[var(--ant-color-primary)] hover:underline" onClick={() => setShowAllTags((value) => !value)}>{showAllTags ? t("prompts.collapseTags") : t("prompts.showAllTags", { count: promptTags.length })}</button> : null}
                             </div>
                         </aside>
                         <section className="min-w-0">
-                            <Input size="large" prefix={<Search className="size-4 text-stone-400" />} value={titleKeyword} placeholder={t("prompts.search")} onChange={(event) => setTitleKeyword(event.target.value)} />
+                            <Input size="large" allowClear aria-label="搜索提示词、作者或标签" prefix={<Search className="size-4 text-stone-400" />} value={titleKeyword} placeholder="搜索提示词、作者或标签" onChange={(event) => setTitleKeyword(event.target.value)} />
                             {query.isLoading ? <div className="flex h-60 items-center justify-center"><Spin /></div> : null}
-                            {!query.isLoading ? <div className="mt-5"><PromptGrid items={promptItems} onOpen={setSelectedPrompt} renderActions={(item) => <Button type="text" size="small" icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)}>{t("common.addToAssets")}</Button>} onCopy={(item) => copyText(item.prompt, t("common.promptCopied"))} emptyText={t("prompts.empty")} /></div> : null}
+                            {!query.isLoading ? <><div className="mt-5 flex items-center justify-between gap-3"><span className="text-xs text-stone-500 dark:text-stone-400">{t("prompts.resultCount", { count: totalPrompts })}</span><Select<"newest" | "title"> size="small" value={sortBy} onChange={setSortBy} className="w-36" options={[{ value: "newest", label: t("prompts.sortNewest") }, { value: "title", label: t("prompts.sortTitle") }]} /></div><div className="mt-3"><PromptGrid items={promptItems} onOpen={setSelectedPrompt} renderActions={(item) => <><Dropdown trigger={["click"]} menu={{ items: [{ key: "image", label: "生图工作台" }, { key: "video", label: "视频工作台" }], onClick: ({ key }) => { void openDraft(key === "video" ? "video" : "image", { prompt: item.prompt, references: [] }).then((accepted) => { if (accepted) trackPromptUsage(item.id, "use"); }); } }}><Button type="text" size="small">去创作<ChevronDown className="size-3" /></Button></Dropdown><Button type="text" size="small" aria-label={t("common.addToAssets")} title={t("common.addToAssets")} icon={<FolderPlus className="size-3.5" />} onClick={() => savePromptAsset(item)} /></>} onCopy={(item) => copyText(item.prompt, t("common.promptCopied"))} emptyText={t("prompts.empty")} /></div></> : null}
                             <div className="mt-6 text-center text-xs text-stone-500 dark:text-stone-400">{query.isFetchingNextPage ? t("prompts.loading") : query.hasNextPage ? t("prompts.loadMore") : promptItems.length > 0 ? t("prompts.end") : null}</div>
                         </section>
                     </div>

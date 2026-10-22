@@ -35,7 +35,7 @@ docker run --rm -p 3000:3000 infinite-canvas
 - Open `/prompts` to fetch prompt repositories directly from the browser and cache them in IndexedDB.
 - Configure WebDAV if you want to synchronize canvases, assets, and generation history across devices.
 
-Canvas projects and My Assets are primarily stored in the browser. The API key is also stored locally and used by the browser to call OpenAI-compatible endpoints directly.
+Canvas projects, My Assets and API keys are primarily stored in the browser. API requests use the connection configured by the deployment: direct, paired local proxy, or the optional WhatsToken cloud gateway. The cloud gateway forwards the user's Token and content without storing them.
 
 作品按浏览器来源隔离，更换设备、浏览器、域名或端口前请先导出项目和素材备份。项目 ZIP 的恢复范围以清单为准，不包含全部站点数据；本机保存和持久化许可不等于备份。启用本地代理后，生成请求经已配对的本机代理转发；Agent 按批准的工具读取内容，WebDAV 按所选范围同步作品。
 

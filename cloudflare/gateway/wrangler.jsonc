@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dianran-model-gateway",
+  "main": "worker.ts",
+  "account_id": "31322865ae5eaa94dc21810b740ab702",
+  "compatibility_date": "2026-10-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "logpush": false,
+  "vars": {
+    "ALLOWED_ORIGINS": "https://dianran.kobinlab.com,https://dianran-preview-kobingogos-projects.vercel.app"
+  },
+  "ratelimits": [
+    { "name": "GATEWAY_RATE_LIMITER", "namespace_id": "2026102201", "simple": { "limit": 120, "period": 60 } }
+  ]
+}

@@ -6,6 +6,7 @@ import { useConfirmNewGeneration } from "@/hooks/use-confirm-new-generation";
 import { writeOwnership } from "@/lib/write-ownership";
 import { estimateCondition, workflowStepEstimateCondition } from "@/lib/creation-estimates";
 import { useCreationEstimatesStore } from "@/stores/use-creation-estimates-store";
+import { recordLocalDiagnostic } from "@/stores/use-local-diagnostics-store";
 import { CreationComparison, canvasComparisonItems, type ComparisonItem } from "@/components/composer/creation-comparison";
 import { flushSync } from "react-dom";
 import { CanvasWorkflowPanel } from "@/components/canvas/canvas-workflow-panel";
@@ -3452,6 +3453,16 @@ function InfiniteCanvasPage() {
     );
 
     const [comparison, setComparison] = useState<ComparisonItem[] | undefined>();
+    const adoptComparisonImage = (item: ComparisonItem) => {
+        if (!writeOwnership.canWrite()) { message.info("当前页面尚未取得编辑权，请稍后重试。"); return; }
+        const node = nodesRef.current.find((node) => node.id === item.source && node.type === CanvasNodeType.Image);
+        const image = node?.metadata?.images?.find((image) => image.id === item.id);
+        if (!node || !image?.content || (image.status !== "success" && image.status !== "idle")) { message.info("该候选已变化或尚不可用，请重新打开比较。"); return; }
+        setBatchPrimary(node.id, image.id);
+        setComparison((current) => current?.map((candidate) => candidate.source === node.id ? { ...candidate, primary: candidate.id === image.id } : candidate));
+        void recordLocalDiagnostic("candidate-adopted");
+        message.success("已采用为画布主图");
+    };
     const commitWorkflowGraph = (nextNodes: CanvasNodeData[], nextConnections: CanvasConnection[]) => {
         nodesRef.current = nextNodes; connectionsRef.current = nextConnections;
         flushSync(() => { setNodes(nextNodes); setConnections(nextConnections); });
@@ -3524,7 +3535,7 @@ function InfiniteCanvasPage() {
         <main className="relative flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
             <CanvasSidePanel nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onInsertAsset={handleAssetInsert} />
             <section className="relative min-w-0 flex-1 overflow-hidden">
-                <CreationComparison open={comparison !== undefined} items={comparison || []} onClose={() => setComparison(undefined)} />
+                <CreationComparison open={comparison !== undefined} items={comparison || []} onClose={() => setComparison(undefined)} onAdopt={adoptComparisonImage} />
                 <CanvasWorkflowPanel selectedIds={selectedNodeIds} commit={commitWorkflowGraph} execute={executeWorkflowStep} />
                 {imageToolsDialog}
                 <CanvasTopBar

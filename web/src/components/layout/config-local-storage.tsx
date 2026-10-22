@@ -54,7 +54,7 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
         <div className="space-y-3">
             <Alert type="info" showIcon title="本机保存与备份是两件事" description={<>
                 <p>画布、素材和生成记录主要保存在当前浏览器的当前站点。更换设备、浏览器、域名或端口不会自动带走作品；请先导出项目 ZIP 和素材备份，或使用 WebDAV。项目 ZIP 不包含全部站点配置与记录，完整性以导出清单为准。</p>
-                <p>API Key 保存在浏览器，生成时发往所选渠道；启用代理后经本机代理转发。Agent 按批准的工具读取内容，WebDAV 按同步范围上传作品，均不等于内置云账户。</p>
+                <p>API Key 保存在浏览器，调用时发往所选渠道；本站启用云端网关的 whatsToken 请求经网关转发，网关不保存 Key 或生成内容。其他渠道启用本地代理后经已配对的本机代理转发。Agent 按批准的工具读取内容，WebDAV 按同步范围上传作品，均不等于内置云账户。</p>
                 <p>浏览器存储：{persistence === "persistent" ? "已获持久化许可" : persistence === "temporary" ? "未获持久化许可" : persistence === "unsupported" ? "不支持持久化许可查询" : "尚未读取"}。持久化可降低浏览器自动回收风险，不能代替备份，也无法防止手动清除。</p>
                 <Button type="text" disabled={persistence === "persistent" || persistence === "unsupported"} loading={requesting} onClick={async () => {
                     setRequesting(true);
