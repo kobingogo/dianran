@@ -24,3 +24,4 @@ brand/pipeline/reports/
 brand/pipeline/candidates/
 api/node_modules
 .vercel
+cloudflare/gateway/.wrangler/

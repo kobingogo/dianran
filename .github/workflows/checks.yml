@@ -29,9 +29,11 @@ jobs:
         working-directory: web
       - run: npm ci && npm test
         working-directory: canvas-agent
+      - run: npm ci --prefix cloudflare/gateway --no-audit --no-fund && web/node_modules/.bin/tsc --project cloudflare/gateway/tsconfig.json
       - run: npm ci --prefix brand --no-audit --no-fund
       - run: node --test brand/pipeline/manifest-http.test.mjs brand/pipeline/fetch-x.test.mjs brand/pipeline/prompt-key.test.mjs brand/pipeline/redfox-x.test.mjs brand/pipeline/review-integration.test.mjs brand/pipeline/publication-flow.test.mjs && node brand/pipeline/validate.mjs
       - run: bash scripts/check-browser.sh
+      - run: VITE_MODEL_GATEWAY_URL=https://dianran-model-gateway.yangling7212.workers.dev/api/model-gateway bash scripts/check-browser.sh model-gateway
       - uses: actions/upload-artifact@v4
         if: always()
         with:

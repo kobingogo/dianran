@@ -76,7 +76,8 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             region: { cn: "国内直连", global: "需海外网络", any: "看服务商" },
             provider: { description: "选择你已经有 Key 的服务商。没有的话，任意 OpenAI 兼容的中转站也可以。", customUrl: "填写你的接口地址", custom: "自定义服务" },
             key: { change: "换一个", baseUrl: "接口地址（Base URL）", baseUrlHint: "一般以 /v1 结尾，比如 https://api.example.com/v1", protocol: "协议", openai: "OpenAI 兼容", getKey: "去获取 Key" },
-            privacy: "API Key 只保存在你当前浏览器里，请求由浏览器直接发给服务商，不经过{{name}}的服务器。",
+            privacy: "API Key 保存在当前浏览器；直连时发给所选服务商，启用本机代理时经已配对的代理转发。使用点染云端网关的渠道会在填 Key 时说明。",
+            gatewayPrivacy: "此渠道通过点染云端网关连接，无需启动本机代理。Token 保存在当前浏览器，每次请求经网关转发给 whatsToken；网关不保存 Token 或生成内容。",
             fetch: {
                 loading: "正在从 {{host}} 读取可用模型…",
                 empty: "接口没有返回任何模型",
@@ -168,7 +169,8 @@ export const dianranStrings: Record<"zh-CN" | "en-US", Overrides> = {
             region: { cn: "China direct", global: "Global", any: "Varies" },
             provider: { description: "Pick a provider you already have a key for. Any OpenAI-compatible relay works too.", customUrl: "Enter your base URL", custom: "Custom service" },
             key: { change: "Change", baseUrl: "Base URL", baseUrlHint: "Usually ends with /v1, e.g. https://api.example.com/v1", protocol: "Protocol", openai: "OpenAI compatible", getKey: "Get a key" },
-            privacy: "Your API key stays in this browser. Requests go straight to the provider, never through {{name}} servers.",
+            privacy: "Your API key is stored in this browser. Direct requests go to the provider; the local proxy forwards requests when enabled. Channels using the Dianran cloud gateway explain this before key entry.",
+            gatewayPrivacy: "This channel uses the Dianran cloud gateway; no local proxy is needed. Your Token is stored in this browser and forwarded through the gateway to WhatsToken for each request. The gateway does not store Tokens or generation content.",
             fetch: {
                 loading: "Reading available models from {{host}}…",
                 empty: "The API returned no models",

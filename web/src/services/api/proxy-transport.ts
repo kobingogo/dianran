@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isModelGatewayRequest } from "./model-gateway";
 import { readProxyPairing } from "@/stores/use-local-proxy-store";
 import { PROXY_TOKEN_HEADER, isAuthorizedProxyTarget, normalizeProxyBase } from "../../../../canvas-proxy/policy.js";
 
@@ -14,7 +15,7 @@ export function authorizedProxyPairing(base: string, target?: string) {
 }
 function proxyError(data: { code: string; error: string }) {
     // Forwarding failures and redirects can happen after the upstream accepted a paid request.
-    const unsent = ["PROXY_HOST_DENIED", "PROXY_ORIGIN_DENIED", "PROXY_TARGET_INVALID", "PROXY_TARGET_DENIED", "PROXY_METHOD_DENIED", "PROXY_PAIRING_REQUIRED"].includes(data.code);
+    const unsent = ["PROXY_HOST_DENIED", "PROXY_ORIGIN_DENIED", "PROXY_TARGET_INVALID", "PROXY_TARGET_DENIED", "PROXY_METHOD_DENIED", "PROXY_PAIRING_REQUIRED", "GATEWAY_ORIGIN_DENIED", "GATEWAY_PATH_DENIED", "GATEWAY_METHOD_DENIED", "GATEWAY_HEADERS_DENIED", "GATEWAY_AUTH_REQUIRED", "GATEWAY_UNAVAILABLE", "GATEWAY_RATE_LIMITED"].includes(data.code);
     return Object.assign(new Error(data.error), { outcome: unsent ? "not-submitted" : "unknown" });
 }
 function proxyRequest(input: string) {
@@ -34,17 +35,17 @@ export function proxyRequestHeaders(url: string, original?: HeadersInit) {
 }
 export async function proxyFetch(input: RequestInfo | URL, init?: RequestInit) {
     const url = input instanceof Request ? input.url : String(input);
-    const request = proxyRequest(url);
+    const request = proxyRequest(url) || isModelGatewayRequest(url);
     const headers = proxyRequestHeaders(url, init?.headers || (input instanceof Request ? input.headers : undefined));
     try {
         const response = await fetch(input, { ...init, headers, ...(request ? { credentials: "omit", redirect: "error" } : {}) });
         if (request && !response.ok) {
             const data = await response.clone().json().catch(() => null);
-            if (typeof data?.code === "string" && data.code.startsWith("PROXY_")) throw proxyError(data);
+            if (typeof data?.code === "string" && /^(?:PROXY|GATEWAY)_/.test(data.code)) throw proxyError(data);
         }
         return response;
     } catch (error) {
-        if (request && error instanceof TypeError) throw new Error(LOCAL_PROXY_NETWORK_HELP);
+        if (request && error instanceof TypeError) throw new Error(isModelGatewayRequest(url) ? "无法连接云端网关，结果可能未知，请先核对任务状态" : LOCAL_PROXY_NETWORK_HELP);
         throw error;
     }
 }
@@ -57,16 +58,16 @@ export function installProxyTransport() {
         const headers = proxyRequestHeaders(config.url || "", original as Record<string, string>);
         config.headers.delete(PROXY_TOKEN_HEADER);
         headers.forEach((value, key) => config.headers.set(key, value));
-        if (proxyRequest(config.url || "")) config.withCredentials = false;
+        if (proxyRequest(config.url || "") || isModelGatewayRequest(config.url || "")) config.withCredentials = false;
         return config;
     });
     axios.interceptors.response.use((response) => response, async (error) => {
-        if (proxyRequest(error.config?.url || "")) {
+        if (proxyRequest(error.config?.url || "") || isModelGatewayRequest(error.config?.url || "")) {
             const data = error.response?.data;
             let payload = data;
             if (data instanceof Blob) { try { payload = JSON.parse(await data.text()); } catch { payload = null; } }
-            if (typeof payload?.code === "string" && payload.code.startsWith("PROXY_")) throw proxyError(payload);
-            if (error.code === "ERR_NETWORK") throw new Error(LOCAL_PROXY_NETWORK_HELP);
+            if (typeof payload?.code === "string" && /^(?:PROXY|GATEWAY)_/.test(payload.code)) throw proxyError(payload);
+            if (error.code === "ERR_NETWORK") throw new Error(isModelGatewayRequest(error.config?.url || "") ? "无法连接云端网关，结果可能未知，请先核对任务状态" : LOCAL_PROXY_NETWORK_HELP);
         }
         throw error;
     });

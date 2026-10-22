@@ -1,4 +1,5 @@
 import { authorizedProxyPairing } from "@/services/api/proxy-transport";
+import { modelGatewayUrl } from "@/services/api/model-gateway";
 import { useMemo } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -505,6 +506,8 @@ export function normalizeLocalProxyUrl(value: string) {
 
 /** Prefix an outgoing request with the local forwarding proxy so the browser is not blocked by CORS. */
 export function withLocalProxy(url: string) {
+    const gateway = modelGatewayUrl(url);
+    if (gateway) return gateway;
     const { proxyEnabled, proxyUrl } = useConfigStore.getState().config;
     if (!proxyEnabled || !/^https?:\/\//i.test(url)) return url;
     const base = normalizeLocalProxyUrl(proxyUrl);

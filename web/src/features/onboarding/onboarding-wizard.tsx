@@ -12,6 +12,7 @@ import { FriendlyErrorView } from "@/features/errors/friendly-error-view";
 import { toFriendlyError } from "@/lib/friendly-error";
 import { fetchImageModels } from "@/services/api/image";
 import { pairLocalProxy } from "@/services/api/local-proxy";
+import { modelGatewayUrl } from "@/services/api/model-gateway";
 import { normalizeProxyBase, normalizeProxyTarget } from "../../../../canvas-proxy/policy.js";
 import { createModelChannel, DEFAULT_LOCAL_PROXY_URL, encodeChannelModel, modelOptionsFromChannels, useConfigStore, type AiConfig, type ApiCallFormat, type ModelCapability } from "@/stores/use-config-store";
 import { buildChannelModels, type PickedDefaults } from "./model-defaults";
@@ -150,6 +151,7 @@ export function OnboardingWizard() {
         if (proxy.protocol === "http:") proxyCommand = `node canvas-proxy/index.js --host ${quote(proxy.hostname)} --port ${quote(proxy.port || "80")} --origin ${quote(window.location.origin)} --target ${quote(normalizeProxyTarget(baseUrl))}`;
     } catch { /* Do not suggest a command granting access to an invalid service or proxy address. */ }
     const fetchKind = fetchState.status === "error" ? toFriendlyError(fetchState.error).kind : undefined;
+    const cloudGateway = Boolean(modelGatewayUrl(`${baseUrl.trim().replace(/\/+$/, "").replace(/\/v1$/, "")}/v1/models`));
 
     const stepProvider = (
         <div>
@@ -225,7 +227,7 @@ export function OnboardingWizard() {
             </label>
             <div className="flex items-start gap-1.5 rounded-lg bg-stone-50 px-3 py-2 text-[11px] leading-5 text-stone-500 dark:bg-stone-900 dark:text-stone-400">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
-                {t("onboarding.privacy", { name: BRAND.nameZh })}
+                {cloudGateway ? t("onboarding.gatewayPrivacy") : t("onboarding.privacy", { name: BRAND.nameZh })}
             </div>
         </div>
     );
@@ -243,7 +245,7 @@ export function OnboardingWizard() {
                     <div className="flex justify-center">
                         <FriendlyErrorView error={fetchState.error} onRetry={() => void runFetch()} />
                     </div>
-                    {fetchKind === "network" ? (
+                    {fetchKind === "network" && !cloudGateway ? (
                         <div className="mt-4 space-y-2 border-t border-red-200/70 pt-3 text-xs text-stone-600 dark:border-red-900/50 dark:text-stone-300">
                             <div>{t("onboarding.fetch.proxyIntro")}</div>
                             <div>从点染项目根目录运行配套代理（0.2.0 或更新版），导入启动时生成的配对文件。旧版代理不支持配对；授权仅限下方网页来源与服务地址。</div>
